@@ -1,9 +1,9 @@
 CREATE OR REPLACE FUNCTION public.fn_add_po_to_inventory()
-RETURNS TRIGGER
-LANGUAGE PLPGSQL
-SECURITY DEFINER
-SET search_path = ''
-AS $$
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
 DECLARE
   po_item RECORD;
   v_target_warehouse_category TEXT;
@@ -21,8 +21,9 @@ BEGIN
         WHERE id = v_pr_id;
     END IF;
 
+    -- Set default to 'siap_jual' if target_warehouse_category is NULL
     IF v_target_warehouse_category IS NULL THEN
-        RAISE EXCEPTION 'Target warehouse category not found for PO %', NEW.po_number;
+        v_target_warehouse_category := 'siap_jual';
     END IF;
 
     FOR po_item IN
@@ -63,4 +64,4 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$function$;
