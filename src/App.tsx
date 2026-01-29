@@ -8,7 +8,8 @@ import NotFound from "./pages/NotFound";
 import UserManagementPage from "./pages/admin/users";
 import DashboardPage from "./pages/dashboard/page";
 import OperasionalSchedulingPage from "./pages/operasional/scheduling";
-import BillingReviewPage from "./pages/operasional/billing-review"; // Import the new Billing Review page
+import BillingReviewPage from "./pages/operasional/billing-review";
+import StockMovementPage from "./pages/operasional/stock-movement"; // Import the new Stock Movement page
 
 const queryClient = new QueryClient();
 
@@ -23,7 +24,8 @@ const App = () => (
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/admin/users" element={<UserManagementPage />} />
           <Route path="/operasional/scheduling" element={<OperasionalSchedulingPage />} />
-          <Route path="/operasional/billing-review" element={<BillingReviewPage />} /> {/* New Billing Review route */}
+          <Route path="/operasional/billing-review" element={<BillingReviewPage />} />
+          <Route path="/operasional/stock-movement" element={<StockMovementPage />} /> {/* New Stock Movement route */}
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
