@@ -283,7 +283,27 @@ const BillingReviewPage = () => {
         throw new Error(updateRequestError.message || "Failed to update scheduling request status.");
       }
 
-      showSuccess(`Invoice ${generatedInvoiceNumber} has been issued and sent to Accounting.`);
+      // 4. Call Edge Function to deduct stock
+      const deductStockResponse = await fetch(
+        `https://hhhzugqimtypijkdxxsm.supabase.co/functions/v1/deduct-sales-stock`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ invoice_id: selectedRequest.invoice_id }),
+        }
+      );
+
+      const deductStockData = await deductStockResponse.json();
+
+      if (!deductStockResponse.ok) {
+        throw new Error(deductStockData.error || "Failed to deduct stock for invoice.");
+      }
+
+
+      showSuccess(`Invoice ${generatedInvoiceNumber} has been issued and stock deducted.`);
       setSelectedRequest(null); // Clear selected request
       setInvoiceItems([]); // Clear invoice items
       fetchQueue(); // Refresh the queue
