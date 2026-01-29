@@ -102,9 +102,11 @@ serve(async (req) => {
     for (const item of invoiceItems) {
       const productId = item.product_id;
       const quantityToDeduct = item.quantity;
-      const fromWarehouseCategory = item.scheduling_requests?.product_category;
+      // Use 'siap_jual' as default if product_category from scheduling_requests is null
+      const fromWarehouseCategory = item.scheduling_requests?.product_category || 'siap_jual';
 
       if (!fromWarehouseCategory) {
+        // This case should ideally not be hit with the default, but as a safeguard
         throw new Error(`Product category not found for scheduling request ${item.scheduling_id}. Cannot deduct stock.`);
       }
 
