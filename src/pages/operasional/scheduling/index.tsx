@@ -12,7 +12,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { showSuccess, showError } from "@/utils/toast";
-import { ApproveSchedulingRequestDialog } from "@/components/operasional/ApproveSchedulingRequestDialog";
+import { ApprovalDialog } from "@/components/operasional/ApprovalDialog"; // Import the new ApprovalDialog
 
 const OperasionalSchedulingPage = () => {
   const { session, profile, isLoading: isAuthLoading } = useAuthSession();
@@ -169,8 +169,7 @@ const OperasionalSchedulingPage = () => {
       </Tabs>
 
       <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
-        {/* DialogTrigger is handled within the table columns */}
-        <ApproveSchedulingRequestDialog
+        <ApprovalDialog
           request={selectedRequestToApprove}
           onApproveSuccess={fetchSchedulingRequests}
           onClose={() => setIsApproveDialogOpen(false)}
