@@ -40,7 +40,6 @@ const DashboardPage = () => {
         Redirecting...
       </div>
     );
-  );
   }
 
   const renderDashboardContent = () => {
