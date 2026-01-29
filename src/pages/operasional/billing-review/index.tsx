@@ -46,6 +46,7 @@ type SchedulingRequestQueueItem = {
   technician_name?: string;
   document_url?: string; // Assuming technicians can upload documents/photos
   user_id: string; // The user who created the request
+  invoice_id: string; // The UUID of the DRAFT invoice created in Stage 1
 };
 
 type Product = {
@@ -91,10 +92,11 @@ const BillingReviewPage = () => {
         full_address,
         document_url,
         user_id,
+        invoice_id,
         profiles!assigned_technician_id (full_name)
       `)
       .eq("status", "completed")
-      .eq("invoice_status", "DRAFT");
+      .eq("invoice_status", "DRAFT"); // Filter for DRAFT invoices
 
     if (error) {
       console.error("Error fetching billing review queue:", error);
@@ -143,6 +145,8 @@ const BillingReviewPage = () => {
   const handleSelectRequest = (request: SchedulingRequestQueueItem) => {
     setSelectedRequest(request);
     setInvoiceItems([]); // Clear previous items when selecting a new request
+    // Optionally, fetch existing invoice items if the invoice was partially filled
+    // For now, we assume it's always starting fresh for DRAFT invoices
   };
 
   const handleAddInvoiceItem = () => {
@@ -227,33 +231,27 @@ const BillingReviewPage = () => {
 
     setIsFinalizing(true);
     try {
-      // 1. Create a new invoice
-      const { data: invoiceData, error: invoiceError } = await supabase
+      // 1. Update the existing invoice (created in Stage 1)
+      const { data: updatedInvoice, error: updateInvoiceError } = await supabase
         .from("invoices")
-        .insert({
-          user_id: session?.user?.id,
+        .update({
           invoice_date: format(invoiceDate, "yyyy-MM-dd"),
-          customer_name: selectedRequest.customer_name,
           total_amount: grandTotal,
-          payment_status: "pending", // Default status
-          invoice_status: "issued", // Custom status for this flow
-          type: "sales", // Assuming sales invoice
-          do_number: selectedRequest.do_number,
-          // Other fields can be populated as needed
+          invoice_status: "issued", // Mark as issued
         })
-        .select("id, invoice_number")
+        .eq("id", selectedRequest.invoice_id)
+        .select("invoice_number")
         .single();
 
-      if (invoiceError || !invoiceData) {
-        throw new Error(invoiceError?.message || "Failed to create invoice.");
+      if (updateInvoiceError || !updatedInvoice) {
+        throw new Error(updateInvoiceError?.message || "Failed to update invoice.");
       }
 
-      const newInvoiceId = invoiceData.id;
-      const generatedInvoiceNumber = invoiceData.invoice_number;
+      const generatedInvoiceNumber = updatedInvoice.invoice_number;
 
       // 2. Insert invoice items
       const itemsToInsert = invoiceItems.map((item) => ({
-        invoice_id: newInvoiceId,
+        invoice_id: selectedRequest.invoice_id, // Link to the existing invoice
         user_id: session?.user?.id,
         product_id: item.product_id,
         item_name: item.item_name,
@@ -273,12 +271,11 @@ const BillingReviewPage = () => {
         throw new Error(invoiceItemsError.message || "Failed to insert invoice items.");
       }
 
-      // 3. Update scheduling_requests status and link to invoice
+      // 3. Update scheduling_requests invoice_status to FINAL
       const { error: updateRequestError } = await supabase
         .from("scheduling_requests")
         .update({
-          invoice_status: "FINAL",
-          invoice_id: newInvoiceId,
+          invoice_status: "FINAL", // Mark as finalized
         })
         .eq("id", selectedRequest.id);
 
