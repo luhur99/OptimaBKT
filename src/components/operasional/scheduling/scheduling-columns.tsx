@@ -24,18 +24,25 @@ export type SchedulingRequest = {
   contact_person: string;
   phone_number?: string;
   notes?: string;
+  invoice_id?: string;
+  invoice_status?: string;
+  document_url?: string;
+  user_id: string;
+  product_category?: string;
+  vehicle_details?: string;
+  company_name?: string;
+  customer_id?: string;
+  sales_id?: string;
+  technician_type?: 'INTERNAL' | 'EXTERNAL';
+  external_technician_name?: string;
 };
 
 interface SchedulingColumnsProps {
-  onApproveClick: (request: SchedulingRequest) => void;
-  onForceStart: (requestId: string) => void;
-  onMarkCompleted: (requestId: string) => void;
+  onSelectRequest: (request: SchedulingRequest) => void;
 }
 
 export const createSchedulingColumns = ({
-  onApproveClick,
-  onForceStart,
-  onMarkCompleted,
+  onSelectRequest,
 }: SchedulingColumnsProps): ColumnDef<SchedulingRequest>[] => [
   {
     accessorKey: "sr_number",
@@ -50,38 +57,30 @@ export const createSchedulingColumns = ({
     header: "Status",
     cell: ({ row }) => {
       const status = row.getValue("status") as SchedulingRequest["status"];
-      let variant: "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" = "default";
       let colorClass = "";
 
       switch (status) {
         case "pending":
-          variant = "warning";
-          colorClass = "bg-yellow-100 text-yellow-800";
+          colorClass = "bg-yellow-600/20 text-yellow-300 border border-yellow-500/30";
           break;
         case "approved":
-          variant = "info";
-          colorClass = "bg-blue-100 text-blue-800";
+          colorClass = "bg-blue-600/20 text-blue-300 border border-blue-500/30";
           break;
         case "in_progress":
-          variant = "default";
-          colorClass = "bg-purple-100 text-purple-800";
+          colorClass = "bg-purple-600/20 text-purple-300 border border-purple-500/30";
           break;
         case "completed":
-          variant = "success";
-          colorClass = "bg-green-100 text-green-800";
+          colorClass = "bg-green-600/20 text-green-300 border border-green-500/30";
           break;
         case "rejected":
         case "cancelled":
-          variant = "destructive";
-          colorClass = "bg-red-100 text-red-800";
+          colorClass = "bg-red-600/20 text-red-300 border border-red-500/30";
           break;
         case "rescheduled":
-          variant = "secondary";
-          colorClass = "bg-gray-100 text-gray-800";
+          colorClass = "bg-gray-600/20 text-gray-300 border border-gray-500/30";
           break;
         default:
-          variant = "outline";
-          colorClass = "bg-gray-50 text-gray-700";
+          colorClass = "bg-gray-700/20 text-gray-400 border border-gray-600/30";
           break;
       }
       return <Badge className={colorClass}>{status.replace(/_/g, ' ').toUpperCase()}</Badge>;
@@ -102,37 +101,11 @@ export const createSchedulingColumns = ({
     header: "Actions",
     cell: ({ row }) => {
       const request = row.original;
-      const status = request.status;
-
-      if (status === "pending") {
-        return (
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" onClick={() => onApproveClick(request)}>
-              Approve
-            </Button>
-          </DialogTrigger>
-        );
-      } else if (status === "approved" || status === "in_progress") {
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onForceStart(request.id)}>
-                Force Start
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onMarkCompleted(request.id)}>
-                Mark as Completed
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      }
-      return null;
+      return (
+        <Button variant="outline" size="sm" onClick={() => onSelectRequest(request)} className="glassmorphism border border-neon-cyan/50 text-neon-cyan hover:bg-neon-cyan/20 transition-all duration-300">
+          View Details
+        </Button>
+      );
     },
   },
 ];

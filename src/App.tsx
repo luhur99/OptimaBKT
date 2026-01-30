@@ -10,7 +10,8 @@ import DashboardPage from "./pages/dashboard/DashboardPage";
 import OperasionalSchedulingPage from "./pages/operasional/scheduling/OperasionalSchedulingPage";
 import BillingReviewPage from "./pages/operasional/billing-review/BillingReviewPage";
 import StockMovementPage from "./pages/operasional/stock-movement/StockMovementPage";
-import ProductCatalogPage from "./pages/operasional/products/ProductCatalogPage"; // New import
+import ProductCatalogPage from "./pages/operasional/products/ProductCatalogPage";
+import SalesSchedulingPage from "./pages/sales/scheduling/SalesSchedulingPage"; // New import
 
 const queryClient = new QueryClient();
 
@@ -25,9 +26,10 @@ const App = () => (
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/admin/users" element={<UserManagementPage />} />
           <Route path="/operasional/scheduling" element={<OperasionalSchedulingPage />} />
+          <Route path="/sales/scheduling" element={<SalesSchedulingPage />} /> {/* New route */}
           <Route path="/operasional/billing-review" element={<BillingReviewPage />} />
           <Route path="/operasional/stock-movement" element={<StockMovementPage />} />
-          <Route path="/operasional/products" element={<ProductCatalogPage />} /> {/* New route */}
+          <Route path="/operasional/products" element={<ProductCatalogPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
