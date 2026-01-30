@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Edit, CheckCircle, XCircle, Calendar, User, MapPin, Phone, Clock, DollarSign, FileText, Truck, Building, Tag, Info, FileUp } from 'lucide-react';
-import { SchedulingActionDialog } from './SchedulingActionDialog'; // Renamed import
+import { SchedulingActionDialog } from './SchedulingActionDialog';
 import { useToast } from "@/components/ui/use-toast";
-import { Dialog } from '@/components/ui/dialog'; // Removed DialogTrigger as it's now handled by individual buttons
+import { Dialog } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge'; // Import Badge
 
 interface SchedulingRequest {
   id: string;
@@ -28,6 +29,8 @@ interface SchedulingRequest {
   vehicle_details: string;
   assigned_technician_id: string | null;
   technician_name: string | null;
+  external_technician_name: string | null;
+  technician_type: 'INTERNAL' | 'EXTERNAL' | null;
   product_category: string | null;
   do_number: string | null;
   invoice_id: string | null;
@@ -46,46 +49,79 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
   const [request, setRequest] = useState<SchedulingRequest>(initialRequest);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentAction, setCurrentAction] = useState<'approve' | 'reject' | 'reschedule' | 'cancel' | null>(null); // State for current action dialog
+  const [currentAction, setCurrentAction] = useState<'approve' | 'reject' | 'reschedule' | 'cancel' | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     setRequest(initialRequest);
   }, [initialRequest]);
 
-  const handleActionSubmit = async (actionData: { assignedTechnicianId?: string; notes?: string; status: SchedulingRequest['status'] }) => {
+  const handleActionSubmit = async (actionData: {
+    assignedTechnicianId?: string | null;
+    externalTechnicianName?: string | null;
+    technicianType?: 'INTERNAL' | 'EXTERNAL' | null;
+    notes?: string;
+    status: SchedulingRequest['status'];
+  }) => {
     if (!request) return;
 
     setLoading(true);
-    const { assignedTechnicianId, notes, status } = actionData;
+    const { assignedTechnicianId, externalTechnicianName, technicianType, notes, status } = actionData;
 
     const updatePayload: any = {
       status: status,
       notes: notes,
+      assigned_technician_id: null, // Reset by default
+      external_technician_name: null, // Reset by default
+      technician_name: null, // Reset by default
+      technician_type: null, // Reset by default
     };
 
     if (status === 'approved') {
-      if (!assignedTechnicianId) {
-        toast({
-          title: "Error",
-          description: "Technician must be assigned for approval.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
+      updatePayload.technician_type = technicianType;
+      if (technicianType === 'INTERNAL') {
+        updatePayload.assigned_technician_id = assignedTechnicianId;
+        if (assignedTechnicianId) {
+          const { data: technicianData, error: techError } = await supabase
+            .from('technicians')
+            .select('name')
+            .eq('id', assignedTechnicianId)
+            .single();
+          if (techError) {
+            console.error('Error fetching technician name:', techError.message);
+            toast({
+              title: "Error",
+              description: "Failed to fetch technician name.",
+              variant: "destructive",
+            });
+            setLoading(false);
+            return;
+          }
+          updatePayload.technician_name = technicianData?.name;
+        } else {
+          toast({
+            title: "Error",
+            description: "Internal technician ID is missing for approval.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+      } else if (technicianType === 'EXTERNAL') {
+        updatePayload.external_technician_name = externalTechnicianName;
+        updatePayload.technician_name = externalTechnicianName; // Use external name for general technician_name
       }
-      updatePayload.assigned_technician_id = assignedTechnicianId;
-    } else if (status === 'rejected' || status === 'rescheduled' || status === 'cancelled') {
-      updatePayload.assigned_technician_id = null; // Clear technician for these statuses
-      if (!notes || notes.trim() === "") {
-        toast({
-          title: "Error",
-          description: "Notes are required for this action.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
+    } else if (['rejected', 'rescheduled', 'cancelled'].includes(status)) {
+      // For these statuses, clear technician assignments
+      updatePayload.assigned_technician_id = null;
+      updatePayload.external_technician_name = null;
+      updatePayload.technician_name = null;
+      updatePayload.technician_type = null;
+    }
+
+    // Ensure technician_name is explicitly set to null if no technician is assigned for non-approved statuses
+    if (status !== 'approved') {
+        updatePayload.technician_name = null;
     }
 
     const { error: updateError } = await supabase
@@ -253,8 +289,14 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
               {request.company_name && <p className="flex items-center text-sm text-gray-300"><Building className="mr-2 h-4 w-4 text-indigo-400" /> Company Name: <span className="ml-2 font-medium">{request.company_name}</span></p>}
               {request.customer_name && <p className="flex items-center text-sm text-gray-300"><User className="mr-2 h-4 w-4 text-yellow-400" /> Customer Name: <span className="ml-2 font-medium">{request.customer_name}</span></p>}
               {request.vehicle_details && <p className="flex items-center text-sm text-gray-300"><Truck className="mr-2 h-4 w-4 text-orange-400" /> Vehicle Details: <span className="ml-2 font-medium">{request.vehicle_details}</span></p>}
-              {request.assigned_technician_id && (
-                <p className="flex items-center text-sm text-gray-300"><User className="mr-2 h-4 w-4 text-cyan-400" /> Assigned Technician: <span className="ml-2 font-medium">{request.technician_name || 'N/A'}</span></p>
+              {request.technician_name && ( // Check if technician_name exists
+                <p className="flex items-center text-sm text-gray-300">
+                  <User className="mr-2 h-4 w-4 text-cyan-400" /> Assigned Technician:
+                  <span className="ml-2 font-medium">{request.technician_name}</span>
+                  {request.technician_type === 'EXTERNAL' && (
+                    <Badge className="ml-2 bg-gray-600/20 text-gray-300 border border-gray-500/30">External</Badge>
+                  )}
+                </p>
               )}
             </div>
           </div>

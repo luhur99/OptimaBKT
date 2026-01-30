@@ -204,6 +204,14 @@ const OperasionalSchedulingPage: React.FC = () => {
             return;
           }
           updatePayload.technician_name = technicianData?.name;
+        } else {
+          // If internal technician type is selected but no ID, it's an error
+          toast({
+            title: "Error",
+            description: "Internal technician ID is missing for approval.",
+            variant: "destructive",
+          });
+          return;
         }
       } else if (technicianType === 'EXTERNAL') {
         updatePayload.external_technician_name = externalTechnicianName;
@@ -215,6 +223,11 @@ const OperasionalSchedulingPage: React.FC = () => {
       updatePayload.external_technician_name = null;
       updatePayload.technician_name = null;
       updatePayload.technician_type = null;
+    }
+
+    // Ensure technician_name is explicitly set to null if no technician is assigned for non-approved statuses
+    if (status !== 'approved') {
+        updatePayload.technician_name = null;
     }
 
     const { error: updateError } = await supabase
