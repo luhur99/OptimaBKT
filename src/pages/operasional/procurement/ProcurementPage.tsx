@@ -15,6 +15,17 @@ import DashboardLayout from "@/layouts/DashboardLayout";
 import { CreatePurchaseRequestForm } from "@/components/procurement/CreatePurchaseRequestForm";
 import { PurchaseOrderTable, createPurchaseOrderColumns, PurchaseOrder } from "@/components/procurement/PurchaseOrderTable";
 import { PurchaseOrderDetail } from "@/components/procurement/PurchaseOrderDetail";
+import { Button } from "@/components/ui/button";
+import { PlusCircle, Truck } from "lucide-react"; // Import Truck icon
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { QuickAddCustomerSupplierForm } from "@/components/shared/QuickAddCustomerSupplierForm"; // Import new form
 
 const ProcurementPage = () => {
   const { session, profile, isLoading: isAuthLoading } = useAuthSession();
@@ -23,6 +34,7 @@ const ProcurementPage = () => {
   const [isLoadingPOs, setIsLoadingPOs] = useState(true);
   const [activeTab, setActiveTab] = useState<string>("manage-pos");
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
+  const [isQuickAddSupplierDialogOpen, setIsQuickAddSupplierDialogOpen] = useState(false);
 
   const fetchPurchaseOrders = async () => {
     setIsLoadingPOs(true);
@@ -71,6 +83,12 @@ const ProcurementPage = () => {
   const handlePOUpdate = () => {
     fetchPurchaseOrders();
     setSelectedPO(null); // Clear selection to refresh detail view
+  };
+
+  const handleSupplierAdded = () => {
+    // No direct action needed here, as the CreatePurchaseRequestForm will refetch suppliers on mount
+    // or the user can re-open the combobox to see the new supplier.
+    setIsQuickAddSupplierDialogOpen(false);
   };
 
   const columns = useMemo(() => createPurchaseOrderColumns(), []);
@@ -123,8 +141,28 @@ const ProcurementPage = () => {
         </TabsList>
         <TabsContent value="create-pr" className="mt-4">
           <Card className="glassmorphism border border-electric-violet/30">
-            <CardHeader>
+            <CardHeader className="flex flex-row justify-between items-center">
               <CardTitle className="text-electric-violet">New Purchase Request</CardTitle>
+              <Dialog open={isQuickAddSupplierDialogOpen} onOpenChange={setIsQuickAddSupplierDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-neon-cyan text-deep-charcoal hover:bg-neon-cyan/80 neon-glow-hover transition-all duration-300">
+                    <Truck className="mr-2 h-4 w-4" /> Quick Add Supplier
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px] glassmorphism border border-neon-cyan/30">
+                  <DialogHeader>
+                    <DialogTitle className="text-neon-cyan">Quick Add Supplier</DialogTitle>
+                    <DialogDescription className="text-gray-400">
+                      Quickly add a new supplier.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <QuickAddCustomerSupplierForm
+                    defaultType="supplier"
+                    onQuickAddSuccess={handleSupplierAdded}
+                    onClose={() => setIsQuickAddSupplierDialogOpen(false)}
+                  />
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               <CreatePurchaseRequestForm onPRCreated={() => {
