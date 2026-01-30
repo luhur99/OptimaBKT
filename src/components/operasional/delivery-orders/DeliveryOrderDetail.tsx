@@ -56,7 +56,11 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
         .single();
 
       if (orderError) throw new Error(orderError.message);
-      setOrder({ ...updatedOrder, user_full_name: updatedOrder.profiles?.full_name || "System" });
+      setOrder({
+        ...updatedOrder,
+        user_full_name: updatedOrder.profiles?.full_name || "System",
+        status: updatedOrder.status.toUpperCase() as DeliveryOrder['status'], // Convert status to uppercase
+      });
 
       if (updatedOrder.request_id) {
         const { data: srData, error: srError } = await supabase
