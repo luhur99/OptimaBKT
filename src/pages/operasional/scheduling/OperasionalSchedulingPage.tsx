@@ -2,8 +2,8 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { supabase } from "@/integrations/supabase/client";
-import { createSchedulingColumns, SchedulingRequest } from "@/components/operasional/scheduling-columns";
-import { SchedulingTable } from "@/components/operasional/SchedulingTable";
+import { createSchedulingColumns, SchedulingRequest } from "@/components/operasional/scheduling/scheduling-columns"; // Updated import path
+import { SchedulingTable } from "@/components/operasional/scheduling/SchedulingTable"; // Updated import path
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,7 +12,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { showSuccess, showError } from "@/utils/toast";
-import { ApprovalDialog } from "@/components/operasional/ApprovalDialog"; // Import the new ApprovalDialog
+import { ApprovalDialog } from "@/components/operasional/scheduling/ApprovalDialog"; // Updated import path
+import DashboardLayout from "@/layouts/DashboardLayout"; // Import the new layout
 
 const OperasionalSchedulingPage = () => {
   const { session, profile, isLoading: isAuthLoading } = useAuthSession();
@@ -123,28 +124,32 @@ const OperasionalSchedulingPage = () => {
 
   if (isAuthLoading || isLoadingRequests) {
     return (
-      <div className="container mx-auto py-10 space-y-6">
-        <Skeleton className="h-10 w-1/2" />
-        <div className="flex space-x-2">
-          <Skeleton className="h-9 w-24" />
-          <Skeleton className="h-9 w-24" />
-          <Skeleton className="h-9 w-24" />
+      <DashboardLayout>
+        <div className="container mx-auto py-10 space-y-6">
+          <Skeleton className="h-10 w-1/2" />
+          <div className="flex space-x-2">
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-24" />
+          </div>
+          <Skeleton className="h-[300px] w-full" />
         </div>
-        <Skeleton className="h-[300px] w-full" />
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN")) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        Unauthorized access.
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          Unauthorized access.
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="container mx-auto py-10">
+    <DashboardLayout>
       <h1 className="text-3xl font-bold mb-6">Operasional Scheduling Dashboard</h1>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
@@ -175,7 +180,7 @@ const OperasionalSchedulingPage = () => {
           onClose={() => setIsApproveDialogOpen(false)}
         />
       </Dialog>
-    </div>
+    </DashboardLayout>
   );
 };
 

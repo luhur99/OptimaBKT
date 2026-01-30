@@ -35,6 +35,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import DashboardLayout from "@/layouts/DashboardLayout"; // Import the new layout
 
 // Type definitions
 type SchedulingRequestQueueItem = {
@@ -316,35 +317,39 @@ const BillingReviewPage = () => {
 
   if (isAuthLoading || isLoadingQueue || isLoadingProducts) {
     return (
-      <div className="container mx-auto py-10 space-y-6">
-        <Skeleton className="h-10 w-1/2" />
-        <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg border">
-          <ResizablePanel defaultSize={30}>
-            <div className="flex h-full items-center justify-center p-6">
-              <Skeleton className="h-full w-full" />
-            </div>
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={70}>
-            <div className="flex h-full items-center justify-center p-6">
-              <Skeleton className="h-full w-full" />
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </div>
+      <DashboardLayout>
+        <div className="container mx-auto py-10 space-y-6">
+          <Skeleton className="h-10 w-1/2" />
+          <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg border">
+            <ResizablePanel defaultSize={30}>
+              <div className="flex h-full items-center justify-center p-6">
+                <Skeleton className="h-full w-full" />
+              </div>
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={70}>
+              <div className="flex h-full items-center justify-center p-6">
+                <Skeleton className="h-full w-full" />
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </div>
+      </DashboardLayout>
     );
   }
 
   if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN")) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        Unauthorized access.
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          Unauthorized access.
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="container mx-auto py-10">
+    <DashboardLayout>
       <h1 className="text-3xl font-bold mb-6">Antrean Melengkapi Item Invoice</h1>
 
       <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg border">
@@ -566,7 +571,7 @@ const BillingReviewPage = () => {
           </ScrollArea>
         </ResizablePanel>
       </ResizablePanelGroup>
-    </div>
+    </DashboardLayout>
   );
 };
 

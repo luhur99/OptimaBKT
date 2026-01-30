@@ -7,6 +7,7 @@ import { SalesDivDashboard } from "@/components/dashboard/SalesDivDashboard";
 import { OperasionalDivDashboard } from "@/components/dashboard/OperasionalDivDashboard";
 import { TechnicianDashboard } from "@/components/dashboard/TechnicianDashboard";
 import { AccountingDashboard } from "@/components/dashboard/AccountingDashboard";
+import DashboardLayout from "@/layouts/DashboardLayout"; // Import the new layout
 
 const DashboardPage = () => {
   const { session, profile, isLoading } = useAuthSession();
@@ -20,15 +21,17 @@ const DashboardPage = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-10 space-y-6">
-        <Skeleton className="h-10 w-3/4" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Skeleton className="h-[120px] w-full" />
-          <Skeleton className="h-[120px] w-full" />
-          <Skeleton className="h-[120px] w-full" />
+      <DashboardLayout>
+        <div className="container mx-auto py-10 space-y-6">
+          <Skeleton className="h-10 w-3/4" />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Skeleton className="h-[120px] w-full" />
+            <Skeleton className="h-[120px] w-full" />
+            <Skeleton className="h-[120px] w-full" />
+          </div>
+          <Skeleton className="h-[150px] w-full" />
         </div>
-        <Skeleton className="h-[150px] w-full" />
-      </div>
+      </DashboardLayout>
     );
   }
 
@@ -36,9 +39,11 @@ const DashboardPage = () => {
     // This case should ideally be handled by the useEffect redirect,
     // but as a fallback, we can show a message or redirect again.
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        Redirecting...
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          Redirecting...
+        </div>
+      </DashboardLayout>
     );
   }
 
@@ -70,12 +75,12 @@ const DashboardPage = () => {
   };
 
   return (
-    <div className="container mx-auto py-10">
+    <DashboardLayout>
       <h1 className="text-3xl font-bold mb-6">
         Selamat Datang, {profile.full_name}! Anda login sebagai {profile.role}.
       </h1>
       {renderDashboardContent()}
-    </div>
+    </DashboardLayout>
   );
 };
 

@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
-import { DialogTrigger } from "@/components/ui/dialog"; // Import DialogTrigger for the Approve button
+import { DialogTrigger } from "@/components/ui/dialog";
 
 export type SchedulingRequest = {
   id: string;

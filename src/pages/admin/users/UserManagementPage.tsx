@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { supabase } from "@/integrations/supabase/client";
-import { StaffUser, columns } from "@/components/users/user-columns";
-import { UserTable } from "@/components/users/user-table";
+import { StaffUser, columns } from "@/components/admin/users/user-columns"; // Updated import path
+import { UserTable } from "@/components/admin/users/user-table"; // Updated import path
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { AddStaffForm } from "@/components/users/add-staff-form";
+import { AddStaffForm } from "@/components/admin/users/add-staff-form"; // Updated import path
 import { showSuccess, showError } from "@/utils/toast";
 
 const UserManagementPage = () => {
@@ -42,9 +42,8 @@ const UserManagementPage = () => {
         return;
       }
       if (profile?.role !== "SUPER_ADMIN") {
-        navigate("/"); // Redirect to home if not SUPER_ADMIN
+        navigate("/dashboard"); // Redirect to dashboard if not SUPER_ADMIN
         showError("You do not have permission to access this page.");
-        // Note: User requested redirect to /dashboard, but since it doesn't exist, redirecting to /
         return;
       }
       fetchStaffUsers();

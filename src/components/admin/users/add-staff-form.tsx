@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { showSuccess, showError } from "@/utils/toast";
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client"; // Ensure supabase is imported
 
 const formSchema = z.object({
   full_name: z.string().min(2, {

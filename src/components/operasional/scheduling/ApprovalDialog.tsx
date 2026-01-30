@@ -35,7 +35,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
-import { SchedulingRequest } from "./scheduling-columns";
+import { SchedulingRequest } from "./scheduling-columns"; // Updated import path
 
 interface ApprovalDialogProps {
   request: SchedulingRequest | null;
