@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Users, CalendarDays, Package, Receipt, Settings, Box, ShoppingCart } from "lucide-react"; // Import Box and ShoppingCart icon
+import { Home, Users, CalendarDays, Package, Receipt, Settings, Box, ShoppingCart, LayoutDashboard } from "lucide-react"; // Import LayoutDashboard icon
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -71,10 +71,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       roles: ["SUPER_ADMIN", "OPERASIONAL_DIV"],
     },
     {
-      name: "Sales Scheduling", // New item for Sales
-      href: "/sales/scheduling", // New route for Sales
-      icon: ShoppingCart, // Icon for Sales Scheduling
-      roles: ["SUPER_ADMIN", "SALES_DIV"], // Roles that can access
+      name: "Sales Scheduling",
+      href: "/sales/scheduling",
+      icon: ShoppingCart,
+      roles: ["SUPER_ADMIN", "SALES_DIV"],
     },
     {
       name: "Stock Movement",
@@ -87,6 +87,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       href: "/operasional/products",
       icon: Box,
       roles: ["SUPER_ADMIN", "OPERASIONAL_DIV"],
+    },
+    {
+      name: "Inventory Dashboard", // New item
+      href: "/operasional/inventory-dashboard", // New route
+      icon: LayoutDashboard, // Icon for Inventory Dashboard
+      roles: ["SUPER_ADMIN", "OPERASIONAL_DIV"], // Roles that can access
     },
     {
       name: "Billing Review",
