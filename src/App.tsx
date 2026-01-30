@@ -4,14 +4,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SessionContextProvider } from "@supabase/auth-ui-react";
 import { supabase } from "@/integrations/supabase/client";
-import { AuthLayout } from "@/layouts/AuthLayout";
+// import { AuthLayout } from "@/layouts/AuthLayout"; // Removed as it's used directly in the route
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import Index from "@/pages/Index";
 import Login from "@/pages/Login";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import SettingsPage from "@/pages/SettingsPage";
 import ProfilePage from "@/pages/ProfilePage";
-import SchedulingRequestsPage from "@/pages/scheduling/SchedulingRequestsPage"; // Import the new page
+import SchedulingRequestsPage from "@/pages/scheduling/SchedulingRequestsPage";
 
 const queryClient = new QueryClient();
 
@@ -23,7 +23,7 @@ function App() {
           <Toaster />
           <BrowserRouter>
             <Routes>
-              <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
+              <Route path="/login" element={<Login />} /> {/* Login page now handles its own layout */}
               <Route
                 path="/"
                 element={
@@ -37,7 +37,7 @@ function App() {
                 <Route index element={<Index />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="profile" element={<ProfilePage />} />
-                <Route path="scheduling-requests" element={<SchedulingRequestsPage />} /> {/* Add new route */}
+                <Route path="scheduling-requests" element={<SchedulingRequestsPage />} />
               </Route>
             </Routes>
           </BrowserRouter>
