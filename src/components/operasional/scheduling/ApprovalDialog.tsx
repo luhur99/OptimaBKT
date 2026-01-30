@@ -188,4 +188,4 @@ const ApprovalDialog = ({ isOpen, onClose, onSubmit, request }: ApprovalDialogPr
   );
 };
 
-export default ApprovalDialog;
+export { ApprovalDialog };
