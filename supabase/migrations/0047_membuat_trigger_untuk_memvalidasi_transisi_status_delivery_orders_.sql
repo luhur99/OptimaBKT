@@ -1,0 +1,4 @@
+DROP TRIGGER IF EXISTS on_delivery_order_update_validate_status ON public.delivery_orders;
+CREATE TRIGGER on_delivery_order_update_validate_status
+BEFORE UPDATE ON public.delivery_orders
+FOR EACH ROW EXECUTE FUNCTION public.handle_delivery_order_status_validation();
