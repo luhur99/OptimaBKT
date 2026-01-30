@@ -22,8 +22,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useForm, Controller } from 'react-hook-form';
-import { toast } from 'react-hot-toast';
 import { FormControl } from "@/components/ui/form";
+import { useToast } from "@/components/ui/use-toast"; // Mengganti import toast
 
 // Define Technician type based on schema
 interface Technician {
@@ -52,6 +52,8 @@ const ApprovalDialog = ({ isOpen, onClose, onSubmit, request }: ApprovalDialogPr
     }
   });
 
+  const { toast } = useToast(); // Inisialisasi useToast
+
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [loadingTechnicians, setLoadingTechnicians] = useState(true);
   const [errorTechnicians, setErrorTechnicians] = useState<string | null>(null);
@@ -68,7 +70,11 @@ const ApprovalDialog = ({ isOpen, onClose, onSubmit, request }: ApprovalDialogPr
       if (error) {
         console.error('Error fetching internal technicians:', error.message);
         setErrorTechnicians('Failed to load internal technicians.');
-        toast.error('Failed to load internal technicians.');
+        toast({
+          title: "Error",
+          description: "Failed to load internal technicians.",
+          variant: "destructive",
+        });
       } else {
         setTechnicians(data || []);
       }
@@ -84,7 +90,7 @@ const ApprovalDialog = ({ isOpen, onClose, onSubmit, request }: ApprovalDialogPr
         status: '',
       });
     }
-  }, [isOpen, request, reset]);
+  }, [isOpen, request, reset, toast]);
 
   const handleFormSubmit = (data: { assignedTechnicianId: string; notes: string; status: 'approved' | 'rejected' }) => {
     onSubmit(data);
