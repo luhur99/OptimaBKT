@@ -13,7 +13,8 @@ import StockMovementPage from "./pages/operasional/stock-movement/StockMovementP
 import ProductCatalogPage from "./pages/operasional/products/ProductCatalogPage";
 import SalesSchedulingPage from "./pages/sales/scheduling/SalesSchedulingPage";
 import InventoryDashboardPage from "./pages/operasional/inventory-dashboard/InventoryDashboardPage";
-import ProcurementPage from "./pages/operasional/procurement/ProcurementPage"; // New import
+import ProcurementPage from "./pages/operasional/procurement/ProcurementPage";
+import LoginPage from "./pages/LoginPage"; // New import
 
 const queryClient = new QueryClient();
 
@@ -25,11 +26,12 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/login" element={<LoginPage />} /> {/* New route for login */}
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/admin/users" element={<UserManagementPage />} />
           <Route path="/operasional/scheduling" element={<OperasionalSchedulingPage />} />
           <Route path="/sales/scheduling" element={<SalesSchedulingPage />} />
-          <Route path="/operasional/procurement" element={<ProcurementPage />} /> {/* New route */}
+          <Route path="/operasional/procurement" element={<ProcurementPage />} />
           <Route path="/operasional/billing-review" element={<BillingReviewPage />} />
           <Route path="/operasional/stock-movement" element={<StockMovementPage />} />
           <Route path="/operasional/products" element={<ProductCatalogPage />} />
