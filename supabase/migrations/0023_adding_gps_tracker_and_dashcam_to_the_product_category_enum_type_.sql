@@ -1,0 +1,2 @@
+ALTER TYPE product_category ADD VALUE 'GPS_TRACKER';
+ALTER TYPE product_category ADD VALUE 'DASHCAM';
