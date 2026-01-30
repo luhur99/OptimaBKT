@@ -39,8 +39,8 @@ const formSchema = z.object({
   requestedDate: z.date({ required_error: "A date for the request is required." }),
   requestedTime: z.string().optional(),
   type: z.enum(["INSTALLATION", "MAINTENANCE", "SURVEY", "OTHER"], { required_error: "Please select a request type." }),
-  // Updated productCategory enum values
-  productCategory: z.enum(["Gps Tracker", "Dashcam", "OTHER"]).optional(),
+  // Updated productCategory enum values to lowercase with underscore
+  productCategory: z.enum(["gps_tracker", "dashcam", "OTHER"]).optional(),
   vehicleDetails: z.string().optional(),
   notes: z.string().optional(),
   paymentMethod: z.string().optional(),
@@ -63,7 +63,7 @@ export const CreateSchedulingRequestForm = () => {
       landmark: "",
       requestedTime: "",
       type: "INSTALLATION",
-      productCategory: "Gps Tracker", // Default to Gps Tracker
+      productCategory: "gps_tracker", // Default to gps_tracker
       vehicleDetails: "",
       notes: "",
       paymentMethod: "",
@@ -323,8 +323,8 @@ export const CreateSchedulingRequestForm = () => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
-                      <SelectItem value="Gps Tracker">Gps Tracker</SelectItem>
-                      <SelectItem value="Dashcam">Dashcam</SelectItem>
+                      <SelectItem value="gps_tracker">GPS Tracker</SelectItem>
+                      <SelectItem value="dashcam">Dashcam</SelectItem>
                       <SelectItem value="OTHER">Other</SelectItem>
                     </SelectContent>
                   </Select>
