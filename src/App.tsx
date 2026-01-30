@@ -5,11 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import UserManagementPage from "./pages/admin/users/UserManagementPage"; // Updated import path
-import DashboardPage from "./pages/dashboard/DashboardPage"; // Updated import path
-import OperasionalSchedulingPage from "./pages/operasional/scheduling/OperasionalSchedulingPage"; // Updated import path
-import BillingReviewPage from "./pages/operasional/billing-review/BillingReviewPage"; // Updated import path
-import StockMovementPage from "./pages/operasional/stock-movement/StockMovementPage"; // Updated import path
+import UserManagementPage from "./pages/admin/users/UserManagementPage";
+import DashboardPage from "./pages/dashboard/DashboardPage";
+import OperasionalSchedulingPage from "./pages/operasional/scheduling/OperasionalSchedulingPage";
+import BillingReviewPage from "./pages/operasional/billing-review/BillingReviewPage";
+import StockMovementPage from "./pages/operasional/stock-movement/StockMovementPage";
 
 const queryClient = new QueryClient();
 

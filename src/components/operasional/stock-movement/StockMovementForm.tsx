@@ -121,7 +121,7 @@ export function StockMovementForm({ onMoveSuccess }: StockMovementFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 text-gray-300">
         <FormField
           control={form.control}
           name="product_id"
@@ -130,11 +130,11 @@ export function StockMovementForm({ onMoveSuccess }: StockMovementFormProps) {
               <FormLabel>Product</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
-                  <SelectTrigger>
+                  <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
                     <SelectValue placeholder="Select a product" />
                   </SelectTrigger>
                 </FormControl>
-                <SelectContent>
+                <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
                   {products.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
                       {product.nama_barang} ({product.kode_barang})
@@ -154,11 +154,11 @@ export function StockMovementForm({ onMoveSuccess }: StockMovementFormProps) {
               <FormLabel>From Warehouse</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
-                  <SelectTrigger>
+                  <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
                     <SelectValue placeholder="Select source warehouse" />
                   </SelectTrigger>
                 </FormControl>
-                <SelectContent>
+                <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
                   {warehouseCategories.map((category) => (
                     <SelectItem key={category.code} value={category.code}>
                       {category.name} ({category.code})
@@ -178,11 +178,11 @@ export function StockMovementForm({ onMoveSuccess }: StockMovementFormProps) {
               <FormLabel>To Warehouse</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
-                  <SelectTrigger>
+                  <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
                     <SelectValue placeholder="Select destination warehouse" />
                   </SelectTrigger>
                 </FormControl>
-                <SelectContent>
+                <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
                   {warehouseCategories.map((category) => (
                     <SelectItem key={category.code} value={category.code}>
                       {category.name} ({category.code})
@@ -201,13 +201,13 @@ export function StockMovementForm({ onMoveSuccess }: StockMovementFormProps) {
             <FormItem>
               <FormLabel>Quantity</FormLabel>
               <FormControl>
-                <Input type="number" {...field} min="1" />
+                <Input type="number" {...field} min="1" className="glassmorphism border border-gray-700 text-gray-300" />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" className="w-full bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300" disabled={isSubmitting}>
           {isSubmitting ? "Moving Stock..." : "Move Stock"}
         </Button>
       </form>

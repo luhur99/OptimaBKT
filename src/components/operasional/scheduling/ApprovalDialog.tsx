@@ -35,7 +35,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
-import { SchedulingRequest } from "./scheduling-columns"; // Updated import path
+import { SchedulingRequest } from "./scheduling-columns";
 
 interface ApprovalDialogProps {
   request: SchedulingRequest | null;
@@ -99,7 +99,6 @@ export function ApprovalDialog({
 
   useEffect(() => {
     if (request) {
-      // Reset form when a new request is selected or dialog opens
       form.reset({
         technicianType: "INTERNAL",
         assigned_technician_id: "",
@@ -117,7 +116,7 @@ export function ApprovalDialog({
       const updateData: any = {
         status: "approved",
         technician_type: values.technicianType,
-        requested_date: format(values.scheduled_date, "yyyy-MM-dd"), // Update requested_date with scheduled_date
+        requested_date: format(values.scheduled_date, "yyyy-MM-dd"),
       };
 
       if (values.technicianType === "INTERNAL") {
@@ -127,7 +126,7 @@ export function ApprovalDialog({
           return;
         }
         updateData.assigned_technician_id = values.assigned_technician_id;
-        updateData.external_technician_name = null; // Clear external technician name
+        updateData.external_technician_name = null;
       } else {
         if (!values.external_technician_name) {
           showError("Please enter an external technician name.");
@@ -135,14 +134,14 @@ export function ApprovalDialog({
           return;
         }
         updateData.external_technician_name = values.external_technician_name;
-        updateData.assigned_technician_id = null; // Clear assigned technician ID
+        updateData.assigned_technician_id = null;
       }
 
       const { data, error } = await supabase
         .from("scheduling_requests")
         .update(updateData)
         .eq("id", request.id)
-        .select("do_number") // Select do_number to show in toast
+        .select("do_number")
         .single();
 
       if (error) {
@@ -162,11 +161,11 @@ export function ApprovalDialog({
   if (!request) return null;
 
   return (
-    <DialogContent>
+    <DialogContent className="glassmorphism border border-electric-violet/30 text-foreground">
       <DialogHeader>
-        <DialogTitle>Approve Scheduling Request</DialogTitle>
-        <DialogDescription>
-          Approve SR Number: <strong>{request.sr_number}</strong> and assign a technician.
+        <DialogTitle className="text-neon-cyan">Approve Scheduling Request</DialogTitle>
+        <DialogDescription className="text-gray-400">
+          Approve SR Number: <strong className="text-neon-cyan">{request.sr_number}</strong> and assign a technician.
         </DialogDescription>
       </DialogHeader>
       <Form {...form}>
@@ -176,7 +175,7 @@ export function ApprovalDialog({
             name="technicianType"
             render={({ field }) => (
               <FormItem className="space-y-3">
-                <FormLabel>Technician Type</FormLabel>
+                <FormLabel className="text-gray-300">Technician Type</FormLabel>
                 <FormControl>
                   <RadioGroup
                     onValueChange={field.onChange}
@@ -185,17 +184,17 @@ export function ApprovalDialog({
                   >
                     <FormItem className="flex items-center space-x-3 space-y-0">
                       <FormControl>
-                        <RadioGroupItem value="INTERNAL" />
+                        <RadioGroupItem value="INTERNAL" className="border-neon-cyan text-neon-cyan focus:ring-neon-cyan" />
                       </FormControl>
-                      <FormLabel className="font-normal">
+                      <FormLabel className="font-normal text-gray-300">
                         Internal Technician
                       </FormLabel>
                     </FormItem>
                     <FormItem className="flex items-center space-x-3 space-y-0">
                       <FormControl>
-                        <RadioGroupItem value="EXTERNAL" />
+                        <RadioGroupItem value="EXTERNAL" className="border-neon-cyan text-neon-cyan focus:ring-neon-cyan" />
                       </FormControl>
-                      <FormLabel className="font-normal">
+                      <FormLabel className="font-normal text-gray-300">
                         External Technician/Vendor
                       </FormLabel>
                     </FormItem>
@@ -212,14 +211,14 @@ export function ApprovalDialog({
               name="assigned_technician_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Internal Technician</FormLabel>
+                  <FormLabel className="text-gray-300">Internal Technician</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value || ""}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
                         <SelectValue placeholder="Select an internal technician" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
                       {technicians.map((tech) => (
                         <SelectItem key={tech.id} value={tech.id}>
                           {tech.full_name}
@@ -239,9 +238,9 @@ export function ApprovalDialog({
               name="external_technician_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>External Technician/Vendor Name</FormLabel>
+                  <FormLabel className="text-gray-300">External Technician/Vendor Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="External Technician Name" {...field} />
+                    <Input placeholder="External Technician Name" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -254,14 +253,14 @@ export function ApprovalDialog({
             name="scheduled_date"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Scheduled Date</FormLabel>
+                <FormLabel className="text-gray-300">Scheduled Date</FormLabel>
                 <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button
                         variant={"outline"}
                         className={cn(
-                          "w-[240px] pl-3 text-left font-normal",
+                          "w-[240px] pl-3 text-left font-normal glassmorphism border border-gray-700 text-gray-300 hover:bg-gray-800",
                           !field.value && "text-muted-foreground"
                         )}
                       >
@@ -274,13 +273,14 @@ export function ApprovalDialog({
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 glassmorphism border border-gray-700" align="start">
                     <Calendar
                       mode="single"
                       selected={field.value}
                       onSelect={field.onChange}
                       disabled={(date) => date < new Date("1900-01-01")}
                       initialFocus
+                      className="text-gray-300"
                     />
                   </PopoverContent>
                 </Popover>
@@ -289,11 +289,11 @@ export function ApprovalDialog({
             )}
           />
 
-          <DialogFooter>
-            <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={onClose} disabled={isSubmitting} className="glassmorphism border border-gray-700 text-gray-300 hover:bg-gray-800">
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} className="bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300">
               {isSubmitting ? "Confirming..." : "Confirm & Approve"}
             </Button>
           </DialogFooter>

@@ -2,8 +2,8 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { supabase } from "@/integrations/supabase/client";
-import { createSchedulingColumns, SchedulingRequest } from "@/components/operasional/scheduling/scheduling-columns"; // Updated import path
-import { SchedulingTable } from "@/components/operasional/scheduling/SchedulingTable"; // Updated import path
+import { createSchedulingColumns, SchedulingRequest } from "@/components/operasional/scheduling/scheduling-columns";
+import { SchedulingTable } from "@/components/operasional/scheduling/SchedulingTable";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,8 +12,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { showSuccess, showError } from "@/utils/toast";
-import { ApprovalDialog } from "@/components/operasional/scheduling/ApprovalDialog"; // Updated import path
-import DashboardLayout from "@/layouts/DashboardLayout"; // Import the new layout
+import { ApprovalDialog } from "@/components/operasional/scheduling/ApprovalDialog";
+import DashboardLayout from "@/layouts/DashboardLayout";
 
 const OperasionalSchedulingPage = () => {
   const { session, profile, isLoading: isAuthLoading } = useAuthSession();
@@ -113,7 +113,7 @@ const OperasionalSchedulingPage = () => {
     onApproveClick: handleApproveClick,
     onForceStart: handleForceStart,
     onMarkCompleted: handleMarkCompleted,
-  }), [schedulingRequests]); // Re-create columns if requests change to update actions
+  }), [schedulingRequests]);
 
   const filteredRequests = useMemo(() => {
     if (activeTab === "all") {
@@ -126,13 +126,13 @@ const OperasionalSchedulingPage = () => {
     return (
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
-          <Skeleton className="h-10 w-1/2" />
+          <Skeleton className="h-10 w-1/2 bg-gray-700" />
           <div className="flex space-x-2">
-            <Skeleton className="h-9 w-24" />
-            <Skeleton className="h-9 w-24" />
-            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-24 bg-gray-700" />
+            <Skeleton className="h-9 w-24 bg-gray-700" />
+            <Skeleton className="h-9 w-24 bg-gray-700" />
           </div>
-          <Skeleton className="h-[300px] w-full" />
+          <Skeleton className="h-[300px] w-full bg-gray-700" />
         </div>
       </DashboardLayout>
     );
@@ -141,7 +141,7 @@ const OperasionalSchedulingPage = () => {
   if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN")) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-screen text-gray-400">
           Unauthorized access.
         </div>
       </DashboardLayout>
@@ -150,14 +150,14 @@ const OperasionalSchedulingPage = () => {
 
   return (
     <DashboardLayout>
-      <h1 className="text-3xl font-bold mb-6">Operasional Scheduling Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-6 text-neon-cyan">Operasional Scheduling Dashboard</h1>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-        <TabsList>
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="approved">Approved</TabsTrigger>
-          <TabsTrigger value="in_progress">On Progress</TabsTrigger>
+        <TabsList className="bg-midnight-blue border border-gray-700">
+          <TabsTrigger value="all" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">All</TabsTrigger>
+          <TabsTrigger value="pending" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Pending</TabsTrigger>
+          <TabsTrigger value="approved" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Approved</TabsTrigger>
+          <TabsTrigger value="in_progress" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">On Progress</TabsTrigger>
         </TabsList>
         <TabsContent value="all">
           <SchedulingTable columns={columns} data={filteredRequests} />

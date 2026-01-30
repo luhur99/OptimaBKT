@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { supabase } from "@/integrations/supabase/client";
-import { StaffUser, columns } from "@/components/admin/users/user-columns"; // Updated import path
-import { UserTable } from "@/components/admin/users/user-table"; // Updated import path
+import { StaffUser, columns } from "@/components/admin/users/user-columns";
+import { UserTable } from "@/components/admin/users/user-table";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,8 +13,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { AddStaffForm } from "@/components/admin/users/add-staff-form"; // Updated import path
+import { AddStaffForm } from "@/components/admin/users/add-staff-form";
 import { showSuccess, showError } from "@/utils/toast";
+import DashboardLayout from "@/layouts/DashboardLayout"; // Import DashboardLayout
 
 const UserManagementPage = () => {
   const { session, profile, isLoading } = useAuthSession();
@@ -52,39 +53,43 @@ const UserManagementPage = () => {
 
   if (isLoading || !session || profile?.role !== "SUPER_ADMIN") {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        Loading or unauthorized...
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen text-gray-400">
+          Loading or unauthorized...
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">User Management</h1>
-        <Dialog open={isAddStaffDialogOpen} onOpenChange={setIsAddStaffDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>Add New Staff</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Add New Staff</DialogTitle>
-              <DialogDescription>
-                Fill in the details to create a new staff user.
-              </DialogDescription>
-            </DialogHeader>
-            <AddStaffForm
-              onStaffAdded={() => {
-                fetchStaffUsers();
-                setIsAddStaffDialogOpen(false);
-              }}
-              onClose={() => setIsAddStaffDialogOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
+    <DashboardLayout>
+      <div className="container mx-auto py-10">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-neon-cyan">User Management</h1>
+          <Dialog open={isAddStaffDialogOpen} onOpenChange={setIsAddStaffDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300">Add New Staff</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px] glassmorphism border border-electric-violet/30">
+              <DialogHeader>
+                <DialogTitle className="text-neon-cyan">Add New Staff</DialogTitle>
+                <DialogDescription className="text-gray-400">
+                  Fill in the details to create a new staff user.
+                </DialogDescription>
+              </DialogHeader>
+              <AddStaffForm
+                onStaffAdded={() => {
+                  fetchStaffUsers();
+                  setIsAddStaffDialogOpen(false);
+                }}
+                onClose={() => setIsAddStaffDialogOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
+        <UserTable columns={columns} data={staffUsers} />
       </div>
-      <UserTable columns={columns} data={staffUsers} />
-    </div>
+    </DashboardLayout>
   );
 };
 

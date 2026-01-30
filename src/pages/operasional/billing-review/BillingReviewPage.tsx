@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlusCircle, Trash2, CalendarIcon } from "lucide-react";
+import { PlusCircle, Trash2, CalendarIcon, Search } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -35,7 +35,9 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import DashboardLayout from "@/layouts/DashboardLayout"; // Import the new layout
+import DashboardLayout from "@/layouts/DashboardLayout";
+import { Progress } from "@/components/ui/progress"; // Assuming shadcn Progress component
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 // Type definitions
 type SchedulingRequestQueueItem = {
@@ -45,9 +47,10 @@ type SchedulingRequestQueueItem = {
   customer_name: string;
   full_address: string;
   technician_name?: string;
-  document_url?: string; // Assuming technicians can upload documents/photos
-  user_id: string; // The user who created the request
-  invoice_id: string; // The UUID of the DRAFT invoice created in Stage 1
+  document_url?: string;
+  user_id: string;
+  invoice_id: string;
+  progress_status: number; // Added for progress bar
 };
 
 type Product = {
@@ -59,7 +62,7 @@ type Product = {
 };
 
 type InvoiceItemForm = {
-  tempId: string; // For UI keying
+  tempId: string;
   product_id: string;
   item_name: string;
   item_code: string;
@@ -68,6 +71,42 @@ type InvoiceItemForm = {
   unit_type?: string;
   subtotal: number;
 };
+
+// Simple CountUp component
+const CountUp: React.FC<{ value: number }> = ({ value }) => {
+  const [currentValue, setCurrentValue] = useState(0);
+  const ref = useRef(currentValue);
+
+  useEffect(() => {
+    ref.current = currentValue;
+  }, [currentValue]);
+
+  useEffect(() => {
+    let start: number | null = null;
+    const duration = 500; // milliseconds
+
+    const animate = (timestamp: number) => {
+      if (!start) start = timestamp;
+      const progress = (timestamp - start) / duration;
+      const animatedValue = Math.min(progress, 1) * (value - ref.current) + ref.current;
+      setCurrentValue(animatedValue);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setCurrentValue(value);
+      }
+    };
+
+    if (value !== currentValue) {
+      start = null; // Reset start time for new animation
+      requestAnimationFrame(animate);
+    }
+  }, [value]);
+
+  return <>{currentValue.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>;
+};
+
 
 const BillingReviewPage = () => {
   const { session, profile, isLoading: isAuthLoading } = useAuthSession();
@@ -80,6 +119,7 @@ const BillingReviewPage = () => {
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [invoiceDate, setInvoiceDate] = useState<Date>(new Date());
+  const [activeRowId, setActiveRowId] = useState<string | null>(null); // State for active row in table
 
   const fetchQueue = async () => {
     setIsLoadingQueue(true);
@@ -94,10 +134,11 @@ const BillingReviewPage = () => {
         document_url,
         user_id,
         invoice_id,
+        status,
         profiles!assigned_technician_id (full_name)
       `)
       .eq("status", "completed")
-      .eq("invoice_status", "DRAFT"); // Filter for DRAFT invoices
+      .eq("invoice_status", "DRAFT");
 
     if (error) {
       console.error("Error fetching billing review queue:", error);
@@ -106,6 +147,7 @@ const BillingReviewPage = () => {
       const formattedData: SchedulingRequestQueueItem[] = data.map((req: any) => ({
         ...req,
         technician_name: req.profiles?.full_name || null,
+        progress_status: Math.floor(Math.random() * 100) + 1, // Placeholder progress
       }));
       setQueue(formattedData);
     }
@@ -133,7 +175,7 @@ const BillingReviewPage = () => {
         navigate("/");
         return;
       }
-      if (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN") {
+      if (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN" && profile?.role !== "ACCOUNTING") {
         navigate("/dashboard");
         showError("You do not have permission to access this page.");
         return;
@@ -145,16 +187,16 @@ const BillingReviewPage = () => {
 
   const handleSelectRequest = (request: SchedulingRequestQueueItem) => {
     setSelectedRequest(request);
-    setInvoiceItems([]); // Clear previous items when selecting a new request
-    // Optionally, fetch existing invoice items if the invoice was partially filled
-    // For now, we assume it's always starting fresh for DRAFT invoices
+    setInvoiceItems([]);
+    setActiveRowId(null);
   };
 
   const handleAddInvoiceItem = () => {
+    const newTempId = crypto.randomUUID();
     setInvoiceItems((prev) => [
       ...prev,
       {
-        tempId: crypto.randomUUID(),
+        tempId: newTempId,
         product_id: "",
         item_name: "",
         item_code: "",
@@ -164,10 +206,14 @@ const BillingReviewPage = () => {
         subtotal: 0,
       },
     ]);
+    setActiveRowId(newTempId); // Set new row as active
   };
 
   const handleRemoveInvoiceItem = (tempId: string) => {
     setInvoiceItems((prev) => prev.filter((item) => item.tempId !== tempId));
+    if (activeRowId === tempId) {
+      setActiveRowId(null);
+    }
   };
 
   const handleInvoiceItemChange = (
@@ -252,7 +298,7 @@ const BillingReviewPage = () => {
 
       // 2. Insert invoice items
       const itemsToInsert = invoiceItems.map((item) => ({
-        invoice_id: selectedRequest.invoice_id, // Link to the existing invoice
+        invoice_id: selectedRequest.invoice_id,
         user_id: session?.user?.id,
         product_id: item.product_id,
         item_name: item.item_name,
@@ -261,7 +307,7 @@ const BillingReviewPage = () => {
         unit_price: item.unit_price,
         subtotal: item.subtotal,
         unit_type: item.unit_type,
-        scheduling_id: selectedRequest.id, // Link to scheduling request
+        scheduling_id: selectedRequest.id,
       }));
 
       const { error: invoiceItemsError } = await supabase
@@ -276,7 +322,7 @@ const BillingReviewPage = () => {
       const { error: updateRequestError } = await supabase
         .from("scheduling_requests")
         .update({
-          invoice_status: "FINAL", // Mark as finalized
+          invoice_status: "FINAL",
         })
         .eq("id", selectedRequest.id);
 
@@ -305,9 +351,9 @@ const BillingReviewPage = () => {
 
 
       showSuccess(`Invoice ${generatedInvoiceNumber} has been issued and stock deducted.`);
-      setSelectedRequest(null); // Clear selected request
-      setInvoiceItems([]); // Clear invoice items
-      fetchQueue(); // Refresh the queue
+      setSelectedRequest(null);
+      setInvoiceItems([]);
+      fetchQueue();
     } catch (error: any) {
       showError(error.message || "An unexpected error occurred during finalization.");
     } finally {
@@ -319,17 +365,17 @@ const BillingReviewPage = () => {
     return (
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
-          <Skeleton className="h-10 w-1/2" />
-          <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg border">
+          <Skeleton className="h-10 w-1/2 bg-gray-700" />
+          <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg border border-gray-700">
             <ResizablePanel defaultSize={30}>
               <div className="flex h-full items-center justify-center p-6">
-                <Skeleton className="h-full w-full" />
+                <Skeleton className="h-full w-full bg-gray-800" />
               </div>
             </ResizablePanel>
-            <ResizableHandle withHandle />
+            <ResizableHandle withHandle className="bg-gray-700 hover:bg-neon-cyan" />
             <ResizablePanel defaultSize={70}>
               <div className="flex h-full items-center justify-center p-6">
-                <Skeleton className="h-full w-full" />
+                <Skeleton className="h-full w-full bg-gray-800" />
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>
@@ -338,10 +384,10 @@ const BillingReviewPage = () => {
     );
   }
 
-  if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN")) {
+  if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN" && profile?.role !== "ACCOUNTING")) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-screen text-gray-400">
           Unauthorized access.
         </div>
       </DashboardLayout>
@@ -350,32 +396,42 @@ const BillingReviewPage = () => {
 
   return (
     <DashboardLayout>
-      <h1 className="text-3xl font-bold mb-6">Antrean Melengkapi Item Invoice</h1>
+      <h1 className="text-3xl font-bold mb-6 text-neon-cyan">Antrean Melengkapi Item Invoice</h1>
 
-      <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg border">
+      <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg glassmorphism border border-neon-cyan/30">
         <ResizablePanel defaultSize={30} minSize={20}>
           <ScrollArea className="h-full p-4">
-            <h2 className="text-xl font-semibold mb-4">Completed Requests (DRAFT Invoice)</h2>
+            <h2 className="text-xl font-semibold mb-4 text-neon-cyan">Completed Requests (DRAFT Invoice)</h2>
             {queue.length === 0 ? (
-              <p className="text-muted-foreground">No completed requests awaiting billing review.</p>
+              <div className="h-full flex items-center justify-center text-gray-500 border border-dashed border-gray-700 rounded-md p-4 radar-grid-background">
+                <p>No completed requests awaiting billing review. Scanning...</p>
+              </div>
             ) : (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-3"> {/* Bento Box Grid */}
                 {queue.map((req) => (
                   <Card
                     key={req.id}
                     className={cn(
-                      "cursor-pointer hover:bg-accent",
-                      selectedRequest?.id === req.id && "border-primary bg-accent"
+                      "cursor-pointer glassmorphism border transition-all duration-200",
+                      "hover:bg-gray-800/50",
+                      selectedRequest?.id === req.id
+                        ? "border-neon-cyan neon-glow"
+                        : "border-gray-700"
                     )}
                     onClick={() => handleSelectRequest(req)}
                   >
-                    <CardHeader>
-                      <CardTitle className="text-lg">{req.sr_number}</CardTitle>
-                      <Badge className="bg-yellow-100 text-yellow-800">DRAFT Invoice</Badge>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg text-neon-cyan">{req.sr_number}</CardTitle>
+                      <Badge className="bg-yellow-600/20 text-yellow-300 border border-yellow-500/30">DRAFT Invoice</Badge>
                     </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground">{req.customer_name}</p>
-                      <p className="text-sm text-muted-foreground">{req.do_number || "No DO"}</p>
+                    <CardContent className="pt-2">
+                      <p className="text-sm text-gray-400">{req.customer_name}</p>
+                      <p className="text-xs text-gray-500">{req.do_number || "No DO"}</p>
+                      <div className="mt-3">
+                        <Label className="text-xs text-gray-500">Billing Progress</Label>
+                        <Progress value={req.progress_status} className="h-2 mt-1 bg-gray-700 [&>*]:bg-neon-cyan" />
+                        <span className="text-xs text-gray-500 float-right mt-1">{req.progress_status}%</span>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -383,41 +439,41 @@ const BillingReviewPage = () => {
             )}
           </ScrollArea>
         </ResizablePanel>
-        <ResizableHandle withHandle />
+        <ResizableHandle withHandle className="bg-gray-700 hover:bg-neon-cyan transition-colors" />
         <ResizablePanel defaultSize={70} minSize={50}>
           <ScrollArea className="h-full p-6">
             {selectedRequest ? (
               <div className="space-y-6">
-                <h2 className="text-2xl font-bold">Detail Request: {selectedRequest.sr_number}</h2>
-                <div className="grid grid-cols-2 gap-4">
+                <h2 className="text-2xl font-bold text-neon-cyan">Detail Request: <span className="text-electric-violet">{selectedRequest.sr_number}</span></h2>
+                <div className="grid grid-cols-2 gap-4 text-gray-300">
                   <div>
-                    <p className="text-sm font-medium">SR Number:</p>
-                    <p className="text-lg">{selectedRequest.sr_number}</p>
+                    <p className="text-sm font-medium text-gray-400">SR Number:</p>
+                    <p className="text-lg text-neon-cyan">{selectedRequest.sr_number}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium">DO Number:</p>
+                    <p className="text-sm font-medium text-gray-400">DO Number:</p>
                     <p className="text-lg">{selectedRequest.do_number || "-"}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Customer Name:</p>
+                    <p className="text-sm font-medium text-gray-400">Customer Name:</p>
                     <p className="text-lg">{selectedRequest.customer_name}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Assigned Technician:</p>
+                    <p className="text-sm font-medium text-gray-400">Assigned Technician:</p>
                     <p className="text-lg">{selectedRequest.technician_name || "N/A"}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Full Address:</p>
+                    <p className="text-sm font-medium text-gray-400">Full Address:</p>
                     <p className="text-lg">{selectedRequest.full_address}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Invoice Date:</p>
+                    <p className="text-sm font-medium text-gray-400">Invoice Date:</p>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant={"outline"}
                           className={cn(
-                            "w-[240px] pl-3 text-left font-normal",
+                            "w-[240px] pl-3 text-left font-normal glassmorphism border border-gray-700 text-gray-300 hover:bg-gray-800",
                             !invoiceDate && "text-muted-foreground"
                           )}
                         >
@@ -429,12 +485,13 @@ const BillingReviewPage = () => {
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="w-auto p-0 glassmorphism border border-gray-700" align="start">
                         <Calendar
                           mode="single"
                           selected={invoiceDate}
                           onSelect={(date) => date && setInvoiceDate(date)}
                           initialFocus
+                          className="text-gray-300"
                         />
                       </PopoverContent>
                     </Popover>
@@ -443,50 +500,79 @@ const BillingReviewPage = () => {
 
                 {selectedRequest.document_url && (
                   <div className="mt-4">
-                    <p className="text-sm font-medium mb-2">Technician Document/Photo:</p>
+                    <p className="text-sm font-medium mb-2 text-gray-400">Technician Document/Photo:</p>
                     <a
                       href={selectedRequest.document_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline"
+                      className="text-neon-cyan hover:underline"
                     >
                       View Document
                     </a>
                   </div>
                 )}
 
-                <h3 className="text-xl font-semibold mt-8 mb-4">Invoice Items</h3>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead className="w-[100px]">Qty</TableHead>
-                      <TableHead className="w-[150px]">Unit Price</TableHead>
-                      <TableHead className="w-[150px]">Subtotal</TableHead>
-                      <TableHead className="w-[50px]">Actions</TableHead>
+                <h3 className="text-xl font-semibold mt-8 mb-4 text-neon-cyan">Invoice Items</h3>
+                <Table className="text-gray-300">
+                  <TableHeader className="glassmorphism border-b border-gray-700">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="text-neon-cyan">Product</TableHead>
+                      <TableHead className="w-[100px] text-neon-cyan">Qty</TableHead>
+                      <TableHead className="w-[150px] text-neon-cyan">Unit Price</TableHead>
+                      <TableHead className="w-[150px] text-neon-cyan">Subtotal</TableHead>
+                      <TableHead className="w-[50px] text-neon-cyan">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {invoiceItems.map((item) => (
-                      <TableRow key={item.tempId}>
+                      <TableRow
+                        key={item.tempId}
+                        className={cn(
+                          "border-b border-gray-800 transition-all duration-300",
+                          "hover:bg-gray-800/50",
+                          activeRowId === item.tempId && "border-electric-violet animate-pulse-glow"
+                        )}
+                        onClick={() => setActiveRowId(item.tempId)}
+                      >
                         <TableCell>
-                          <Select
-                            value={item.product_id}
-                            onValueChange={(value) => handleProductSelect(item.tempId, value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Product" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {products.map((product) => (
-                                <SelectItem key={product.id} value={product.id}>
-                                  {product.nama_barang} ({product.kode_barang})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className="w-full justify-between glassmorphism border border-gray-700 text-gray-300 hover:bg-gray-800"
+                              >
+                                {item.product_id
+                                  ? products.find((product) => product.id === item.product_id)?.nama_barang
+                                  : "Select Product"}
+                                <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 glassmorphism border border-gray-700">
+                              <Command>
+                                <CommandInput placeholder="Search product..." className="text-gray-300" />
+                                <CommandList>
+                                  <CommandEmpty>No product found.</CommandEmpty>
+                                  <CommandGroup>
+                                    {products.map((product) => (
+                                      <CommandItem
+                                        key={product.id}
+                                        value={product.nama_barang}
+                                        onSelect={() => {
+                                          handleProductSelect(item.tempId, product.id);
+                                        }}
+                                        className="text-gray-300 hover:bg-gray-800/50"
+                                      >
+                                        {product.nama_barang} ({product.kode_barang})
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                           {item.product_id && (
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-xs text-gray-500 mt-1">
                               {item.item_code} - {item.unit_type}
                             </p>
                           )}
@@ -503,6 +589,7 @@ const BillingReviewPage = () => {
                               )
                             }
                             min="1"
+                            className="glassmorphism border border-gray-700 text-gray-300"
                           />
                         </TableCell>
                         <TableCell>
@@ -517,9 +604,10 @@ const BillingReviewPage = () => {
                               )
                             }
                             step="0.01"
+                            className="glassmorphism border border-gray-700 text-gray-300"
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="font-bold text-neon-cyan">
                           Rp {item.subtotal.toLocaleString("id-ID")}
                         </TableCell>
                         <TableCell>
@@ -527,17 +615,18 @@ const BillingReviewPage = () => {
                             variant="destructive"
                             size="icon"
                             onClick={() => handleRemoveInvoiceItem(item.tempId)}
+                            className="bg-red-600/40 hover:bg-red-600/60 border border-red-700/50 text-red-300"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
                       </TableRow>
                     ))}
-                    <TableRow>
+                    <TableRow className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors">
                       <TableCell colSpan={5}>
                         <Button
                           variant="outline"
-                          className="w-full"
+                          className="w-full glassmorphism border border-neon-cyan/50 text-neon-cyan hover:bg-neon-cyan/20 transition-all duration-300"
                           onClick={handleAddInvoiceItem}
                         >
                           <PlusCircle className="mr-2 h-4 w-4" /> Add Item
@@ -547,30 +636,42 @@ const BillingReviewPage = () => {
                   </TableBody>
                 </Table>
 
-                <div className="flex justify-end items-center mt-4 space-x-4">
-                  <Label className="text-lg font-semibold">Grand Total:</Label>
-                  <span className="text-xl font-bold">
-                    Rp {grandTotal.toLocaleString("id-ID")}
-                  </span>
-                </div>
-
                 <div className="flex justify-end mt-6">
                   <Button
                     onClick={handleFinalizeInvoice}
                     disabled={isFinalizing || invoiceItems.length === 0 || grandTotal <= 0}
+                    className="bg-electric-violet text-white text-lg px-8 py-6 hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300"
                   >
                     {isFinalizing ? "Finalizing..." : "Finalize & Generate Invoice"}
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
+              <div className="flex items-center justify-center h-full text-gray-500 border border-dashed border-gray-700 rounded-md p-4 radar-grid-background">
                 Select a completed request from the left panel to review and generate invoice.
               </div>
             )}
           </ScrollArea>
         </ResizablePanel>
       </ResizablePanelGroup>
+
+      {/* Sticky Footer for Grand Total */}
+      <div className="fixed bottom-0 left-0 right-0 md:ml-72 p-4 bg-deep-charcoal/80 glassmorphism border-t border-neon-cyan/30 flex justify-end items-center z-40">
+        <div className="flex items-center space-x-8">
+          <div className="text-right">
+            <Label className="text-sm text-gray-400">Subtotal</Label>
+            <p className="text-lg font-semibold text-gray-300">Rp <CountUp value={grandTotal} /></p>
+          </div>
+          <div className="text-right">
+            <Label className="text-sm text-gray-400">Calculated Tax</Label>
+            <p className="text-lg font-semibold text-gray-300">Rp <CountUp value={grandTotal * 0.1} /></p> {/* Placeholder tax */}
+          </div>
+          <div className="text-right">
+            <Label className="text-lg font-semibold text-gray-200">LIVE TOTAL</Label>
+            <p className="text-4xl font-extrabold neon-cyan-text">Rp <CountUp value={grandTotal * 1.1} /></p> {/* Placeholder total with tax */}
+          </div>
+        </div>
+      </div>
     </DashboardLayout>
   );
 };

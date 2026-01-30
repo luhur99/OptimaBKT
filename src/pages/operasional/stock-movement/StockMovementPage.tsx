@@ -19,8 +19,8 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StockMovementForm } from "@/components/operasional/stock-movement/StockMovementForm"; // Updated import path
-import DashboardLayout from "@/layouts/DashboardLayout"; // Import the new layout
+import { StockMovementForm } from "@/components/operasional/stock-movement/StockMovementForm";
+import DashboardLayout from "@/layouts/DashboardLayout";
 
 type WarehouseInventoryItem = {
   id: string;
@@ -84,17 +84,17 @@ const StockMovementPage = () => {
     return (
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
-          <Skeleton className="h-10 w-1/2" />
-          <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg border">
+          <Skeleton className="h-10 w-1/2 bg-gray-700" />
+          <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg border border-gray-700">
             <ResizablePanel defaultSize={50}>
               <div className="flex h-full items-center justify-center p-6">
-                <Skeleton className="h-full w-full" />
+                <Skeleton className="h-full w-full bg-gray-800" />
               </div>
             </ResizablePanel>
-            <ResizableHandle withHandle />
+            <ResizableHandle withHandle className="bg-gray-700 hover:bg-neon-cyan" />
             <ResizablePanel defaultSize={50}>
               <div className="flex h-full items-center justify-center p-6">
-                <Skeleton className="h-full w-full" />
+                <Skeleton className="h-full w-full bg-gray-800" />
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>
@@ -106,7 +106,7 @@ const StockMovementPage = () => {
   if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN")) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-screen text-gray-400">
           Unauthorized access.
         </div>
       </DashboardLayout>
@@ -115,33 +115,35 @@ const StockMovementPage = () => {
 
   return (
     <DashboardLayout>
-      <h1 className="text-3xl font-bold mb-6">Stock Movement Management</h1>
+      <h1 className="text-3xl font-bold mb-6 text-neon-cyan">Stock Movement Management</h1>
 
-      <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg border">
+      <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg glassmorphism border border-neon-cyan/30">
         <ResizablePanel defaultSize={50} minSize={30}>
           <ScrollArea className="h-full p-4">
-            <h2 className="text-xl font-semibold mb-4">Current Warehouse Inventory</h2>
+            <h2 className="text-xl font-semibold mb-4 text-neon-cyan">Current Warehouse Inventory</h2>
             {inventory.length === 0 ? (
-              <p className="text-muted-foreground">No inventory items found.</p>
+              <div className="h-full flex items-center justify-center text-gray-500 border border-dashed border-gray-700 rounded-md p-4 radar-grid-background">
+                <p>No inventory items found. Initiating scan...</p>
+              </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Warehouse</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Last Updated</TableHead>
+              <Table className="text-gray-300">
+                <TableHeader className="glassmorphism border-b border-gray-700">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="text-neon-cyan">Product</TableHead>
+                    <TableHead className="text-neon-cyan">Warehouse</TableHead>
+                    <TableHead className="text-neon-cyan">Quantity</TableHead>
+                    <TableHead className="text-neon-cyan">Last Updated</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {inventory.map((item) => (
-                    <TableRow key={item.id}>
+                    <TableRow key={item.id} className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors">
                       <TableCell>
-                        {item.product_name} ({item.product_code})
+                        {item.product_name} (<span className="text-gray-500">{item.product_code}</span>)
                       </TableCell>
-                      <TableCell>{item.warehouse_category}</TableCell>
-                      <TableCell>{item.quantity}</TableCell>
-                      <TableCell>{new Date(item.updated_at).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-electric-violet">{item.warehouse_category}</TableCell>
+                      <TableCell className="font-bold text-neon-cyan">{item.quantity}</TableCell>
+                      <TableCell className="text-gray-500">{new Date(item.updated_at).toLocaleDateString()}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -149,13 +151,13 @@ const StockMovementPage = () => {
             )}
           </ScrollArea>
         </ResizablePanel>
-        <ResizableHandle withHandle />
+        <ResizableHandle withHandle className="bg-gray-700 hover:bg-neon-cyan transition-colors" />
         <ResizablePanel defaultSize={50} minSize={30}>
           <ScrollArea className="h-full p-6">
-            <h2 className="text-xl font-semibold mb-4">Move Stock</h2>
-            <Card>
+            <h2 className="text-xl font-semibold mb-4 text-neon-cyan">Initiate Stock Transfer</h2>
+            <Card className="glassmorphism border border-electric-violet/30">
               <CardHeader>
-                <CardTitle>Initiate Stock Transfer</CardTitle>
+                <CardTitle className="text-electric-violet">Move Stock</CardTitle>
               </CardHeader>
               <CardContent>
                 <StockMovementForm onMoveSuccess={fetchInventory} />
