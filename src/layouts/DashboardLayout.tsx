@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Users, CalendarDays, Package, Receipt, Settings, Box, ShoppingCart, LayoutDashboard, ClipboardList } from "lucide-react"; // Import ClipboardList icon
+import { Home, Users, CalendarDays, Package, Receipt, Settings, Box, ShoppingCart, LayoutDashboard, ClipboardList, Menu, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils"; // Import cn for conditional classnames
+import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -20,6 +20,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const { profile, isLoading } = useAuthSession();
   const navigate = useNavigate();
   const location = useLocation();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Default open for desktop
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -77,10 +78,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       roles: ["SUPER_ADMIN", "SALES_DIV"],
     },
     {
-      name: "Procurement", // New item
-      href: "/operasional/procurement", // New route
-      icon: ClipboardList, // Icon for Procurement
-      roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"], // Roles that can access
+      name: "Procurement",
+      href: "/operasional/procurement",
+      icon: ClipboardList,
+      roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"],
     },
     {
       name: "Stock Movement",
@@ -106,18 +107,21 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       icon: Receipt,
       roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "ACCOUNTING"],
     },
-    // Add more navigation items here based on roles
   ];
 
   const filteredNavigation = navigationItems.filter(item =>
     profile?.role && item.roles.includes(profile.role)
   );
 
-  const SidebarContent = () => (
+  const SidebarContent = ({ isCollapsed = false }) => (
     <div className="flex h-full flex-col gap-2">
       <div className="flex h-14 items-center border-b border-gray-700 px-4 lg:h-[60px] lg:px-6">
         <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
-          <span className="text-lg font-bold text-neon-cyan">Elmony App</span>
+          {isCollapsed ? (
+            <Home className="h-5 w-5 text-neon-cyan" />
+          ) : (
+            <span className="text-lg font-bold text-neon-cyan">Elmony App</span>
+          )}
         </Link>
       </div>
       <div className="flex-1 py-4">
@@ -131,11 +135,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 transition-all",
                   "text-gray-400 hover:text-neon-cyan hover:bg-gray-800",
-                  isActive && "text-neon-cyan bg-gray-800 neon-glow"
+                  isActive && "text-neon-cyan bg-gray-800 neon-glow",
+                  isCollapsed && "justify-center px-2"
                 )}
               >
                 <item.icon className="h-4 w-4" />
-                {item.name}
+                {!isCollapsed && item.name}
               </Link>
             );
           })}
@@ -144,47 +149,72 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       <div className="mt-auto p-4 border-t border-gray-700">
         <Button
           variant="ghost"
-          className="w-full justify-start text-gray-400 hover:text-neon-cyan hover:bg-gray-800"
+          className={cn(
+            "w-full justify-start text-gray-400 hover:text-neon-cyan hover:bg-gray-800",
+            isCollapsed && "justify-center"
+          )}
           onClick={handleLogout}
         >
-          <Settings className="h-4 w-4 mr-3" />
-          Logout
+          <Settings className="h-4 w-4" />
+          {!isCollapsed && <span className="ml-3">Logout</span>}
         </Button>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen w-full bg-deep-charcoal text-foreground">
-      {/* Desktop Floating Sidebar */}
-      <aside className="fixed left-4 top-4 bottom-4 hidden w-64 rounded-xl glassmorphism md:flex flex-col z-50">
-        <SidebarContent />
+    <div className="min-h-screen w-full bg-deep-charcoal text-foreground flex">
+      {/* Desktop Sidebar */}
+      <aside className={cn(
+        "fixed left-0 top-0 bottom-0 z-50 flex-col bg-midnight-blue p-4 border-r border-gray-800 transition-all duration-300",
+        isSidebarOpen ? "w-64" : "w-20",
+        isMobile ? "hidden" : "flex" // Hide on mobile, use Sheet instead
+      )}>
+        <SidebarContent isCollapsed={!isSidebarOpen} />
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex flex-col md:ml-72"> {/* Adjust margin for fixed sidebar */}
-        {/* Mobile Header and Sidebar */}
-        <header className="flex h-14 items-center gap-4 border-b border-gray-700 bg-deep-charcoal px-4 lg:h-[60px] lg:px-6 md:hidden">
+      <div className={cn(
+        "flex flex-col flex-1",
+        isSidebarOpen ? "md:ml-64" : "md:ml-20" // Dynamic margin for desktop
+      )}>
+        {/* Header */}
+        <header className="flex h-14 items-center gap-4 border-b border-gray-700 bg-deep-charcoal px-4 lg:h-[60px] lg:px-6">
+          {/* Mobile Sheet Trigger */}
           <Sheet>
-            <SheetTrigger asChild>
+            <SheetTrigger asChild className="md:hidden">
               <Button
                 variant="outline"
                 size="icon"
                 className="shrink-0 text-neon-cyan border-neon-cyan/50 bg-transparent hover:bg-gray-800"
               >
-                <Home className="h-5 w-5" />
+                <Menu className="h-5 w-5" /> {/* Hamburger icon for mobile */}
                 <span className="sr-only">Toggle navigation menu</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="flex flex-col bg-midnight-blue glassmorphism border-r border-gray-700">
-              <SidebarContent />
+              <SidebarContent /> {/* Mobile sidebar content is always full */}
             </SheetContent>
           </Sheet>
+
+          {/* Desktop Sidebar Toggle Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="hidden md:flex shrink-0 text-neon-cyan hover:bg-gray-800"
+          >
+            {isSidebarOpen ? <ArrowLeft className="h-5 w-5" /> : <Menu className="h-5 w-5" />} {/* Toggle icon for desktop */}
+            <span className="sr-only">Toggle sidebar</span>
+          </Button>
+
           <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
             <span className="text-lg font-bold text-neon-cyan">Elmony App</span>
           </Link>
+          {/* Add other header content here if needed */}
         </header>
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+
+        <main className="flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
           {children}
         </main>
       </div>
