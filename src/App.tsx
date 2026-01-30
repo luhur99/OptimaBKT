@@ -23,6 +23,7 @@ import DashboardPage from './pages/dashboard/DashboardPage'; // Import Dashboard
 import BillingReviewPage from './pages/operasional/billing-review/BillingReviewPage'; // Import BillingReviewPage
 import ProcurementPage from './pages/operasional/procurement/ProcurementPage'; // Import ProcurementPage
 import ProductCatalogPage from './pages/operasional/products/ProductCatalogPage'; // Import ProductCatalogPage
+import InventoryDashboardPage from './pages/operasional/inventory-dashboard/InventoryDashboardPage'; // Import InventoryDashboardPage
 
 function App() {
   return (
