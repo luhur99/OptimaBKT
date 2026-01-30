@@ -25,13 +25,13 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "TECHNICIAN", "SALES", "WAREHOUSE_STAFF", "PURCHASING_STAFF"]}><IndexPage /></PrivateRoute>} />
+        <Route path="/" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "TECHNICIAN", "SALES_DIV", "WAREHOUSE_STAFF", "PURCHASING_STAFF"]}><IndexPage /></PrivateRoute>} />
         
         {/* Operasional Routes */}
         <Route path="/operasional/scheduling" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "TECHNICIAN"]}><OperasionalSchedulingPage /></PrivateRoute>} />
         <Route path="/operasional/delivery-orders" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "WAREHOUSE_STAFF"]}><OperasionalDeliveryOrderPage /></PrivateRoute>} />
-        <Route path="/operasional/invoices" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES"]}><OperasionalInvoicesPage /></PrivateRoute>} />
-        <Route path="/operasional/sales-details" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "SALES"]}><OperasionalSalesDetailsPage /></PrivateRoute>} />
+        <Route path="/operasional/invoices" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"]}><OperasionalInvoicesPage /></PrivateRoute>} />
+        <Route path="/operasional/sales-details" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "SALES_DIV"]}><OperasionalSalesDetailsPage /></PrivateRoute>} />
 
         {/* Purchasing Routes */}
         <Route path="/purchasing/purchase-requests" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "PURCHASING_STAFF"]}><PurchasingPurchaseRequestsPage /></PrivateRoute>} />
@@ -43,11 +43,11 @@ function App() {
         <Route path="/warehouse/stock-ledger" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "WAREHOUSE_STAFF"]}><WarehouseStockLedgerPage /></PrivateRoute>} />
 
         {/* Master Data Routes */}
-        <Route path="/master-data/customers" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "SALES", "OPERASIONAL_DIV"]}><MasterDataCustomersPage /></PrivateRoute>} />
+        <Route path="/master-data/customers" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "SALES_DIV", "OPERASIONAL_DIV"]}><MasterDataCustomersPage /></PrivateRoute>} />
         <Route path="/master-data/suppliers" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "PURCHASING_STAFF"]}><MasterDataSuppliersPage /></PrivateRoute>} />
         <Route path="/master-data/technicians" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV"]}><MasterDataTechniciansPage /></PrivateRoute>} />
         <Route path="/master-data/warehouse-categories" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "WAREHOUSE_STAFF"]}><MasterDataWarehouseCategoriesPage /></PrivateRoute>} />
-        <Route path="/master-data/sales-invoices" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "SALES"]}><MasterDataSalesInvoicesPage /></PrivateRoute>} />
+        <Route path="/master-data/sales-invoices" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "SALES_DIV"]}><MasterDataSalesInvoicesPage /></PrivateRoute>} />
 
         {/* Settings Route */}
         <Route path="/settings" element={<PrivateRoute allowedRoles={["SUPER_ADMIN"]}><SettingsPage /></PrivateRoute>} />

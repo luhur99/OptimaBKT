@@ -24,7 +24,7 @@ const OperasionalInvoicesPage: React.FC = () => {
     );
   }
 
-  if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN" && profile?.role !== "SALES")) {
+  if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN" && profile?.role !== "SALES_DIV")) {
     showError("You do not have permission to access this page.");
     navigate("/dashboard");
     return null;

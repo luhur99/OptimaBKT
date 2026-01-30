@@ -39,6 +39,8 @@ const formSchema = z.object({
     "TECHNICIAN",
     "ACCOUNTING",
     "USER",
+    "WAREHOUSE_STAFF",
+    "PURCHASING_STAFF",
   ]),
 });
 
@@ -63,7 +65,7 @@ export function AddStaffForm({ onStaffAdded, onClose }: AddStaffFormProps) {
     setIsSubmitting(true);
     try {
       const response = await fetch(
-        `https://hhhzugqimtypijkdxxsm.supabase.co/functions/v1/create-staff-user`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-staff-user`,
         {
           method: "POST",
           headers: {
@@ -152,6 +154,8 @@ export function AddStaffForm({ onStaffAdded, onClose }: AddStaffFormProps) {
                   <SelectItem value="TECHNICIAN">TECHNICIAN</SelectItem>
                   <SelectItem value="ACCOUNTING">ACCOUNTING</SelectItem>
                   <SelectItem value="USER">USER</SelectItem>
+                  <SelectItem value="WAREHOUSE_STAFF">WAREHOUSE_STAFF</SelectItem>
+                  <SelectItem value="PURCHASING_STAFF">PURCHASING_STAFF</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
