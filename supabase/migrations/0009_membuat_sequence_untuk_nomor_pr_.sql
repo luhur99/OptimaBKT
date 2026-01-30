@@ -1,1 +1,0 @@
-CREATE SEQUENCE IF NOT EXISTS pr_number_seq;
