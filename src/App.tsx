@@ -1,11 +1,11 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import IndexPage from './pages/Index';
-import LoginPage from './pages/Login';
+import LoginPage from './pages/LoginPage'; // Corrected import path
 import PrivateRoute from './components/PrivateRoute';
 import { Toaster } from './components/ui/toaster';
 import OperasionalSchedulingPage from './pages/operasional/scheduling/OperasionalSchedulingPage';
-import OperasionalDeliveryOrderPage from './pages/operasional/delivery-orders/OperasionalDeliveryOrderPage'; // Import the new page
+import OperasionalDeliveryOrderPage from './pages/operasional/delivery-orders/OperasionalDeliveryOrderPage';
 import OperasionalInvoicesPage from './pages/operasional/invoices/OperasionalInvoicesPage';
 import OperasionalSalesDetailsPage from './pages/operasional/sales-details/OperasionalSalesDetailsPage';
 import PurchasingPurchaseRequestsPage from './pages/purchasing/purchase-requests/PurchasingPurchaseRequestsPage';
@@ -29,7 +29,7 @@ function App() {
         
         {/* Operasional Routes */}
         <Route path="/operasional/scheduling" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "TECHNICIAN"]}><OperasionalSchedulingPage /></PrivateRoute>} />
-        <Route path="/operasional/delivery-orders" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "WAREHOUSE_STAFF"]}><OperasionalDeliveryOrderPage /></PrivateRoute>} /> {/* New Route */}
+        <Route path="/operasional/delivery-orders" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "WAREHOUSE_STAFF"]}><OperasionalDeliveryOrderPage /></PrivateRoute>} />
         <Route path="/operasional/invoices" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES"]}><OperasionalInvoicesPage /></PrivateRoute>} />
         <Route path="/operasional/sales-details" element={<PrivateRoute allowedRoles={["SUPER_ADMIN", "SALES"]}><OperasionalSalesDetailsPage /></PrivateRoute>} />
 
