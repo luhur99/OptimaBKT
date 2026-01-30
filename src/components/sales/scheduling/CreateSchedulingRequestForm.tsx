@@ -47,7 +47,7 @@ const formSchema = z.object({
   customer_id: z.string().min(1, { message: "Customer is required." }),
   customer_name: z.string().min(1, { message: "Customer name is required." }),
   company_name: z.string().optional(),
-  type: z.enum(["INSTALLATION", "SERVICE", "SERVICE_UNBILL", "DELIVERY"], { // Updated enum values
+  type: z.enum(["INSTALLATION", "SERVICE", "SERVICE_UNBILL", "DELIVERY"], {
     required_error: "Please select a request type.",
   }),
   full_address: z.string().min(1, { message: "Full address is required." }),
@@ -58,7 +58,9 @@ const formSchema = z.object({
   requested_time: z.string().optional(),
   contact_person: z.string().min(1, { message: "Contact person is required." }),
   phone_number: z.string().min(1, { message: "Phone number is required." }),
-  payment_method: z.string().optional(),
+  payment_method: z.enum(["COD", "TRANSFER", "PAYMENT_GATEWAY", "DP", "OTHER"], { // Updated to enum
+    required_error: "Please select a payment method.",
+  }),
   notes: z.string().optional(),
   vehicle_details: z.string().optional(),
   product_category: z.enum(["SIAP_JUAL", "RUSAK", "MAINTENANCE", "GPS_TRACKER", "DASHCAM"]).optional(),
@@ -77,14 +79,14 @@ export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRe
       customer_id: "",
       customer_name: "",
       company_name: "",
-      type: "INSTALLATION", // Default type
+      type: "INSTALLATION",
       full_address: "",
       landmark: "",
       requested_date: new Date(),
       requested_time: "",
       contact_person: "",
       phone_number: "",
-      payment_method: "",
+      payment_method: "COD", // Default payment method
       notes: "",
       vehicle_details: "",
       product_category: undefined,
@@ -378,9 +380,20 @@ export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRe
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-gray-300">Payment Method (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Cash, Transfer, Credit Card" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
-                  </FormControl>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
+                        <SelectValue placeholder="Select payment method" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
+                      <SelectItem value="COD">COD</SelectItem>
+                      <SelectItem value="TRANSFER">Transfer</SelectItem>
+                      <SelectItem value="PAYMENT_GATEWAY">Payment Gateway Qris / VA</SelectItem>
+                      <SelectItem value="DP">DP</SelectItem>
+                      <SelectItem value="OTHER">Lain - Lain</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
