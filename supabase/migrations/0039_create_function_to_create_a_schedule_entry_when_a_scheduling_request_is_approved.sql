@@ -1,12 +1,42 @@
 CREATE OR REPLACE FUNCTION public.create_schedule_on_sr_approval()
 RETURNS TRIGGER
 LANGUAGE PLPGSQL
-SECURITY DEFINER SET search_path = 'public'
-AS $$
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+    new_delivery_order_id UUID;
 BEGIN
   -- Check if the status has just changed to 'approved' and a do_number has been generated
   IF NEW.status = 'approved' AND OLD.status IS DISTINCT FROM 'approved' AND NEW.do_number IS NOT NULL THEN
-    -- Insert into schedules table
+
+    -- 1. Insert into delivery_orders table
+    INSERT INTO public.delivery_orders (
+      request_id,
+      user_id,
+      do_number,
+      delivery_date,
+      delivery_time,
+      status,
+      notes
+      -- items_json can be null initially or populated later
+    ) VALUES (
+      NEW.id, -- scheduling_request_id
+      NEW.user_id,
+      NEW.do_number,
+      NEW.requested_date,
+      NEW.requested_time,
+      'in_progress', -- Set DO status to 'in_progress' as requested
+      NEW.notes
+    )
+    RETURNING id INTO new_delivery_order_id;
+
+    -- 2. Update scheduling_requests with the new delivery_order_id
+    UPDATE public.scheduling_requests
+    SET delivery_order_id = new_delivery_order_id
+    WHERE id = NEW.id;
+
+    -- 3. Insert into schedules table (existing logic)
     INSERT INTO public.schedules (
       user_id,
       schedule_date,
@@ -15,7 +45,7 @@ BEGIN
       customer_name,
       address,
       technician_name,
-      status,
+      status, -- This is for the schedule, not the DO
       notes,
       phone_number,
       product_category,
@@ -29,7 +59,7 @@ BEGIN
       NEW.type,
       NEW.customer_name,
       NEW.full_address,
-      NEW.technician_name, -- Use the technician name from scheduling_requests
+      NEW.technician_name,
       'scheduled', -- Initial status for the schedule
       NEW.notes,
       NEW.phone_number,
@@ -43,4 +73,4 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$function$;
