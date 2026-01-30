@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } => "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
@@ -61,7 +61,7 @@ const formSchema = z.object({
   payment_method: z.string().optional(),
   notes: z.string().optional(),
   vehicle_details: z.string().optional(),
-  product_category: z.enum(["SIAP_JUAL", "RUSAK", "MAINTENANCE"]).optional(),
+  product_category: z.enum(["SIAP_JUAL", "RUSAK", "MAINTENANCE", "GPS_TRACKER", "DASHCAM"]).optional(), // Updated enum values
 });
 
 export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRequestFormProps) {
@@ -87,7 +87,7 @@ export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRe
       payment_method: "",
       notes: "",
       vehicle_details: "",
-      product_category: undefined, // Changed from "" to undefined
+      product_category: undefined,
     },
   });
 
@@ -353,7 +353,7 @@ export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRe
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-gray-300">Product Category (Optional)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} > {/* Added value prop */}
+                  <Select onValueChange={field.onChange} value={field.value} >
                     <FormControl>
                       <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
                         <SelectValue placeholder="Select product category" />
@@ -363,6 +363,8 @@ export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRe
                       <SelectItem value="SIAP_JUAL">Siap Jual</SelectItem>
                       <SelectItem value="RUSAK">Rusak</SelectItem>
                       <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                      <SelectItem value="GPS_TRACKER">GPS Tracker</SelectItem>
+                      <SelectItem value="DASHCAM">Dashcam</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
