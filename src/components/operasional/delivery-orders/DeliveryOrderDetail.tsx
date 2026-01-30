@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { Separator } => '@/components/ui/separator';
 import { ArrowLeft, Truck, CheckCircle, XCircle, Clock, FileText, User, MapPin, Phone, Building, Tag, Info, Loader2 } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 import { useToast } from "@/components/ui/use-toast";
 import { DeliveryOrderActionDialog } from './DeliveryOrderActionDialog';
 import { DeliveryOrder } from './delivery-order-columns'; // Import the type
-import { Calendar } from "@/components/ui/calendar"; // <--- ADDED THIS IMPORT
+
 
 interface SchedulingRequestDetails {
   sr_number: string;
@@ -250,7 +250,7 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
             <div className="space-y-2">
               <p className="flex items-center text-sm"><Tag className="mr-2 h-4 w-4 text-blue-400" /> DO Number: <span className="ml-2 font-medium">{order.do_number}</span></p>
               <p className="flex items-center text-sm"><User className="mr-2 h-4 w-4 text-yellow-400" /> Created By: <span className="ml-2 font-medium">{order.user_full_name}</span></p>
-              <p className="flex items-center text-sm"><Calendar className="mr-2 h-4 w-4 text-purple-400" /> Delivery Date: <span className="ml-2 font-medium">{format(new Date(order.delivery_date), "PPP")}</span></p>
+              <p className="flex items-center text-sm"><Clock className="mr-2 h-4 w-4 text-purple-400" /> Delivery Date: <span className="ml-2 font-medium">{format(new Date(order.delivery_date), "PPP")}</span></p>
               <p className="flex items-center text-sm"><Clock className="mr-2 h-4 w-4 text-teal-400" /> Delivery Time: <span className="ml-2 font-medium">{order.delivery_time || 'N/A'}</span></p>
               <p className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Status: <Badge className={getStatusColor(order.status)}>{order.status.replace(/_/g, ' ').toUpperCase()}</Badge></p>
               {order.notes && <p className="flex items-start text-sm"><FileText className="mr-2 h-4 w-4 text-orange-400 mt-1" /> Notes: <span className="ml-2 font-medium">{order.notes}</span></p>}
