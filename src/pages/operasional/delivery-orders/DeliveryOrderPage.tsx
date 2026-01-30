@@ -6,7 +6,8 @@ import { showSuccess, showError } from "@/utils/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import DashboardLayout from "@/layouts/DashboardLayout";
-import { DeliveryOrderTable, createDeliveryOrderColumns, DeliveryOrder } from "@/components/operasional/delivery-orders/DeliveryOrderTable";
+import { DeliveryOrderTable } from "@/components/operasional/delivery-orders/DeliveryOrderTable";
+import { createDeliveryOrderColumns, DeliveryOrder } from "@/components/operasional/delivery-orders/delivery-order-columns"; // Corrected import path
 import { Truck } from "lucide-react";
 
 const DeliveryOrderPage = () => {
