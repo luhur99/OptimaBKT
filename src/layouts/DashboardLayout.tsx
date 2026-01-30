@@ -120,7 +120,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           {isCollapsed ? (
             <Home className="h-5 w-5 text-neon-cyan" />
           ) : (
-            <span className="text-lg font-bold text-neon-cyan">Elmony App</span>
+            <span className="text-lg font-bold text-neon-cyan">OPTIMABKT</span>
           )}
         </Link>
       </div>
