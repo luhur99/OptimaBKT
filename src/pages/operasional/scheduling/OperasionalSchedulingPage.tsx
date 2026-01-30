@@ -78,7 +78,7 @@ interface Technician {
   type: "INTERNAL" | "EXTERNAL";
 }
 
-export const OperasionalSchedulingPage = () => {
+const OperasionalSchedulingPage = () => { // Changed to a regular function component
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRequestForAction, setSelectedRequestForAction] = useState<SchedulingRequest | null>(null);
@@ -676,3 +676,5 @@ export const OperasionalSchedulingPage = () => {
     </div>
   );
 };
+
+export default OperasionalSchedulingPage; // Export as default
