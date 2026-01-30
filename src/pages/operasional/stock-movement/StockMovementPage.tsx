@@ -8,6 +8,7 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -20,6 +21,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StockMovementForm } from "@/components/operasional/stock-movement/StockMovementForm";
+import { StockAdjustmentForm } from "@/components/operasional/stock-movement/StockAdjustmentForm"; // Import new form
 import DashboardLayout from "@/layouts/DashboardLayout";
 
 type WarehouseInventoryItem = {
@@ -37,6 +39,7 @@ const StockMovementPage = () => {
   const navigate = useNavigate();
   const [inventory, setInventory] = useState<WarehouseInventoryItem[]>([]);
   const [isLoadingInventory, setIsLoadingInventory] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>("transfer"); // New state for active tab
 
   const fetchInventory = async () => {
     setIsLoadingInventory(true);
@@ -85,6 +88,10 @@ const StockMovementPage = () => {
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
           <Skeleton className="h-10 w-1/2 bg-gray-700" />
+          <div className="flex space-x-2">
+            <Skeleton className="h-9 w-24 bg-gray-700" />
+            <Skeleton className="h-9 w-24 bg-gray-700" />
+          </div>
           <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg border border-gray-700">
             <ResizablePanel defaultSize={50}>
               <div className="flex h-full items-center justify-center p-6">
@@ -154,15 +161,32 @@ const StockMovementPage = () => {
         <ResizableHandle withHandle className="bg-gray-700 hover:bg-neon-cyan transition-colors" />
         <ResizablePanel defaultSize={50} minSize={30}>
           <ScrollArea className="h-full p-6">
-            <h2 className="text-xl font-semibold mb-4 text-neon-cyan">Initiate Stock Transfer</h2>
-            <Card className="glassmorphism border border-electric-violet/30">
-              <CardHeader>
-                <CardTitle className="text-electric-violet">Move Stock</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <StockMovementForm onMoveSuccess={fetchInventory} />
-              </CardContent>
-            </Card>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+              <TabsList className="bg-midnight-blue border border-gray-700">
+                <TabsTrigger value="transfer" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Stock Transfer</TabsTrigger>
+                <TabsTrigger value="adjustment" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Stock Adjustment</TabsTrigger>
+              </TabsList>
+              <TabsContent value="transfer" className="mt-4">
+                <Card className="glassmorphism border border-electric-violet/30">
+                  <CardHeader>
+                    <CardTitle className="text-electric-violet">Move Stock Between Warehouses</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <StockMovementForm onMoveSuccess={fetchInventory} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="adjustment" className="mt-4">
+                <Card className="glassmorphism border border-electric-violet/30">
+                  <CardHeader>
+                    <CardTitle className="text-electric-violet">Adjust Stock Quantity</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <StockAdjustmentForm onAdjustmentSuccess={fetchInventory} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </ScrollArea>
         </ResizablePanel>
       </ResizablePanelGroup>
