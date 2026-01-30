@@ -24,6 +24,7 @@ import BillingReviewPage from './pages/operasional/billing-review/BillingReviewP
 import ProcurementPage from './pages/operasional/procurement/ProcurementPage'; // Import ProcurementPage
 import ProductCatalogPage from './pages/operasional/products/ProductCatalogPage'; // Import ProductCatalogPage
 import InventoryDashboardPage from './pages/operasional/inventory-dashboard/InventoryDashboardPage'; // Import InventoryDashboardPage
+import StockMovementPage from './pages/operasional/stock-movement/StockMovementPage'; // Import StockMovementPage
 
 function App() {
   return (
