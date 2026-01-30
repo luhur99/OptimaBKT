@@ -14,7 +14,7 @@ import ProductCatalogPage from "./pages/operasional/products/ProductCatalogPage"
 import SalesSchedulingPage from "./pages/sales/scheduling/SalesSchedulingPage";
 import InventoryDashboardPage from "./pages/operasional/inventory-dashboard/InventoryDashboardPage";
 import ProcurementPage from "./pages/operasional/procurement/ProcurementPage";
-import LoginPage from "./pages/LoginPage"; // New import
+import LoginPage from "./pages/LoginPage";
 
 const queryClient = new QueryClient();
 
@@ -23,10 +23,10 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/login" element={<LoginPage />} /> {/* New route for login */}
+          <Route path="/login" element={<LoginPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/admin/users" element={<UserManagementPage />} />
           <Route path="/operasional/scheduling" element={<OperasionalSchedulingPage />} />
