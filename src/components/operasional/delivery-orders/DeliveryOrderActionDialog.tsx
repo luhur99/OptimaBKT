@@ -13,7 +13,7 @@ import { showSuccess, showError } from "@/utils/toast";
 
 interface DeliveryOrder {
   id: string;
-  status: 'pending' | 'in_progress' | 'delivered' | 'cancelled'; // Changed from on_delivery
+  status: 'pending' | 'in progress' | 'delivered' | 'cancelled';
   notes: string | null;
 }
 
@@ -25,7 +25,7 @@ interface DeliveryOrderActionDialogProps {
     notes?: string;
   }) => Promise<void>;
   order: DeliveryOrder;
-  actionType: 'in_progress' | 'delivered' | 'cancelled'; // Changed from on_delivery
+  actionType: 'in progress' | 'delivered' | 'cancelled';
 }
 
 export const DeliveryOrderActionDialog: React.FC<DeliveryOrderActionDialogProps> = ({
@@ -40,7 +40,7 @@ export const DeliveryOrderActionDialog: React.FC<DeliveryOrderActionDialogProps>
 
   const getDialogTitle = () => {
     switch (actionType) {
-      case "in_progress": // Changed from on_delivery
+      case "in progress":
         return "Set Delivery Order In Progress";
       case "delivered":
         return "Mark Delivery Order as Delivered";
@@ -77,7 +77,7 @@ export const DeliveryOrderActionDialog: React.FC<DeliveryOrderActionDialogProps>
       <DialogHeader>
         <DialogTitle className="text-neon-cyan">{getDialogTitle()}</DialogTitle>
         <DialogDescription className="text-gray-400">
-          {actionType === 'in_progress' && "Confirm that this delivery order is now in progress."} {/* Changed from on_delivery */}
+          {actionType === 'in progress' && "Confirm that this delivery order is now in progress."}
           {actionType === 'delivered' && "Confirm that this delivery order has been successfully delivered."}
           {actionType === 'cancelled' && "Please provide notes for cancelling this delivery order."}
         </DialogDescription>
