@@ -168,7 +168,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       <aside className={cn(
         "fixed left-0 top-0 bottom-0 z-50 flex-col bg-midnight-blue p-4 border-r border-gray-800 transition-all duration-300",
         isSidebarOpen ? "w-64" : "w-20",
-        isMobile ? "hidden" : "flex" // Hide on mobile, use Sheet instead
+        "hidden md:flex" // Ensure it's hidden on mobile, flex on desktop
       )}>
         <SidebarContent isCollapsed={!isSidebarOpen} />
       </aside>
@@ -208,9 +208,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             <span className="sr-only">Toggle sidebar</span>
           </Button>
 
-          <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
+          {/* The Elmony App title in the header is now removed to avoid redundancy with the sidebar title */}
+          {/* <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
             <span className="text-lg font-bold text-neon-cyan">Elmony App</span>
-          </Link>
+          </Link> */}
           {/* Add other header content here if needed */}
         </header>
 
