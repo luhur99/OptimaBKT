@@ -4,10 +4,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SessionContextProvider } from "@supabase/auth-ui-react";
 import { supabase } from "@/integrations/supabase/client";
-// import { AuthLayout } from "@/layouts/AuthLayout"; // Removed as it's used directly in the route
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import Index from "@/pages/Index";
-import Login from "@/pages/Login";
+import LoginPage from "@/pages/LoginPage"; // Corrected import name and path
 import ProtectedRoute from "@/components/ProtectedRoute";
 import SettingsPage from "@/pages/SettingsPage";
 import ProfilePage from "@/pages/ProfilePage";
@@ -23,7 +22,7 @@ function App() {
           <Toaster />
           <BrowserRouter>
             <Routes>
-              <Route path="/login" element={<Login />} /> {/* Login page now handles its own layout */}
+              <Route path="/login" element={<LoginPage />} /> {/* Using LoginPage component */}
               <Route
                 path="/"
                 element={
