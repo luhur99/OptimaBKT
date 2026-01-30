@@ -1,23 +1,16 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
-import { DialogTrigger } from "@/components/ui/dialog";
+import { ArrowUpDown } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export type SchedulingRequest = {
   id: string;
   sr_number: string;
   customer_name: string;
-  status: 'pending' | 'approved' | 'in_progress' | 'rescheduled' | 'rejected' | 'completed' | 'cancelled';
+  status: "pending" | "approved" | "in_progress" | "completed" | "rejected" | "rescheduled" | "cancelled" | "INSTALLATION" | "SERVICE" | "SERVICE_UNBILL" | "DELIVERY";
   do_number?: string;
   assigned_technician_id?: string;
-  technician_name?: string; // From profiles table join
+  technician_name?: string;
   full_address: string;
   requested_date: string;
   requested_time?: string;
@@ -33,79 +26,148 @@ export type SchedulingRequest = {
   company_name?: string;
   customer_id?: string;
   sales_id?: string;
-  technician_type?: 'INTERNAL' | 'EXTERNAL';
+  technician_type?: "INTERNAL" | "EXTERNAL";
   external_technician_name?: string;
 };
 
-interface SchedulingColumnsProps {
+interface CreateSchedulingColumnsOptions {
   onSelectRequest: (request: SchedulingRequest) => void;
 }
 
-export const createSchedulingColumns = ({
-  onSelectRequest,
-}: SchedulingColumnsProps): ColumnDef<SchedulingRequest>[] => [
+export const createSchedulingColumns = ({ onSelectRequest }: CreateSchedulingColumnsOptions): ColumnDef<SchedulingRequest>[] => [
   {
     accessorKey: "sr_number",
-    header: "SR Number",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="text-neon-cyan hover:text-neon-cyan/80"
+        >
+          SR Number
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
+    cell: ({ row }) => <div className="text-gray-300">{row.getValue("sr_number")}</div>,
   },
   {
     accessorKey: "customer_name",
-    header: "Customer",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="text-neon-cyan hover:text-neon-cyan/80"
+        >
+          Customer Name
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
+    cell: ({ row }) => <div className="text-gray-300">{row.getValue("customer_name")}</div>,
+  },
+  {
+    accessorKey: "requested_date",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="text-neon-cyan hover:text-neon-cyan/80"
+        >
+          Requested Date
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
+    cell: ({ row }) => <div className="text-gray-300">{row.getValue("requested_date")}</div>,
+  },
+  {
+    accessorKey: "technician_name",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="text-neon-cyan hover:text-neon-cyan/80"
+        >
+          Technician
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
+    cell: ({ row }) => <div className="text-gray-300">{row.getValue("technician_name") || "N/A"}</div>,
   },
   {
     accessorKey: "status",
-    header: "Status",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="text-neon-cyan hover:text-neon-cyan/80"
+        >
+          Status
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
     cell: ({ row }) => {
       const status = row.getValue("status") as SchedulingRequest["status"];
-      let colorClass = "";
+      let colorClass = "bg-gray-500 text-white"; // Default color
 
       switch (status) {
         case "pending":
-          colorClass = "bg-yellow-600/20 text-yellow-300 border border-yellow-500/30";
+          colorClass = "bg-yellow-600 text-white";
           break;
         case "approved":
-          colorClass = "bg-blue-600/20 text-blue-300 border border-blue-500/30";
+          colorClass = "bg-blue-600 text-white";
           break;
         case "in_progress":
-          colorClass = "bg-purple-600/20 text-purple-300 border border-purple-500/30";
+          colorClass = "bg-purple-600 text-white";
           break;
         case "completed":
-          colorClass = "bg-green-600/20 text-green-300 border border-green-500/30";
+          colorClass = "bg-green-600 text-white";
           break;
         case "rejected":
-        case "cancelled":
-          colorClass = "bg-red-600/20 text-red-300 border border-red-500/30";
+          colorClass = "bg-red-600 text-white";
           break;
         case "rescheduled":
-          colorClass = "bg-gray-600/20 text-gray-300 border border-gray-500/30";
+          colorClass = "bg-orange-600 text-white";
+          break;
+        case "cancelled":
+          colorClass = "bg-gray-600 text-white";
+          break;
+        case "INSTALLATION":
+          colorClass = "bg-indigo-600 text-white"; // New color for INSTALLATION
+          break;
+        case "SERVICE":
+          colorClass = "bg-teal-600 text-white"; // New color for SERVICE
+          break;
+        case "SERVICE_UNBILL":
+          colorClass = "bg-pink-600 text-white"; // New color for SERVICE_UNBILL
+          break;
+        case "DELIVERY":
+          colorClass = "bg-cyan-600 text-white"; // New color for DELIVERY
           break;
         default:
-          colorClass = "bg-gray-700/20 text-gray-400 border border-gray-600/30";
-          break;
+          colorClass = "bg-gray-500 text-white";
       }
       return <Badge className={colorClass}>{status.replace(/_/g, ' ').toUpperCase()}</Badge>;
     },
   },
   {
-    accessorKey: "do_number",
-    header: "DO Number",
-    cell: ({ row }) => row.getValue("do_number") || "-",
-  },
-  {
-    accessorKey: "technician_name",
-    header: "Assigned Technician",
-    cell: ({ row }) => row.getValue("technician_name") || "Unassigned",
-  },
-  {
     id: "actions",
-    header: "Actions",
-    cell: ({ row }) => {
-      const request = row.original;
-      return (
-        <Button variant="outline" size="sm" onClick={() => onSelectRequest(request)} className="glassmorphism border border-neon-cyan/50 text-neon-cyan hover:bg-neon-cyan/20 transition-all duration-300">
-          View Details
-        </Button>
-      );
-    },
+    cell: ({ row }) => (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onSelectRequest(row.original)}
+        className="bg-neon-cyan/20 text-neon-cyan hover:bg-neon-cyan/30 hover:text-neon-cyan border-neon-cyan/50"
+      >
+        View Details
+      </Button>
+    ),
   },
 ];
