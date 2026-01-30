@@ -129,4 +129,13 @@
   .neon-violet-glow-hover:hover {
     box-shadow: 0 0 20px rgba(112, 0, 255, 0.6);
   }
+
+  /* Radar Grid Background Effect */
+  .radar-grid-background {
+    background-image:
+      linear-gradient(to right, rgba(112, 0, 255, 0.1) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(112, 0, 255, 0.1) 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-position: -1px -1px;
+  }
 }

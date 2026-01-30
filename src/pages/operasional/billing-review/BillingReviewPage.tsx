@@ -346,6 +346,10 @@ const BillingReviewPage = () => {
       const deductStockData = await deductStockResponse.json();
 
       if (!deductStockResponse.ok) {
+        // Specific error message for stock insufficiency
+        if (deductStockData.error && deductStockData.error.includes("Insufficient stock")) {
+          throw new Error("Stok Gudang Siap Jual Tidak Mencukupi!");
+        }
         throw new Error(deductStockData.error || "Failed to deduct stock for invoice.");
       }
 
