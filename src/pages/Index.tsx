@@ -1,5 +1,3 @@
-"use client";
-
 import { MadeWithDyad } from "@/components/made-with-elmony";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";

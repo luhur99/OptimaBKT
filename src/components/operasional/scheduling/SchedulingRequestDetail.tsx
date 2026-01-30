@@ -1,15 +1,13 @@
-"use client";
-
 import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useNavigate } from 'react-router-dom'; // Mengganti next/navigation dengan react-router-dom
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Edit, CheckCircle, XCircle, Calendar, User, MapPin, Phone, Clock, DollarSign, FileText, Truck, Building, Tag, Info, FileUp } from 'lucide-react';
-import { ApprovalDialog } from './ApprovalDialog'; // Pastikan ini named import
+import { ApprovalDialog } from './ApprovalDialog';
 import { useToast } from "@/components/ui/use-toast";
-import { Dialog, DialogTrigger } from '@/components/ui/dialog'; // Import Dialog dan DialogTrigger
+import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 
 interface SchedulingRequest {
   id: string;
@@ -39,11 +37,11 @@ interface SchedulingRequest {
 
 const SchedulingRequestDetail = () => {
   const { id } = useParams();
-  const router = useRouter();
+  const navigate = useNavigate(); // Mengganti useRouter dengan useNavigate
   const [request, setRequest] = useState<SchedulingRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false); // State untuk dialog persetujuan
+  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -151,7 +149,7 @@ const SchedulingRequestDetail = () => {
       <div className="flex items-center justify-between mb-6">
         <Button
           variant="ghost"
-          onClick={() => router.back()}
+          onClick={() => navigate(-1)} // Mengganti router.back() dengan navigate(-1)
           className="text-neon-cyan hover:text-neon-cyan/80"
         >
           <ArrowLeft className="mr-2 h-5 w-5" /> Back
