@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -5,248 +8,135 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuthSession } from "@/hooks/use-auth-session";
-import { showSuccess, showError } from "@/utils/toast";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-interface Customer {
-  id: string;
-  customer_name: string;
-  company_name?: string;
-  address?: string;
-  phone_number?: string;
-}
-
-interface CreateSchedulingRequestFormProps {
-  onFormSubmit: () => void;
-}
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const formSchema = z.object({
-  customer_id: z.string().min(1, { message: "Customer is required." }),
-  customer_name: z.string().min(1, { message: "Customer name is required." }),
-  company_name: z.string().optional(),
-  type: z.enum(["INSTALLATION", "SERVICE", "SERVICE_UNBILL", "DELIVERY"], {
-    required_error: "Please select a request type.",
-  }),
-  full_address: z.string().min(1, { message: "Full address is required." }),
+  customerName: z.string().min(2, { message: "Customer name must be at least 2 characters." }),
+  companyName: z.string().optional(),
+  phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 characters." }),
+  contactPerson: z.string().min(2, { message: "Contact person must be at least 2 characters." }),
+  fullAddress: z.string().min(5, { message: "Full address must be at least 5 characters." }),
   landmark: z.string().optional(),
-  requested_date: z.date({
-    required_error: "A requested date is required.",
-  }),
-  requested_time: z.string().optional(),
-  contact_person: z.string().min(1, { message: "Contact person is required." }),
-  phone_number: z.string().min(1, { message: "Phone number is required." }),
-  payment_method: z.enum(["COD", "TRANSFER", "PAYMENT_GATEWAY", "DP", "OTHER"], {
-    required_error: "Please select a payment method.",
-  }),
+  requestedDate: z.date({ required_error: "A date for the request is required." }),
+  requestedTime: z.string().optional(),
+  type: z.enum(["INSTALLATION", "MAINTENANCE", "SURVEY", "OTHER"], { required_error: "Please select a request type." }),
+  productCategory: z.enum(["CCTV", "FIBER_OPTIC", "NETWORKING", "OTHER"]).optional(),
+  vehicleDetails: z.string().optional(),
   notes: z.string().optional(),
-  vehicle_details: z.string().optional(),
-  product_category: z.enum(["GPS_TRACKER", "DASHCAM"]).optional(), // Updated enum values
+  paymentMethod: z.string().optional(),
+  assignedTechnicianId: z.string().optional(),
+  technicianName: z.string().optional(),
+  technicianType: z.enum(["INTERNAL", "EXTERNAL"]).optional(),
+  externalTechnicianName: z.string().optional(),
 });
 
-export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRequestFormProps) {
-  const { session } = useAuthSession();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [openCustomerCombobox, setOpenCustomerCombobox] = useState(false);
-  const [activeTab, setActiveTab] = useState("customer-contact"); // State for active tab
-
+export const CreateSchedulingRequestForm = () => {
+  const [activeTab, setActiveTab] = useState("customer-contact");
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      customer_id: "",
-      customer_name: "",
-      company_name: "",
-      type: "INSTALLATION",
-      full_address: "",
+      customerName: "",
+      companyName: "",
+      phoneNumber: "",
+      contactPerson: "",
+      fullAddress: "",
       landmark: "",
-      requested_date: new Date(),
-      requested_time: "",
-      contact_person: "",
-      phone_number: "",
-      payment_method: "COD",
+      requestedTime: "",
+      type: "INSTALLATION",
+      productCategory: "CCTV",
+      vehicleDetails: "",
       notes: "",
-      vehicle_details: "",
-      product_category: undefined,
+      paymentMethod: "",
+      technicianType: "INTERNAL", // Default to internal
+      externalTechnicianName: "",
     },
   });
 
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      const { data, error } = await supabase
-        .from("customers")
-        .select("id, customer_name, company_name, address, phone_number");
+  const { data: technicians, isLoading: isLoadingTechnicians } = useQuery({
+    queryKey: ["technicians"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("technicians").select("id, name, type");
+      if (error) throw error;
+      return data;
+    },
+  });
 
-      if (error) {
-        console.error("Error fetching customers:", error);
-        showError("Failed to load customers for autosuggest.");
-      } else {
-        setCustomers(data || []);
-      }
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const payload = {
+      customer_name: values.customerName,
+      company_name: values.companyName,
+      phone_number: values.phoneNumber,
+      contact_person: values.contactPerson,
+      full_address: values.fullAddress,
+      landmark: values.landmark,
+      requested_date: format(values.requestedDate, "yyyy-MM-dd"),
+      requested_time: values.requestedTime,
+      type: values.type,
+      product_category: values.productCategory,
+      vehicle_details: values.vehicleDetails,
+      notes: values.notes,
+      payment_method: values.paymentMethod,
+      status: "pending", // Initial status
+      assigned_technician_id: values.technicianType === "INTERNAL" ? values.assignedTechnicianId : null,
+      technician_name: values.technicianType === "INTERNAL" ? values.technicianName : values.externalTechnicianName,
+      technician_type: values.technicianType,
+      external_technician_name: values.technicianType === "EXTERNAL" ? values.externalTechnicianName : null,
+      user_id: (await supabase.auth.getUser()).data.user?.id, // Assuming user_id is current authenticated user
     };
-    fetchCustomers();
-  }, []);
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsSubmitting(true);
-    try {
-      const { data, error } = await supabase
-        .from("scheduling_requests")
-        .insert({
-          user_id: session?.user?.id,
-          customer_id: values.customer_id,
-          customer_name: values.customer_name,
-          company_name: values.company_name,
-          type: values.type,
-          full_address: values.full_address,
-          landmark: values.landmark,
-          requested_date: format(values.requested_date, "yyyy-MM-dd"),
-          requested_time: values.requested_time,
-          contact_person: values.contact_person,
-          phone_number: values.phone_number,
-          payment_method: values.payment_method,
-          notes: values.notes,
-          vehicle_details: values.vehicle_details,
-          product_category: values.product_category,
-          status: "pending", // Default status
-          invoice_status: "DRAFT", // Default invoice status
-        })
-        .select()
-        .single();
+    const { error } = await supabase.from("scheduling_requests").insert([payload]);
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      showSuccess(`Scheduling request ${data.sr_number} created successfully!`);
+    if (error) {
+      toast.error("Failed to create scheduling request.", {
+        description: error.message,
+      });
+      console.error("Error creating scheduling request:", error);
+    } else {
+      toast.success("Scheduling request created successfully!");
       form.reset();
-      setActiveTab("customer-contact"); // Reset to first tab
-      onFormSubmit();
-    } catch (error: any) {
-      showError(error.message || "An unexpected error occurred.");
-    } finally {
-      setIsSubmitting(false);
+      setActiveTab("customer-contact");
     }
-  }
+  };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-4 text-gray-300">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-midnight-blue border border-gray-700">
+          <TabsList className="grid w-full grid-cols-4 bg-midnight-blue border border-gray-700">
             <TabsTrigger value="customer-contact" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Customer & Contact</TabsTrigger>
-            <TabsTrigger value="request-details" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Request Details</TabsTrigger>
-            <TabsTrigger value="location-notes" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Location & Notes</TabsTrigger>
+            <TabsTrigger value="scheduling-details" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Scheduling Details</TabsTrigger>
+            <TabsTrigger value="product-notes" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Product & Notes</TabsTrigger>
+            <TabsTrigger value="technician-assignment" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Technician Assignment</TabsTrigger>
           </TabsList>
-          <TabsContent value="customer-contact" className="mt-4 space-y-6">
-            <FormField
-              control={form.control}
-              name="customer_id"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel className="text-gray-300">Customer</FormLabel>
-                  <Popover open={openCustomerCombobox} onOpenChange={setOpenCustomerCombobox}>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className={cn(
-                            "w-full justify-between glassmorphism border border-gray-700 text-gray-300 hover:bg-gray-800",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value
-                            ? customers.find((customer) => customer.id === field.value)?.customer_name
-                            : "Select customer"}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0 glassmorphism border border-gray-700">
-                      <Command>
-                        <CommandInput placeholder="Search customer..." className="text-gray-300" />
-                        <CommandList>
-                          <CommandEmpty>No customer found.</CommandEmpty>
-                          <CommandGroup>
-                            {customers.map((customer) => (
-                              <CommandItem
-                                value={customer.customer_name}
-                                key={customer.id}
-                                onSelect={() => {
-                                  form.setValue("customer_id", customer.id);
-                                  form.setValue("customer_name", customer.customer_name);
-                                  form.setValue("company_name", customer.company_name || "");
-                                  form.setValue("full_address", customer.address || "");
-                                  form.setValue("phone_number", customer.phone_number || "");
-                                  form.setValue("contact_person", customer.customer_name); // Default contact person
-                                  setOpenCustomerCombobox(false);
-                                }}
-                                className="text-gray-300 hover:bg-gray-800/50"
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    customer.id === field.value ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {customer.customer_name} ({customer.company_name || "Individual"})
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
+          <TabsContent value="customer-contact" className="space-y-4">
             <FormField
               control={form.control}
-              name="contact_person"
+              name="customerName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Contact Person</FormLabel>
+                  <FormLabel className="text-gray-300">Customer Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Name of contact person" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="phone_number"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-gray-300">Phone Number</FormLabel>
-                  <FormControl>
-                    <Input type="tel" placeholder="e.g., +628123456789" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
+                    <Input placeholder="Customer Name" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -254,12 +144,64 @@ export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRe
             />
             <FormField
               control={form.control}
-              name="company_name"
+              name="companyName"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-gray-300">Company Name (Optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., PT. ABC Jaya" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
+                    <Input placeholder="Company Name" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="phoneNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-gray-300">Phone Number</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Phone Number" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="contactPerson"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-gray-300">Contact Person</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Contact Person" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="fullAddress"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-gray-300">Full Address</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Full Address" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="landmark"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-gray-300">Landmark (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Landmark" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -267,7 +209,64 @@ export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRe
             />
           </TabsContent>
 
-          <TabsContent value="request-details" className="mt-4 space-y-6">
+          <TabsContent value="scheduling-details" className="space-y-4">
+            <FormField
+              control={form.control}
+              name="requestedDate"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel className="text-gray-300">Requested Date</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal bg-gray-800 border-gray-700 text-gray-300",
+                            !field.value && "text-gray-500"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-gray-800 border-gray-700 text-gray-300" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) =>
+                          date < new Date("1900-01-01")
+                        }
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormDescription className="text-gray-500">
+                    The date for the requested service.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="requestedTime"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-gray-300">Requested Time (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., 09:00 AM - 12:00 PM" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="type"
@@ -276,134 +275,32 @@ export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRe
                   <FormLabel className="text-gray-300">Request Type</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
-                        <SelectValue placeholder="Select request type" />
+                      <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-300">
+                        <SelectValue placeholder="Select a request type" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
-                      <SelectItem value="INSTALLATION">Instalasi</SelectItem>
-                      <SelectItem value="SERVICE">Service</SelectItem>
-                      <SelectItem value="SERVICE_UNBILL">Service Unbill</SelectItem>
-                      <SelectItem value="DELIVERY">Kirim</SelectItem>
+                    <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
+                      <SelectItem value="INSTALLATION">Installation</SelectItem>
+                      <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                      <SelectItem value="SURVEY">Survey</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
                     </SelectContent>
                   </Select>
+                  <FormDescription className="text-gray-500">
+                    The type of service being requested.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="requested_date"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel className="text-gray-300">Requested Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal glassmorphism border border-gray-700 text-gray-300 hover:bg-gray-800",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 glassmorphism border border-gray-700" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) => date < new Date("1900-01-01")}
-                          initialFocus
-                          className="text-gray-300"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="requested_time"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-gray-300">Requested Time (Optional)</FormLabel>
-                    <FormControl>
-                      <Input type="time" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
             <FormField
               control={form.control}
-              name="product_category"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-gray-300">Product Category (Optional)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} >
-                    <FormControl>
-                      <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
-                        <SelectValue placeholder="Select product category" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
-                      <SelectItem value="GPS_TRACKER">GPS Tracker</SelectItem>
-                      <SelectItem value="DASHCAM">Dashcam</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="payment_method"
+              name="paymentMethod"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-gray-300">Payment Method (Optional)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
-                        <SelectValue placeholder="Select payment method" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
-                      <SelectItem value="COD">COD</SelectItem>
-                      <SelectItem value="TRANSFER">Transfer</SelectItem>
-                      <SelectItem value="PAYMENT_GATEWAY">Payment Gateway Qris / VA</SelectItem>
-                      <SelectItem value="DP">DP</SelectItem>
-                      <SelectItem value="OTHER">Lain - Lain</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="vehicle_details"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-gray-300">Vehicle Details (Optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Car type, License plate" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
+                    <Input placeholder="e.g., Cash, Transfer" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -411,55 +308,162 @@ export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRe
             />
           </TabsContent>
 
-          <TabsContent value="location-notes" className="mt-4 space-y-6">
+          <TabsContent value="product-notes" className="space-y-4">
             <FormField
               control={form.control}
-              name="full_address"
+              name="productCategory"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Full Address</FormLabel>
+                  <FormLabel className="text-gray-300">Product Category (Optional)</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-300">
+                        <SelectValue placeholder="Select a product category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
+                      <SelectItem value="CCTV">CCTV</SelectItem>
+                      <SelectItem value="FIBER_OPTIC">Fiber Optic</SelectItem>
+                      <SelectItem value="NETWORKING">Networking</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription className="text-gray-500">
+                    The category of product related to the service.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="vehicleDetails"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-gray-300">Vehicle Details (Optional)</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Customer's full address" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
+                    <Input placeholder="e.g., Car, Motorcycle, Van" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            <FormField
-              control={form.control}
-              name="landmark"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-gray-300">Landmark (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Near ABC Mall" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
-                  </FormControl>
-                  <FormMessage />
-            </FormItem>
-          )}
-        />
-
             <FormField
               control={form.control}
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Additional Notes (Optional)</FormLabel>
+                  <FormLabel className="text-gray-300">Notes (Optional)</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Any specific instructions or details" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
+                    <Textarea placeholder="Any additional notes or special instructions" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </TabsContent>
-        </Tabs>
 
-        <Button type="submit" className="w-full bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300" disabled={isSubmitting}>
-          {isSubmitting ? "Submitting Request..." : "Submit Scheduling Request"}
+          <TabsContent value="technician-assignment" className="space-y-4">
+            <FormField
+              control={form.control}
+              name="technicianType"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel className="text-gray-300">Technician Type</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex flex-col space-y-1"
+                    >
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="INTERNAL" />
+                        </FormControl>
+                        <FormLabel className="font-normal text-gray-400">
+                          Internal Technician
+                        </FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="EXTERNAL" />
+                        </FormControl>
+                        <FormLabel className="font-normal text-gray-400">
+                          External Technician
+                        </FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {form.watch("technicianType") === "INTERNAL" && (
+              <FormField
+                control={form.control}
+                name="assignedTechnicianId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-gray-300">Assigned Technician</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        const selectedTech = technicians?.find((tech) => tech.id === value);
+                        form.setValue("technicianName", selectedTech?.name || "");
+                      }}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-300">
+                          <SelectValue placeholder="Select an internal technician" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
+                        {isLoadingTechnicians ? (
+                          <SelectItem value="loading" disabled>Loading technicians...</SelectItem>
+                        ) : (
+                          technicians?.map((tech) => (
+                            <SelectItem key={tech.id} value={tech.id}>
+                              {tech.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription className="text-gray-500">
+                      Select an internal technician for this request.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {form.watch("technicianType") === "EXTERNAL" && (
+              <FormField
+                control={form.control}
+                name="externalTechnicianName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-gray-300">External Technician Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter external technician's name" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
+                    </FormControl>
+                    <FormDescription className="text-gray-500">
+                      Enter the name of the external technician.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+          </TabsContent>
+        </Tabs>
+        <Button type="submit" className="w-full bg-neon-cyan hover:bg-neon-cyan/90 text-gray-900 font-bold py-2 px-4 rounded-md shadow-neon-glow transition-all duration-200">
+          Submit Request
         </Button>
       </form>
     </Form>
   );
-}
+};
