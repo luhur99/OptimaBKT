@@ -13,7 +13,7 @@ import { showSuccess, showError } from "@/utils/toast";
 
 interface DeliveryOrder {
   id: string;
-  status: 'pending' | 'in progress' | 'delivered' | 'cancelled';
+  status: 'PENDING' | 'IN_PROGRESS' | 'DELIVERED' | 'CANCELLED';
   notes: string | null;
 }
 
@@ -25,7 +25,7 @@ interface DeliveryOrderActionDialogProps {
     notes?: string;
   }) => Promise<void>;
   order: DeliveryOrder;
-  actionType: 'in progress' | 'delivered' | 'cancelled';
+  actionType: 'IN_PROGRESS' | 'DELIVERED' | 'CANCELLED';
 }
 
 export const DeliveryOrderActionDialog: React.FC<DeliveryOrderActionDialogProps> = ({
@@ -40,11 +40,11 @@ export const DeliveryOrderActionDialog: React.FC<DeliveryOrderActionDialogProps>
 
   const getDialogTitle = () => {
     switch (actionType) {
-      case "in progress":
+      case "IN_PROGRESS":
         return "Set Delivery Order In Progress";
-      case "delivered":
+      case "DELIVERED":
         return "Mark Delivery Order as Delivered";
-      case "cancelled":
+      case "CANCELLED":
         return "Cancel Delivery Order";
       default:
         return "Delivery Order Action";
@@ -52,7 +52,7 @@ export const DeliveryOrderActionDialog: React.FC<DeliveryOrderActionDialogProps>
   };
 
   const handleSubmit = async () => {
-    if (actionType === 'cancelled' && (!notes || notes.trim() === "")) {
+    if (actionType === 'CANCELLED' && (!notes || notes.trim() === "")) {
       showError("Notes are required for cancelling a delivery order.");
       return;
     }
@@ -77,13 +77,13 @@ export const DeliveryOrderActionDialog: React.FC<DeliveryOrderActionDialogProps>
       <DialogHeader>
         <DialogTitle className="text-neon-cyan">{getDialogTitle()}</DialogTitle>
         <DialogDescription className="text-gray-400">
-          {actionType === 'in progress' && "Confirm that this delivery order is now in progress."}
-          {actionType === 'delivered' && "Confirm that this delivery order has been successfully delivered."}
-          {actionType === 'cancelled' && "Please provide notes for cancelling this delivery order."}
+          {actionType === 'IN_PROGRESS' && "Confirm that this delivery order is now in progress."}
+          {actionType === 'DELIVERED' && "Confirm that this delivery order has been successfully delivered."}
+          {actionType === 'CANCELLED' && "Please provide notes for cancelling this delivery order."}
         </DialogDescription>
       </DialogHeader>
       <div className="grid gap-4 py-4">
-        {(actionType === 'cancelled') && (
+        {(actionType === 'CANCELLED') && (
           <div className="space-y-2">
             <Label htmlFor="notes" className="text-gray-300">Notes</Label>
             <Textarea
@@ -110,7 +110,7 @@ export const DeliveryOrderActionDialog: React.FC<DeliveryOrderActionDialogProps>
           className="bg-neon-cyan text-midnight-blue hover:bg-neon-cyan/90"
           disabled={isSubmitting}
         >
-          {isSubmitting ? "Processing..." : `Confirm ${actionType.charAt(0).toUpperCase() + actionType.slice(1)}`}
+          {isSubmitting ? "Processing..." : `Confirm ${actionType.replace(/_/g, ' ').charAt(0).toUpperCase() + actionType.replace(/_/g, ' ').slice(1)}`}
         </Button>
       </DialogFooter>
     </DialogContent>
