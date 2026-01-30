@@ -1,323 +1,235 @@
-import React from "react";
-import { format } from "date-fns";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import {
-  Dialog,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { ApprovalDialog } from "./ApprovalDialog";
-import { SchedulingRequest } from "./scheduling-columns";
-import { cn } from "@/lib/utils";
-import { CheckCircle, XCircle, Clock, Play, FastForward, CalendarCheck, UserCog } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { showSuccess, showError } from "@/utils/toast";
-import { useAuthSession } from "@/hooks/use-auth-session";
+"use client";
 
-interface SchedulingRequestDetailProps {
-  request: SchedulingRequest;
-  onUpdate: () => void;
-  onClose: () => void;
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { ArrowLeft, Edit, CheckCircle, XCircle, Calendar, User, MapPin, Phone, Clock, DollarSign, FileText, Truck, Building, Tag, Info, FileUp } from 'lucide-react';
+import { ApprovalDialog } from './ApprovalDialog'; // Pastikan ini named import
+import { useToast } from "@/components/ui/use-toast";
+import { Dialog, DialogTrigger } from '@/components/ui/dialog'; // Import Dialog dan DialogTrigger
+
+interface SchedulingRequest {
+  id: string;
+  sr_number: string;
+  type: string;
+  full_address: string;
+  landmark: string;
+  requested_date: string;
+  requested_time: string;
+  contact_person: string;
+  phone_number: string;
+  payment_method: string;
+  status: 'pending' | 'approved' | 'rejected' | 'rescheduled' | 'cancelled' | 'in_progress' | 'completed';
+  notes: string;
+  created_at: string;
+  customer_name: string;
+  company_name: string;
+  vehicle_details: string;
+  assigned_technician_id: string | null;
+  technician_name: string | null;
+  product_category: string | null;
+  do_number: string | null;
+  invoice_id: string | null;
+  invoice_status: string | null;
+  document_url: string | null;
 }
 
-const StatusStepper: React.FC<{ currentStatus: SchedulingRequest['status'] }> = ({ currentStatus }) => {
-  const statuses: Array<SchedulingRequest['status']> = [
-    'pending',
-    'approved',
-    'in_progress',
-    'completed',
-  ];
+const SchedulingRequestDetail = () => {
+  const { id } = useParams();
+  const router = useRouter();
+  const [request, setRequest] = useState<SchedulingRequest | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false); // State untuk dialog persetujuan
+  const { toast } = useToast();
 
-  const getStatusIcon = (status: SchedulingRequest['status'], isActive: boolean) => {
-    const baseClass = "h-5 w-5";
-    const activeClass = "text-neon-cyan neon-glow";
-    const inactiveClass = "text-gray-500";
-
-    switch (status) {
-      case 'pending':
-        return <Clock className={cn(baseClass, isActive ? activeClass : inactiveClass)} />;
-      case 'approved':
-        return <CheckCircle className={cn(baseClass, isActive ? activeClass : inactiveClass)} />;
-      case 'in_progress':
-        return <Play className={cn(baseClass, isActive ? activeClass : inactiveClass)} />;
-      case 'completed':
-        return <CalendarCheck className={cn(baseClass, isActive ? activeClass : inactiveClass)} />;
-      default:
-        return <UserCog className={cn(baseClass, inactiveClass)} />;
+  useEffect(() => {
+    if (id) {
+      fetchRequestDetail();
     }
+  }, [id]);
+
+  const fetchRequestDetail = async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error } = await supabase
+      .from('scheduling_requests')
+      .select(`
+        *,
+        technicians (name)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching scheduling request:', error.message);
+      setError('Failed to load scheduling request details.');
+      toast({
+        title: "Error",
+        description: "Failed to load scheduling request details.",
+        variant: "destructive",
+      });
+    } else {
+      setRequest({
+        ...data,
+        technician_name: data.technicians?.name || null,
+      } as SchedulingRequest);
+    }
+    setLoading(false);
   };
 
-  const getStatusColorClass = (status: SchedulingRequest['status'], isActive: boolean) => {
-    if (currentStatus === 'rejected' || currentStatus === 'cancelled') {
-      return "text-red-400";
+  const handleApprovalSubmit = async (approvalData: { assignedTechnicianId: string; notes: string; status: 'approved' | 'rejected' }) => {
+    if (!request) return;
+
+    setLoading(true);
+    const { assignedTechnicianId, notes, status } = approvalData;
+
+    const updatePayload: any = {
+      status: status,
+      notes: notes,
+    };
+
+    if (status === 'approved') {
+      updatePayload.assigned_technician_id = assignedTechnicianId;
+    } else if (status === 'rejected') {
+      updatePayload.assigned_technician_id = null; // Clear technician if rejected
     }
-    return isActive ? "text-neon-cyan" : "text-gray-500";
+
+    const { error } = await supabase
+      .from('scheduling_requests')
+      .update(updatePayload)
+      .eq('id', request.id);
+
+    if (error) {
+      console.error('Error updating scheduling request status:', error.message);
+      toast({
+        title: "Error",
+        description: `Failed to ${status} scheduling request: ${error.message}`,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: `Scheduling request successfully ${status}.`,
+      });
+      fetchRequestDetail(); // Refresh data
+    }
+    setLoading(false);
+    setIsApprovalDialogOpen(false); // Tutup dialog setelah submit
+  };
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-screen text-neon-cyan">Loading...</div>;
+  }
+
+  if (error) {
+    return <div className="flex justify-center items-center h-screen text-red-500">{error}</div>;
+  }
+
+  if (!request) {
+    return <div className="flex justify-center items-center h-screen text-gray-400">No scheduling request found.</div>;
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'text-yellow-500';
+      case 'approved': return 'text-green-500';
+      case 'rejected': return 'text-red-500';
+      case 'rescheduled': return 'text-orange-500';
+      case 'cancelled': return 'text-red-700';
+      case 'in_progress': return 'text-blue-500';
+      case 'completed': return 'text-purple-500';
+      default: return 'text-gray-400';
+    }
   };
 
   return (
-    <div className="flex items-center justify-between text-sm text-gray-400">
-      {statuses.map((status, index) => {
-        const isActive = statuses.indexOf(currentStatus) >= index;
-        const isCurrent = currentStatus === status;
-        const isFinalFailed = (currentStatus === 'rejected' || currentStatus === 'cancelled') && index === statuses.length - 1;
+    <div className="container mx-auto p-6 bg-deep-charcoal text-gray-100 min-h-screen">
+      <div className="flex items-center justify-between mb-6">
+        <Button
+          variant="ghost"
+          onClick={() => router.back()}
+          className="text-neon-cyan hover:text-neon-cyan/80"
+        >
+          <ArrowLeft className="mr-2 h-5 w-5" /> Back
+        </Button>
+        <h1 className="text-3xl font-bold text-neon-cyan">Scheduling Request Details</h1>
+        <div>
+          {request.status === 'pending' && (
+            <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-neon-cyan text-deep-charcoal hover:bg-neon-cyan/80 neon-glow-hover transition-all duration-300">
+                  Approve/Reject Request
+                </Button>
+              </DialogTrigger>
+              <ApprovalDialog
+                isOpen={isApprovalDialogOpen}
+                onClose={() => setIsApprovalDialogOpen(false)}
+                onSubmit={handleApprovalSubmit}
+                request={request}
+              />
+            </Dialog>
+          )}
+          {/* Add other action buttons here based on status and user roles */}
+        </div>
+      </div>
 
-        return (
-          <React.Fragment key={status}>
-            <div className="flex flex-col items-center">
-              <div className={cn("p-2 rounded-full border-2",
-                isFinalFailed ? "border-red-500 bg-red-500/20" :
-                isActive ? "border-neon-cyan bg-neon-cyan/20 neon-glow" : "border-gray-700 bg-gray-800"
-              )}>
-                {isFinalFailed ? <XCircle className="h-5 w-5 text-red-400" /> : getStatusIcon(status, isActive)}
-              </div>
-              <span className={cn("mt-2 text-xs font-medium", getStatusColorClass(status, isActive))}>
-                {status.replace(/_/g, ' ').toUpperCase()}
-              </span>
+      <Card className="glassmorphism border border-gray-700 shadow-lg">
+        <CardHeader className="border-b border-gray-700">
+          <CardTitle className="text-2xl text-neon-cyan flex items-center">
+            <Tag className="mr-2 h-6 w-6" /> {request.sr_number}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <h2 className="text-xl font-semibold text-neon-cyan mb-4">Request Information</h2>
+            <div className="space-y-3">
+              <p className="flex items-center text-gray-300"><Info className="mr-2 h-4 w-4 text-blue-400" /> Type: <span className="ml-2 font-medium">{request.type}</span></p>
+              <p className="flex items-center text-gray-300"><Calendar className="mr-2 h-4 w-4 text-purple-400" /> Requested Date: <span className="ml-2 font-medium">{request.requested_date}</span></p>
+              <p className="flex items-center text-gray-300"><Clock className="mr-2 h-4 w-4 text-teal-400" /> Requested Time: <span className="ml-2 font-medium">{request.requested_time || 'N/A'}</span></p>
+              <p className="flex items-center text-gray-300"><User className="mr-2 h-4 w-4 text-yellow-400" /> Contact Person: <span className="ml-2 font-medium">{request.contact_person}</span></p>
+              <p className="flex items-center text-gray-300"><Phone className="mr-2 h-4 w-4 text-green-400" /> Phone Number: <span className="ml-2 font-medium">{request.phone_number || 'N/A'}</span></p>
+              <p className="flex items-center text-gray-300"><DollarSign className="mr-2 h-4 w-4 text-lime-400" /> Payment Method: <span className="ml-2 font-medium">{request.payment_method || 'N/A'}</span></p>
+              <p className="flex items-center text-gray-300"><span className={`ml-2 font-bold ${getStatusColor(request.status)}`}>Status: {request.status.replace(/_/g, ' ').toUpperCase()}</span></p>
+              {request.notes && <p className="flex items-start text-gray-300"><FileText className="mr-2 h-4 w-4 text-orange-400 mt-1" /> Notes: <span className="ml-2 font-medium">{request.notes}</span></p>}
+              {request.product_category && <p className="flex items-center text-gray-300"><Tag className="mr-2 h-4 w-4 text-pink-400" /> Product Category: <span className="ml-2 font-medium">{request.product_category}</span></p>}
+              {request.do_number && <p className="flex items-center text-gray-300"><Truck className="mr-2 h-4 w-4 text-indigo-400" /> DO Number: <span className="ml-2 font-medium">{request.do_number}</span></p>}
+              {request.invoice_id && <p className="flex items-center text-gray-300"><FileText className="mr-2 h-4 w-4 text-cyan-400" /> Invoice ID: <span className="ml-2 font-medium">{request.invoice_id}</span></p>}
+              {request.invoice_status && <p className="flex items-center text-gray-300"><FileText className="mr-2 h-4 w-4 text-cyan-400" /> Invoice Status: <span className="ml-2 font-medium">{request.invoice_status}</span></p>}
+              {request.document_url && (
+                <p className="flex items-center text-gray-300">
+                  <FileUp className="mr-2 h-4 w-4 text-emerald-400" /> Document:
+                  <a href={request.document_url} target="_blank" rel="noopener noreferrer" className="ml-2 font-medium text-blue-400 hover:underline">
+                    View Document
+                  </a>
+                </p>
+              )}
             </div>
-            {index < statuses.length - 1 && (
-              <div className={cn("flex-1 h-0.5 mx-2",
-                isFinalFailed ? "bg-red-500" :
-                isActive ? "bg-neon-cyan neon-glow" : "bg-gray-700"
-              )} />
-            )}
-          </React.Fragment>
-        );
-      })}
+          </div>
+
+          <Separator orientation="vertical" className="hidden md:block bg-gray-700" />
+          <Separator orientation="horizontal" className="md:hidden bg-gray-700" />
+
+          <div>
+            <h2 className="text-xl font-semibold text-neon-cyan mb-4">Location & Assignment</h2>
+            <div className="space-y-3">
+              <p className="flex items-start text-gray-300"><MapPin className="mr-2 h-4 w-4 text-red-400 mt-1" /> Full Address: <span className="ml-2 font-medium">{request.full_address}</span></p>
+              {request.landmark && <p className="flex items-start text-gray-300"><MapPin className="mr-2 h-4 w-4 text-red-400 mt-1" /> Landmark: <span className="ml-2 font-medium">{request.landmark}</span></p>}
+              {request.company_name && <p className="flex items-center text-gray-300"><Building className="mr-2 h-4 w-4 text-indigo-400" /> Company Name: <span className="ml-2 font-medium">{request.company_name}</span></p>}
+              {request.customer_name && <p className="flex items-center text-gray-300"><User className="mr-2 h-4 w-4 text-yellow-400" /> Customer Name: <span className="ml-2 font-medium">{request.customer_name}</span></p>}
+              {request.vehicle_details && <p className="flex items-center text-gray-300"><Truck className="mr-2 h-4 w-4 text-orange-400" /> Vehicle Details: <span className="ml-2 font-medium">{request.vehicle_details}</span></p>}
+              {request.assigned_technician_id && (
+                <p className="flex items-center text-gray-300"><User className="mr-2 h-4 w-4 text-cyan-400" /> Assigned Technician: <span className="ml-2 font-medium">{request.technician_name || 'N/A'}</span></p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
 
-
-export const SchedulingRequestDetail: React.FC<SchedulingRequestDetailProps> = ({
-  request,
-  onUpdate,
-  onClose,
-}) => {
-  const { profile } = useAuthSession();
-  const [isApproveDialogOpen, setIsApproveDialogOpen] = React.useState(false);
-
-  const handleForceStart = async () => {
-    if (!window.confirm("Are you sure you want to force start this request?")) return;
-    try {
-      const { error } = await supabase
-        .from("scheduling_requests")
-        .update({ status: "in_progress" })
-        .eq("id", request.id);
-
-      if (error) throw new Error(error.message);
-      showSuccess("Request status updated to 'In Progress'.");
-      onUpdate();
-    } catch (error: any) {
-      showError(error.message || "Failed to force start request.");
-    }
-  };
-
-  const handleMarkCompleted = async () => {
-    if (!window.confirm("Are you sure you want to mark this request as completed?")) return;
-    try {
-      const { error } = await supabase
-        .from("scheduling_requests")
-        .update({ status: "completed" })
-        .eq("id", request.id);
-
-      if (error) throw new Error(error.message);
-      showSuccess("Request status updated to 'Completed'.");
-      onUpdate();
-    } catch (error: any) {
-      showError(error.message || "Failed to mark request as completed.");
-    }
-  };
-
-  const handleReject = async () => {
-    const reason = prompt("Please provide a reason for rejecting this request:");
-    if (!reason) {
-      showError("Rejection reason is required.");
-      return;
-    }
-    if (!window.confirm("Are you sure you want to reject this request?")) return;
-    try {
-      const { error } = await supabase
-        .from("scheduling_requests")
-        .update({ status: "rejected", notes: reason })
-        .eq("id", request.id);
-
-      if (error) throw new Error(error.message);
-      showSuccess("Request rejected.");
-      onUpdate();
-    } catch (error: any) {
-      showError(error.message || "Failed to reject request.");
-    }
-  };
-
-  const handleReschedule = async () => {
-    const reason = prompt("Please provide a reason for rescheduling this request:");
-    if (!reason) {
-      showError("Reschedule reason is required.");
-      return;
-    }
-    if (!window.confirm("Are you sure you want to reschedule this request?")) return;
-    try {
-      const { error } = await supabase
-        .from("scheduling_requests")
-        .update({ status: "rescheduled", notes: reason })
-        .eq("id", request.id);
-
-      if (error) throw new Error(error.message);
-      showSuccess("Request rescheduled.");
-      onUpdate();
-    } catch (error: any) {
-      showError(error.message || "Failed to reschedule request.");
-    }
-  };
-
-  const canApprove = profile?.role === "OPERASIONAL_DIV" || profile?.role === "SUPER_ADMIN";
-  const canForceStartOrComplete = profile?.role === "OPERASIONAL_DIV" || profile?.role === "SUPER_ADMIN";
-
-  return (
-    <Card className="glassmorphism border border-electric-violet/30 h-full flex flex-col">
-      <CardHeader className="pb-4">
-        <div className="flex justify-between items-center">
-          <CardTitle className="text-2xl text-neon-cyan">
-            SR Details: <span className="text-electric-violet">{request.sr_number}</span>
-          </CardTitle>
-          <Button variant="outline" onClick={onClose} className="glassmorphism border border-gray-700 text-gray-300 hover:bg-gray-800">
-            Close
-          </Button>
-        </div>
-        <p className="text-sm text-gray-400 mt-1">Customer: {request.customer_name}</p>
-      </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto space-y-6">
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold text-neon-cyan">Current Status</h3>
-          <StatusStepper currentStatus={request.status} />
-          <Badge className="mt-2 bg-gray-700/20 text-gray-300 border border-gray-600/30">
-            {request.status.replace(/_/g, ' ').toUpperCase()}
-          </Badge>
-        </div>
-
-        <Separator className="bg-gray-700" />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-300">
-          <div>
-            <p className="text-sm font-medium text-gray-400">DO Number:</p>
-            <p className="text-base">{request.do_number || "-"}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-400">Assigned Technician:</p>
-            <p className="text-base">{request.technician_name || "Unassigned"}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-400">Technician Type:</p>
-            <p className="text-base">{request.technician_type || "N/A"}</p>
-          </div>
-          {request.external_technician_name && (
-            <div>
-              <p className="text-sm font-medium text-gray-400">External Technician Name:</p>
-              <p className="text-base">{request.external_technician_name}</p>
-            </div>
-          )}
-          <div>
-            <p className="text-sm font-medium text-gray-400">Requested Date:</p>
-            <p className="text-base">{format(new Date(request.requested_date), "PPP")}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-400">Requested Time:</p>
-            <p className="text-base">{request.requested_time || "N/A"}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-400">Contact Person:</p>
-            <p className="text-base">{request.contact_person}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-400">Phone Number:</p>
-            <p className="text-base">{request.phone_number || "N/A"}</p>
-          </div>
-          <div className="md:col-span-2">
-            <p className="text-sm font-medium text-gray-400">Full Address:</p>
-            <p className="text-base">{request.full_address}</p>
-          </div>
-          {request.notes && (
-            <div className="md:col-span-2">
-              <p className="text-sm font-medium text-gray-400">Notes:</p>
-              <p className="text-base italic text-gray-500">{request.notes}</p>
-            </div>
-          )}
-          {request.document_url && (
-            <div className="md:col-span-2">
-              <p className="text-sm font-medium text-gray-400">Technician Document/Photo:</p>
-              <a
-                href={request.document_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-neon-cyan hover:underline"
-              >
-                View Document
-              </a>
-            </div>
-          )}
-        </div>
-
-        <Separator className="bg-gray-700" />
-
-        <div className="flex flex-wrap gap-3 justify-end">
-          {canApprove && request.status === "pending" && (
-            <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-neon-cyan text-deep-charcoal hover:bg-neon-cyan/80 neon-glow-hover transition-all duration-300">
-                  Approve Request
-                </Button>
-              </DialogTrigger>
-              <ApprovalDialog
-                request={request}
-                onApproveSuccess={() => {
-                  onUpdate();
-                  setIsApproveDialogOpen(false);
-                }}
-                onClose={() => setIsApproveDialogOpen(false)}
-              />
-            </Dialog>
-          )}
-          {canApprove && request.status === "pending" && (
-            <Button
-              onClick={handleReject}
-              className="bg-destructive text-white hover:bg-destructive/80 neon-violet-glow-hover transition-all duration-300"
-            >
-              Reject Request
-            </Button>
-          )}
-          {canApprove && (request.status === "pending" || request.status === "approved" || request.status === "in_progress") && (
-            <Button
-              onClick={handleReschedule}
-              className="bg-gray-600 text-white hover:bg-gray-600/80 transition-all duration-300"
-            >
-              Reschedule
-            </Button>
-          )}
-          {canForceStartOrComplete && request.status === "approved" && (
-            <Button
-              onClick={handleForceStart}
-              className="bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300"
-            >
-              Force Start Work
-            </Button>
-          )}
-          {canForceStartOrComplete && request.status === "in_progress" && (
-            <Button
-              onClick={handleMarkCompleted}
-              className="bg-green-600 text-white hover:bg-green-600/80 transition-all duration-300"
-            >
-              Mark as Completed
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
+export default SchedulingRequestDetail;
