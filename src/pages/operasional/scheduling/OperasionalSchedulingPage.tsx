@@ -19,7 +19,8 @@ import { useToast } from "@/components/ui/use-toast";
 interface SchedulingRequest {
   id: string;
   sr_number: string;
-  type: string;
+  // Corrected: type should contain request type values
+  type: "INSTALLATION" | "SERVICE" | "SERVICE_UNBILL" | "DELIVERY";
   full_address: string;
   landmark: string | null;
   requested_date: string;
@@ -27,6 +28,7 @@ interface SchedulingRequest {
   contact_person: string;
   phone_number: string | null;
   payment_method: string | null;
+  // Corrected: status should only contain actual status values
   status: 'pending' | 'approved' | 'rejected' | 'rescheduled' | 'cancelled' | 'in_progress' | 'completed';
   notes: string | null;
   created_at: string;

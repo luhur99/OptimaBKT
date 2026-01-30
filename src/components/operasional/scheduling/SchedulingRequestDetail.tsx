@@ -13,7 +13,8 @@ import { Badge } from '@/components/ui/badge'; // Import Badge
 interface SchedulingRequest {
   id: string;
   sr_number: string;
-  type: string;
+  // Corrected: type should contain request type values
+  type: "INSTALLATION" | "SERVICE" | "SERVICE_UNBILL" | "DELIVERY";
   full_address: string;
   landmark: string;
   requested_date: string;
@@ -21,6 +22,7 @@ interface SchedulingRequest {
   contact_person: string;
   phone_number: string;
   payment_method: string;
+  // Corrected: status should only contain actual status values
   status: 'pending' | 'approved' | 'rejected' | 'rescheduled' | 'cancelled' | 'in_progress' | 'completed';
   notes: string;
   created_at: string;

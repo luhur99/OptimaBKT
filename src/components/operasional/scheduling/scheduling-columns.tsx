@@ -7,7 +7,8 @@ export type SchedulingRequest = {
   id: string;
   sr_number: string;
   customer_name: string;
-  status: "pending" | "approved" | "in_progress" | "completed" | "rejected" | "rescheduled" | "cancelled" | "INSTALLATION" | "SERVICE" | "SERVICE_UNBILL" | "DELIVERY";
+  // Corrected: status should only contain actual status values
+  status: "pending" | "approved" | "in_progress" | "completed" | "rejected" | "rescheduled" | "cancelled";
   do_number?: string;
   assigned_technician_id?: string;
   technician_name?: string;
@@ -28,6 +29,8 @@ export type SchedulingRequest = {
   customer_id?: string;
   sales_id?: string;
   technician_type?: "INTERNAL" | "EXTERNAL";
+  // Corrected: type should contain request type values
+  type: "INSTALLATION" | "SERVICE" | "SERVICE_UNBILL" | "DELIVERY";
 };
 
 interface CreateSchedulingColumnsOptions {
@@ -138,18 +141,6 @@ export const createSchedulingColumns = ({ onSelectRequest }: CreateSchedulingCol
           break;
         case "cancelled":
           colorClass = "bg-gray-600 text-white";
-          break;
-        case "INSTALLATION":
-          colorClass = "bg-indigo-600 text-white"; // New color for INSTALLATION
-          break;
-        case "SERVICE":
-          colorClass = "bg-teal-600 text-white"; // New color for SERVICE
-          break;
-        case "SERVICE_UNBILL":
-          colorClass = "bg-pink-600 text-white"; // New color for SERVICE_UNBILL
-          break;
-        case "DELIVERY":
-          colorClass = "bg-cyan-600 text-white"; // New color for DELIVERY
           break;
         default:
           colorClass = "bg-gray-500 text-white";
