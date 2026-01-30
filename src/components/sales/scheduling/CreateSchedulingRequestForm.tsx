@@ -61,7 +61,7 @@ const formSchema = z.object({
   payment_method: z.string().optional(),
   notes: z.string().optional(),
   vehicle_details: z.string().optional(),
-  product_category: z.string().optional(),
+  product_category: z.enum(["SIAP_JUAL", "RUSAK", "MAINTENANCE"]).optional(),
 });
 
 export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRequestFormProps) {
@@ -87,7 +87,7 @@ export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRe
       payment_method: "",
       notes: "",
       vehicle_details: "",
-      product_category: "",
+      product_category: undefined, // Changed from "" to undefined
     },
   });
 
@@ -353,17 +353,16 @@ export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRe
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-gray-300">Product Category (Optional)</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} > {/* Added value prop */}
                     <FormControl>
                       <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
                         <SelectValue placeholder="Select product category" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
-                      <SelectItem value="siap_jual">Siap Jual</SelectItem>
-                      <SelectItem value="rusak">Rusak</SelectItem>
-                      <SelectItem value="maintenance">Maintenance</SelectItem>
-                      <SelectItem value="lain_lain">Lain-lain</SelectItem>
+                      <SelectItem value="SIAP_JUAL">Siap Jual</SelectItem>
+                      <SelectItem value="RUSAK">Rusak</SelectItem>
+                      <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
