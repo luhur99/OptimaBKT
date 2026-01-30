@@ -1,394 +1,678 @@
-import React, { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuthSession } from "@/hooks/use-auth-session";
-import { showError, showSuccess } from "@/utils/toast";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { format } from "date-fns";
-import { Search, CheckCircle2, XCircle, CalendarDays, Eye, Edit, Truck, FileText, Tag, Info, FileUp } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import DashboardLayout from "@/layouts/DashboardLayout";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Dialog } from "@/components/ui/dialog";
-import { SchedulingActionDialog } from "@/components/operasional/scheduling/SchedulingActionDialog";
-import SchedulingRequestDetail from "@/components/operasional/scheduling/SchedulingRequestDetail";
-import { useToast } from "@/components/ui/use-toast";
+"use client";
 
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { CheckCircle, XCircle, CalendarDays, Truck, FileText, Edit, Trash2, Loader2 } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+
+// Define the type for a scheduling request based on your Supabase schema
 interface SchedulingRequest {
   id: string;
   sr_number: string;
-  // Corrected: type should contain request type values
-  type: "INSTALLATION" | "SERVICE" | "SERVICE_UNBILL" | "DELIVERY";
-  full_address: string;
-  landmark: string | null;
-  requested_date: string;
-  requested_time: string | null;
+  customer_name: string;
+  company_name?: string;
+  phone_number: string;
   contact_person: string;
-  phone_number: string | null;
-  payment_method: string | null;
-  // Corrected: status should only contain actual status values
-  status: 'pending' | 'approved' | 'rejected' | 'rescheduled' | 'cancelled' | 'in_progress' | 'completed';
-  notes: string | null;
+  full_address: string;
+  landmark?: string;
+  requested_date: string;
+  requested_time?: string;
+  type: "INSTALLATION" | "MAINTENANCE" | "SURVEY" | "OTHER";
+  product_category?: "gps_tracker" | "dashcam" | "OTHER";
+  vehicle_details?: string;
+  notes?: string;
+  payment_method?: string;
+  status: "pending" | "approved" | "rejected" | "rescheduled" | "completed" | "cancelled" | "in_progress";
   created_at: string;
-  customer_name: string | null;
-  company_name: string | null;
-  vehicle_details: string | null;
-  assigned_technician_id: string | null;
-  technician_name: string | null;
-  external_technician_name: string | null; // Added
-  technician_type: 'INTERNAL' | 'EXTERNAL' | null; // Added
-  product_category: string | null;
-  do_number: string | null;
-  delivery_order_id: string | null;
-  invoice_id: string | null;
-  invoice_status: string | null;
-  document_url: string | null;
+  assigned_technician_id?: string;
+  technician_name?: string;
+  technician_type?: "INTERNAL" | "EXTERNAL";
+  external_technician_name?: string;
+  invoice_id?: string;
+  invoice_status?: string;
+  document_url?: string;
+  delivery_order_id?: string;
 }
 
-const OperasionalSchedulingPage: React.FC = () => {
-  const { profile, isLoading: isAuthLoading } = useAuthSession();
+interface Technician {
+  id: string;
+  name: string;
+  type: "INTERNAL" | "EXTERNAL";
+}
+
+export const OperasionalSchedulingPage = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedRequest, setSelectedRequest] = useState<SchedulingRequest | null>(null);
-  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRequestForAction, setSelectedRequestForAction] = useState<SchedulingRequest | null>(null);
-  const [currentActionType, setCurrentActionType] = useState<'approved' | 'rejected' | 'rescheduled' | 'cancelled' | null>(null); // Changed type
+  const [currentActionType, setCurrentActionType] = useState<"rejected" | "rescheduled" | "cancelled" | "in_progress" | "completed" | "delete" | "edit" | "view_invoice" | "create_delivery_order" | null>(null);
+  const [actionNotes, setActionNotes] = useState("");
+  const [newRequestedDate, setNewRequestedDate] = useState<Date | undefined>(undefined);
+  const [newRequestedTime, setNewRequestedTime] = useState("");
+  const [assignedTechnicianId, setAssignedTechnicianId] = useState<string | undefined>(undefined);
+  const [technicianName, setTechnicianName] = useState<string | undefined>(undefined);
+  const [technicianType, setTechnicianType] = useState<"INTERNAL" | "EXTERNAL">("INTERNAL");
+  const [externalTechnicianName, setExternalTechnicianName] = useState<string | undefined>(undefined);
+  const [isApproving, setIsApproving] = useState<string | null>(null); // To track which request is being approved
 
-  const { data: schedulingRequests, isLoading: isLoadingRequests, error: requestsError } = useQuery<SchedulingRequest[]>({
-    queryKey: ["schedulingRequests", searchTerm],
+  const { data: schedulingRequests, isLoading, error } = useQuery<SchedulingRequest[]>({
+    queryKey: ["scheduling_requests"],
     queryFn: async () => {
-      let query = supabase
-        .from("scheduling_requests")
-        .select(`
-          id,
-          sr_number,
-          type,
-          full_address,
-          landmark,
-          requested_date,
-          requested_time,
-          contact_person,
-          phone_number,
-          payment_method,
-          status,
-          notes,
-          created_at,
-          customer_name,
-          company_name,
-          vehicle_details,
-          assigned_technician_id,
-          technician_name,
-          external_technician_name,
-          technician_type,
-          product_category,
-          do_number,
-          delivery_order_id,
-          invoice_id,
-          invoice_status,
-          document_url
-        `)
-        .order("created_at", { ascending: false });
-
-      if (searchTerm) {
-        query = query.or(
-          `sr_number.ilike.%${searchTerm}%,customer_name.ilike.%${searchTerm}%,full_address.ilike.%${searchTerm}%`
-        );
-      }
-
-      const { data, error } = await query;
+      const { data, error } = await supabase.from("scheduling_requests").select("*");
       if (error) throw error;
       return data;
     },
   });
 
-  useEffect(() => {
-    if (requestsError) {
-      showError("Error fetching scheduling requests: " + requestsError.message);
-    }
-  }, [requestsError]);
+  const { data: technicians, isLoading: isLoadingTechnicians } = useQuery<Technician[]>({
+    queryKey: ["technicians"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("technicians").select("id, name, type");
+      if (error) throw error;
+      return data;
+    },
+  });
 
-  const getStatusBadgeVariant = (status: string) => {
+  const getStatusBadgeVariant = (status: SchedulingRequest['status']) => {
     switch (status) {
       case "pending":
-        return "default";
+        return "yellow";
       case "approved":
-        return "success";
+        return "green";
       case "rejected":
-        return "destructive";
+        return "red";
       case "rescheduled":
-        return "warning";
-      case "cancelled":
-        return "destructive";
-      case "in_progress":
-        return "info";
+        return "blue";
       case "completed":
-        return "secondary";
+        return "purple";
+      case "cancelled":
+        return "gray";
+      case "in_progress":
+        return "orange";
       default:
         return "default";
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "Pending";
-      case "approved":
-        return "Approved";
-      case "rejected":
-        return "Rejected";
-      case "rescheduled":
-        return "Rescheduled";
-      case "cancelled":
-        return "Cancelled";
-      case "in_progress":
-        return "In Progress";
-      case "completed":
-        return "Completed";
-      default:
-        return status;
+  const handleApproveRequest = async (request: SchedulingRequest) => {
+    setIsApproving(request.id);
+    const { error } = await supabase
+      .from("scheduling_requests")
+      .update({ status: "approved" })
+      .eq("id", request.id);
+
+    if (error) {
+      toast.error("Failed to approve scheduling request.", {
+        description: error.message,
+      });
+      console.error("Error approving scheduling request:", error);
+    } else {
+      toast.success("Scheduling request approved successfully!");
+      queryClient.invalidateQueries({ queryKey: ["scheduling_requests"] });
     }
+    setIsApproving(null);
   };
 
-  const handleViewDetails = (request: SchedulingRequest) => {
-    setSelectedRequest(request);
-    setIsDetailDialogOpen(true);
-  };
-
-  const handleDetailDialogClose = () => {
-    setIsDetailDialogOpen(false);
-    setSelectedRequest(null);
-    queryClient.invalidateQueries({ queryKey: ["schedulingRequests"] });
-  };
-
-  const handleActionSubmitFromDialog = async (actionData: {
-    assignedTechnicianId?: string | null;
-    externalTechnicianName?: string | null;
-    technicianType?: 'INTERNAL' | 'EXTERNAL' | null;
-    notes?: string;
-    status: SchedulingRequest['status']; // Now directly the database status
-  }) => {
+  const handleRejectRequest = async () => {
     if (!selectedRequestForAction) return;
 
-    const { assignedTechnicianId, externalTechnicianName, technicianType, notes, status: dbStatus } = actionData; // dbStatus is now directly from actionData.status
+    const { error } = await supabase
+      .from("scheduling_requests")
+      .update({ status: "rejected", notes: actionNotes })
+      .eq("id", selectedRequestForAction.id);
 
-    const updatePayload: any = {
-      status: dbStatus,
-      notes: notes,
-    };
-
-    // Only modify technician assignment fields if the status is 'approved'
-    // or if explicitly clearing them for 'rejected'/'cancelled'
-    if (dbStatus === 'approved') {
-      updatePayload.technician_type = technicianType;
-      if (technicianType === 'INTERNAL') {
-        updatePayload.assigned_technician_id = assignedTechnicianId;
-        if (assignedTechnicianId) {
-          const { data: technicianData, error: techError } = await supabase
-            .from('technicians')
-            .select('name')
-            .eq('id', assignedTechnicianId)
-            .single();
-          if (techError) {
-            console.error('Error fetching technician name:', techError.message);
-            toast({
-              title: "Error",
-              description: "Failed to fetch technician name.",
-              variant: "destructive",
-            });
-            return;
-          }
-          updatePayload.technician_name = technicianData?.name;
-          updatePayload.external_technician_name = null; // Clear external name if internal is assigned
-        } else {
-          toast({
-            title: "Error",
-            description: "Internal technician ID is missing for approval.",
-            variant: "destructive",
-          });
-          return;
-        }
-      } else if (technicianType === 'EXTERNAL') {
-        updatePayload.external_technician_name = externalTechnicianName;
-        updatePayload.technician_name = externalTechnicianName; // Use external name for general technician_name
-        updatePayload.assigned_technician_id = null; // Clear internal ID if external is assigned
-      }
-    } else if (['rejected', 'cancelled'].includes(dbStatus)) {
-      // For these statuses, explicitly clear all technician assignments
-      updatePayload.assigned_technician_id = null;
-      updatePayload.external_technician_name = null;
-      updatePayload.technician_name = null;
-      updatePayload.technician_type = null;
-    }
-    // For 'in_progress', 'completed', 'rescheduled', technician details should persist from 'approved' state
-    // No explicit clearing or setting here, they retain their previous values.
-
-    const { error: updateError } = await supabase
-      .from('scheduling_requests')
-      .update(updatePayload)
-      .eq('id', selectedRequestForAction.id);
-
-    if (updateError) {
-      console.error('Error updating scheduling request status:', updateError.message);
-      toast({
-        title: "Error",
-        description: `Failed to ${dbStatus} scheduling request: ${updateError.message}`,
-        variant: "destructive",
+    if (error) {
+      toast.error("Failed to reject scheduling request.", {
+        description: error.message,
       });
+      console.error("Error rejecting scheduling request:", error);
     } else {
-      toast({
-        title: "Success",
-        description: `Scheduling request successfully ${dbStatus}.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["schedulingRequests"] });
+      toast.success("Scheduling request rejected successfully!");
+      queryClient.invalidateQueries({ queryKey: ["scheduling_requests"] });
+      setIsModalOpen(false);
+      setActionNotes("");
+      setSelectedRequestForAction(null);
+      setCurrentActionType(null);
     }
-    setCurrentActionType(null);
-    setSelectedRequestForAction(null);
   };
 
-  if (isAuthLoading || isLoadingRequests) {
-    return (
-      <DashboardLayout>
-        <div className="container mx-auto py-10 space-y-6">
-          <Skeleton className="h-10 w-1/2 bg-gray-700" />
-          <div className="flex items-center space-x-2">
-            <Skeleton className="h-9 w-64 bg-gray-700" />
-            <Skeleton className="h-9 w-9 bg-gray-700" />
-          </div>
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full bg-gray-700" />
-            ))}
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const handleRescheduleRequest = async () => {
+    if (!selectedRequestForAction || !newRequestedDate) return;
 
-  if (!profile || (profile.role !== "OPERASIONAL_DIV" && profile.role !== "SUPER_ADMIN")) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-screen text-gray-400">
-          Unauthorized access.
-        </div>
-      </DashboardLayout>
-    );
-  }
+    const { error } = await supabase
+      .from("scheduling_requests")
+      .update({
+        status: "rescheduled",
+        requested_date: format(newRequestedDate, "yyyy-MM-dd"),
+        requested_time: newRequestedTime,
+        notes: actionNotes,
+      })
+      .eq("id", selectedRequestForAction.id);
+
+    if (error) {
+      toast.error("Failed to reschedule request.", {
+        description: error.message,
+      });
+      console.error("Error rescheduling request:", error);
+    } else {
+      toast.success("Scheduling request rescheduled successfully!");
+      queryClient.invalidateQueries({ queryKey: ["scheduling_requests"] });
+      setIsModalOpen(false);
+      setActionNotes("");
+      setNewRequestedDate(undefined);
+      setNewRequestedTime("");
+      setSelectedRequestForAction(null);
+      setCurrentActionType(null);
+    }
+  };
+
+  const handleCancelRequest = async () => {
+    if (!selectedRequestForAction) return;
+
+    const { error } = await supabase
+      .from("scheduling_requests")
+      .update({ status: "cancelled", notes: actionNotes })
+      .eq("id", selectedRequestForAction.id);
+
+    if (error) {
+      toast.error("Failed to cancel scheduling request.", {
+        description: error.message,
+      });
+      console.error("Error cancelling scheduling request:", error);
+    } else {
+      toast.success("Scheduling request cancelled successfully!");
+      queryClient.invalidateQueries({ queryKey: ["scheduling_requests"] });
+      setIsModalOpen(false);
+      setActionNotes("");
+      setSelectedRequestForAction(null);
+      setCurrentActionType(null);
+    }
+  };
+
+  const handleInProgressRequest = async () => {
+    if (!selectedRequestForAction) return;
+
+    const { error } = await supabase
+      .from("scheduling_requests")
+      .update({ status: "in_progress", notes: actionNotes })
+      .eq("id", selectedRequestForAction.id);
+
+    if (error) {
+      toast.error("Failed to set status to in progress.", {
+        description: error.message,
+      });
+      console.error("Error setting status to in progress:", error);
+    } else {
+      toast.success("Scheduling request status updated to In Progress!");
+      queryClient.invalidateQueries({ queryKey: ["scheduling_requests"] });
+      setIsModalOpen(false);
+      setActionNotes("");
+      setSelectedRequestForAction(null);
+      setCurrentActionType(null);
+    }
+  };
+
+  const handleCompleteRequest = async () => {
+    if (!selectedRequestForAction) return;
+
+    const { error } = await supabase
+      .from("scheduling_requests")
+      .update({ status: "completed", notes: actionNotes })
+      .eq("id", selectedRequestForAction.id);
+
+    if (error) {
+      toast.error("Failed to complete scheduling request.", {
+        description: error.message,
+      });
+      console.error("Error completing scheduling request:", error);
+    } else {
+      toast.success("Scheduling request completed successfully!");
+      queryClient.invalidateQueries({ queryKey: ["scheduling_requests"] });
+      setIsModalOpen(false);
+      setActionNotes("");
+      setSelectedRequestForAction(null);
+      setCurrentActionType(null);
+    }
+  };
+
+  const handleDeleteRequest = async (requestId: string) => {
+    const { error } = await supabase
+      .from("scheduling_requests")
+      .delete()
+      .eq("id", requestId);
+
+    if (error) {
+      toast.error("Failed to delete scheduling request.", {
+        description: error.message,
+      });
+      console.error("Error deleting scheduling request:", error);
+    } else {
+      toast.success("Scheduling request deleted successfully!");
+      queryClient.invalidateQueries({ queryKey: ["scheduling_requests"] });
+    }
+  };
+
+  const handleEditRequest = async () => {
+    if (!selectedRequestForAction) return;
+
+    const updatedFields: Partial<SchedulingRequest> = {
+      notes: actionNotes,
+      assigned_technician_id: technicianType === "INTERNAL" ? assignedTechnicianId : null,
+      technician_name: technicianType === "INTERNAL" ? technicianName : externalTechnicianName,
+      technician_type: technicianType,
+      external_technician_name: technicianType === "EXTERNAL" ? externalTechnicianName : null,
+    };
+
+    if (newRequestedDate) {
+      updatedFields.requested_date = format(newRequestedDate, "yyyy-MM-dd");
+    }
+    if (newRequestedTime) {
+      updatedFields.requested_time = newRequestedTime;
+    }
+
+    const { error } = await supabase
+      .from("scheduling_requests")
+      .update(updatedFields)
+      .eq("id", selectedRequestForAction.id);
+
+    if (error) {
+      toast.error("Failed to update scheduling request.", {
+        description: error.message,
+      });
+      console.error("Error updating scheduling request:", error);
+    } else {
+      toast.success("Scheduling request updated successfully!");
+      queryClient.invalidateQueries({ queryKey: ["scheduling_requests"] });
+      setIsModalOpen(false);
+      setActionNotes("");
+      setNewRequestedDate(undefined);
+      setNewRequestedTime("");
+      setAssignedTechnicianId(undefined);
+      setTechnicianName(undefined);
+      setTechnicianType("INTERNAL");
+      setExternalTechnicianName(undefined);
+      setSelectedRequestForAction(null);
+      setCurrentActionType(null);
+    }
+  };
+
+  const handleOpenModal = (request: SchedulingRequest, action: typeof currentActionType) => {
+    setSelectedRequestForAction(request);
+    setCurrentActionType(action);
+    setActionNotes(request.notes || "");
+    setNewRequestedDate(request.requested_date ? new Date(request.requested_date) : undefined);
+    setNewRequestedTime(request.requested_time || "");
+    setAssignedTechnicianId(request.assigned_technician_id || undefined);
+    setTechnicianName(request.technician_name || undefined);
+    setTechnicianType(request.technician_type || "INTERNAL");
+    setExternalTechnicianName(request.external_technician_name || undefined);
+    setIsModalOpen(true);
+  };
+
+  if (isLoading) return <div className="text-center text-gray-300">Loading scheduling requests...</div>;
+  if (error) return <div className="text-center text-red-500">Error: {error.message}</div>;
 
   return (
-    <DashboardLayout>
+    <div className="container mx-auto p-4 bg-gray-900 text-gray-300 min-h-screen">
       <h1 className="text-3xl font-bold mb-6 text-neon-cyan">Operasional Scheduling Requests</h1>
 
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-2">
-          <Input
-            placeholder="Search SR number, customer, address..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm bg-midnight-blue border-gray-700 text-gray-200 placeholder:text-gray-500"
-          />
-          <Button variant="outline" size="icon" className="bg-midnight-blue border-gray-700 text-neon-cyan hover:bg-gray-800">
-            <Search className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="rounded-md border border-gray-700 overflow-hidden">
-        <Table className="min-w-full divide-y divide-gray-700">
-          <TableHeader className="bg-midnight-blue">
-            <TableRow>
-              <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">SR Number</TableHead>
-              <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Customer</TableHead>
-              <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Type</TableHead>
-              <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Requested Date</TableHead>
-              <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Technician</TableHead> {/* Added Technician column */}
-              <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</TableHead>
-              <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</TableHead>
+      <div className="overflow-x-auto bg-gray-800 rounded-lg shadow-lg p-4">
+        <Table className="w-full">
+          <TableHeader>
+            <TableRow className="bg-gray-700 hover:bg-gray-700">
+              <TableHead className="text-neon-cyan">SR Number</TableHead>
+              <TableHead className="text-neon-cyan">Customer Name</TableHead>
+              <TableHead className="text-neon-cyan">Type</TableHead>
+              <TableHead className="text-neon-cyan">Product Category</TableHead>
+              <TableHead className="text-neon-cyan">Requested Date</TableHead>
+              <TableHead className="text-neon-cyan">Technician</TableHead>
+              <TableHead className="text-neon-cyan">Status</TableHead>
+              <TableHead className="text-neon-cyan text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody className="bg-deep-charcoal divide-y divide-gray-800">
-            {schedulingRequests?.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-4 text-gray-400">No scheduling requests found.</TableCell>
+          <TableBody>
+            {schedulingRequests?.map((request) => (
+              <TableRow key={request.id} className="border-gray-700 hover:bg-gray-700/50">
+                <TableCell className="font-medium">{request.sr_number}</TableCell>
+                <TableCell>{request.customer_name}</TableCell>
+                <TableCell>{request.type}</TableCell>
+                <TableCell>{request.product_category}</TableCell>
+                <TableCell>{format(new Date(request.requested_date), "PPP")}</TableCell>
+                <TableCell>{request.technician_name || "N/A"}</TableCell>
+                <TableCell>
+                  <Badge variant={getStatusBadgeVariant(request.status)}>{request.status}</Badge>
+                </TableCell>
+                <TableCell className="text-right flex space-x-2 justify-end">
+                  {request.status === "pending" && (
+                    <>
+                      <Button
+                        key="approve"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleApproveRequest(request)}
+                        disabled={isApproving === request.id}
+                      >
+                        {isApproving === request.id ? (
+                          <Loader2 className="h-5 w-5 text-green-500 animate-spin" />
+                        ) : (
+                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        )}
+                      </Button>
+                      <Button key="reject" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'rejected')}>
+                        <XCircle className="h-5 w-5 text-red-500" />
+                      </Button>
+                      <Button key="reschedule" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'rescheduled')}>
+                        <CalendarDays className="h-5 w-5 text-blue-500" />
+                      </Button>
+                    </>
+                  )}
+                  {(request.status === "approved" || request.status === "in_progress" || request.status === "rescheduled") && (
+                    <>
+                      <Button key="in_progress" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'in_progress')}>
+                        <Truck className="h-5 w-5 text-orange-500" />
+                      </Button>
+                      <Button key="complete" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'completed')}>
+                        <CheckCircle className="h-5 w-5 text-purple-500" />
+                      </Button>
+                      <Button key="cancel" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'cancelled')}>
+                        <XCircle className="h-5 w-5 text-gray-500" />
+                      </Button>
+                    </>
+                  )}
+                  <Button key="edit" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'edit')}>
+                    <Edit className="h-5 w-5 text-blue-400" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <Trash2 className="h-5 w-5 text-red-600" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="bg-gray-800 border-gray-700 text-gray-300">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="text-neon-cyan">Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-400">
+                          This action cannot be undone. This will permanently delete the
+                          scheduling request.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="bg-gray-700 text-gray-300 hover:bg-gray-600">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDeleteRequest(request.id)}
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  {request.invoice_id && (
+                    <Button key="view_invoice" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'view_invoice')}>
+                      <FileText className="h-5 w-5 text-indigo-500" />
+                    </Button>
+                  )}
+                  {request.status === "approved" && !request.delivery_order_id && (
+                    <Button key="create_delivery_order" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'create_delivery_order')}>
+                      <Truck className="h-5 w-5 text-cyan-500" />
+                    </Button>
+                  )}
+                </TableCell>
               </TableRow>
-            ) : (
-              schedulingRequests?.map((request) => {
-                const actions = [];
-                if (request.status === "pending" && (profile?.role === "OPERASIONAL_DIV" || profile?.role === "SUPER_ADMIN")) {
-                  actions.push(
-                    <Button key="approve" variant="ghost" size="icon" onClick={() => {
-                      setSelectedRequestForAction(request);
-                      setCurrentActionType('approved'); // Changed to 'approved'
-                    }}>
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    </Button>
-                  );
-                  actions.push(
-                    <Button key="reject" variant="ghost" size="icon" onClick={() => {
-                      setSelectedRequestForAction(request);
-                      setCurrentActionType('rejected'); // Changed to 'rejected'
-                    }}>
-                      <XCircle className="h-4 w-4 text-red-500" />
-                    </Button>
-                  );
-                }
-
-                return (
-                  <TableRow key={request.id} className="hover:bg-gray-800 transition-colors">
-                    <TableCell className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-200">{request.sr_number}</TableCell>
-                    <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{request.customer_name || "N/A"}</TableCell>
-                    <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{request.type}</TableCell>
-                    <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{format(new Date(request.requested_date), "PPP")}</TableCell>
-                    <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{request.technician_name || "N/A"}</TableCell> {/* Display Technician Name */}
-                    <TableCell className="px-4 py-2 whitespace-nowrap text-sm">
-                      <Badge variant={getStatusBadgeVariant(request.status)}>{getStatusText(request.status)}</Badge>
-                    </TableCell>
-                    <TableCell className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center space-x-1">
-                        <Button variant="ghost" size="icon" onClick={() => handleViewDetails(request)}>
-                          <Eye className="h-4 w-4 text-gray-400" />
-                        </Button>
-                        {actions}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
+            ))}
           </TableBody>
         </Table>
       </div>
 
-      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        {selectedRequest && (
-          <SchedulingRequestDetail
-            request={selectedRequest}
-            onUpdate={handleDetailDialogClose}
-            onClose={handleDetailDialogClose}
-          />
-        )}
+      {/* Action Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-gray-800 border-gray-700 text-gray-300">
+          <DialogHeader>
+            <DialogTitle className="text-neon-cyan">
+              {currentActionType === "rejected" && "Reject Scheduling Request"}
+              {currentActionType === "rescheduled" && "Reschedule Scheduling Request"}
+              {currentActionType === "cancelled" && "Cancel Scheduling Request"}
+              {currentActionType === "in_progress" && "Set Status to In Progress"}
+              {currentActionType === "completed" && "Complete Scheduling Request"}
+              {currentActionType === "edit" && "Edit Scheduling Request"}
+              {currentActionType === "view_invoice" && "View Invoice Details"}
+              {currentActionType === "create_delivery_order" && "Create Delivery Order"}
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {currentActionType === "rejected" && "Enter notes for rejecting this request."}
+              {currentActionType === "rescheduled" && "Select a new date and time for this request."}
+              {currentActionType === "cancelled" && "Enter notes for cancelling this request."}
+              {currentActionType === "in_progress" && "Add any notes for setting this request to In Progress."}
+              {currentActionType === "completed" && "Add any notes for completing this request."}
+              {currentActionType === "edit" && "Update details for this scheduling request."}
+              {currentActionType === "view_invoice" && "Invoice details for this request."}
+              {currentActionType === "create_delivery_order" && "Confirm details for creating a delivery order."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {(currentActionType === "rejected" || currentActionType === "cancelled" || currentActionType === "in_progress" || currentActionType === "completed") && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="notes" className="text-right text-gray-300">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={actionNotes}
+                  onChange={(e) => setActionNotes(e.target.value)}
+                  className="col-span-3 bg-gray-700 border-gray-600 text-gray-300"
+                />
+              </div>
+            )}
+            {(currentActionType === "rescheduled" || currentActionType === "edit") && (
+              <>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="newDate" className="text-right text-gray-300">New Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "col-span-3 pl-3 text-left font-normal bg-gray-700 border-gray-600 text-gray-300",
+                          !newRequestedDate && "text-gray-500"
+                        )}
+                      >
+                        {newRequestedDate ? (
+                          format(newRequestedDate, "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-gray-800 border-gray-700 text-gray-300" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={newRequestedDate}
+                        onSelect={setNewRequestedDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="newTime" className="text-right text-gray-300">New Time</Label>
+                  <Input
+                    id="newTime"
+                    value={newRequestedTime}
+                    onChange={(e) => setNewRequestedTime(e.target.value)}
+                    placeholder="e.g., 09:00 AM - 12:00 PM"
+                    className="col-span-3 bg-gray-700 border-gray-600 text-gray-300"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="notes" className="text-right text-gray-300">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    value={actionNotes}
+                    onChange={(e) => setActionNotes(e.target.value)}
+                    className="col-span-3 bg-gray-700 border-gray-600 text-gray-300"
+                  />
+                </div>
+              </>
+            )}
+            {currentActionType === "edit" && (
+              <>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="technicianType" className="text-right text-gray-300">Technician Type</Label>
+                  <Select
+                    value={technicianType}
+                    onValueChange={(value: "INTERNAL" | "EXTERNAL") => setTechnicianType(value)}
+                  >
+                    <SelectTrigger className="col-span-3 bg-gray-700 border-gray-600 text-gray-300">
+                      <SelectValue placeholder="Select technician type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
+                      <SelectItem value="INTERNAL">Internal</SelectItem>
+                      <SelectItem value="EXTERNAL">External</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {technicianType === "INTERNAL" && (
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="assignedTechnician" className="text-right text-gray-300">Assigned Technician</Label>
+                    <Select
+                      value={assignedTechnicianId}
+                      onValueChange={(value) => {
+                        setAssignedTechnicianId(value);
+                        const selectedTech = technicians?.find((tech) => tech.id === value);
+                        setTechnicianName(selectedTech?.name || undefined);
+                      }}
+                    >
+                      <SelectTrigger className="col-span-3 bg-gray-700 border-gray-600 text-gray-300">
+                        <SelectValue placeholder="Select an internal technician" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
+                        {isLoadingTechnicians ? (
+                          <SelectItem value="loading" disabled>Loading technicians...</SelectItem>
+                        ) : (
+                          technicians?.map((tech) => (
+                            <SelectItem key={tech.id} value={tech.id}>
+                              {tech.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {technicianType === "EXTERNAL" && (
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="externalTechnicianName" className="text-right text-gray-300">External Technician Name</Label>
+                    <Input
+                      id="externalTechnicianName"
+                      value={externalTechnicianName}
+                      onChange={(e) => setExternalTechnicianName(e.target.value)}
+                      placeholder="Enter external technician's name"
+                      className="col-span-3 bg-gray-700 border-gray-600 text-gray-300"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+            {currentActionType === "view_invoice" && selectedRequestForAction?.invoice_id && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right text-gray-300">Invoice ID</Label>
+                <span className="col-span-3 text-gray-400">{selectedRequestForAction.invoice_id}</span>
+                <Label className="text-right text-gray-300">Invoice Status</Label>
+                <span className="col-span-3 text-gray-400">{selectedRequestForAction.invoice_status}</span>
+                {/* Add more invoice details if available */}
+              </div>
+            )}
+            {currentActionType === "create_delivery_order" && selectedRequestForAction && (
+              <div className="space-y-2">
+                <p className="text-gray-400">Confirm creation of a Delivery Order for SR: <span className="font-medium text-neon-cyan">{selectedRequestForAction.sr_number}</span></p>
+                <p className="text-gray-400">Customer: <span className="font-medium text-gray-300">{selectedRequestForAction.customer_name}</span></p>
+                <p className="text-gray-400">Address: <span className="font-medium text-gray-300">{selectedRequestForAction.full_address}</span></p>
+                {/* You might want to add a form here to specify delivery items, date, etc. */}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)} className="bg-gray-700 text-gray-300 hover:bg-gray-600">
+              Cancel
+            </Button>
+            {currentActionType === "rejected" && (
+              <Button onClick={handleRejectRequest} className="bg-red-600 hover:bg-red-700 text-white">
+                Reject Request
+              </Button>
+            )}
+            {currentActionType === "rescheduled" && (
+              <Button onClick={handleRescheduleRequest} className="bg-blue-600 hover:bg-blue-700 text-white">
+                Reschedule Request
+              </Button>
+            )}
+            {currentActionType === "cancelled" && (
+              <Button onClick={handleCancelRequest} className="bg-gray-600 hover:bg-gray-700 text-white">
+                Cancel Request
+              </Button>
+            )}
+            {currentActionType === "in_progress" && (
+              <Button onClick={handleInProgressRequest} className="bg-orange-600 hover:bg-orange-700 text-white">
+                Set In Progress
+              </Button>
+            )}
+            {currentActionType === "completed" && (
+              <Button onClick={handleCompleteRequest} className="bg-purple-600 hover:bg-purple-700 text-white">
+                Complete Request
+              </Button>
+            )}
+            {currentActionType === "edit" && (
+              <Button onClick={handleEditRequest} className="bg-blue-500 hover:bg-blue-600 text-white">
+                Save Changes
+              </Button>
+            )}
+            {currentActionType === "create_delivery_order" && (
+              <Button onClick={() => {
+                // Implement delivery order creation logic here
+                toast.info("Delivery Order creation logic not yet implemented.");
+                setIsModalOpen(false);
+              }} className="bg-cyan-600 hover:bg-cyan-700 text-white">
+                Create Delivery Order
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
-
-      <Dialog open={!!currentActionType} onOpenChange={(open) => !open && setCurrentActionType(null)}>
-        {selectedRequestForAction && currentActionType && (
-          <SchedulingActionDialog
-            isOpen={!!currentActionType}
-            onClose={() => {
-              setCurrentActionType(null);
-              setSelectedRequestForAction(null);
-            }}
-            onSubmit={handleActionSubmitFromDialog}
-            request={selectedRequestForAction}
-            actionType={currentActionType}
-          />
-        )}
-      </Dialog>
-    </DashboardLayout>
+    </div>
   );
 };
-
-export default OperasionalSchedulingPage;
