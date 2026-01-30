@@ -11,10 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Dialog } from "@/components/ui/dialog"; // Import Dialog
-import { SchedulingActionDialog } from "@/components/operasional/scheduling/SchedulingActionDialog"; // Import SchedulingActionDialog
+import { Dialog } from "@/components/ui/dialog";
+import { SchedulingActionDialog } from "@/components/operasional/scheduling/SchedulingActionDialog";
 import SchedulingRequestDetail from "@/components/operasional/scheduling/SchedulingRequestDetail";
-import { useToast } from "@/components/ui/use-toast"; // Import useToast
+import { useToast } from "@/components/ui/use-toast";
 
 interface SchedulingRequest {
   id: string;
@@ -35,6 +35,8 @@ interface SchedulingRequest {
   vehicle_details: string | null;
   assigned_technician_id: string | null;
   technician_name: string | null;
+  external_technician_name: string | null; // Added
+  technician_type: 'INTERNAL' | 'EXTERNAL' | null; // Added
   product_category: string | null;
   do_number: string | null;
   delivery_order_id: string | null;
@@ -52,7 +54,6 @@ const OperasionalSchedulingPage: React.FC = () => {
   const [selectedRequest, setSelectedRequest] = useState<SchedulingRequest | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
-  // New states for action dialog
   const [selectedRequestForAction, setSelectedRequestForAction] = useState<SchedulingRequest | null>(null);
   const [currentActionType, setCurrentActionType] = useState<'approve' | 'reject' | 'reschedule' | 'cancel' | null>(null);
 
@@ -80,6 +81,8 @@ const OperasionalSchedulingPage: React.FC = () => {
           vehicle_details,
           assigned_technician_id,
           technician_name,
+          external_technician_name,
+          technician_type,
           product_category,
           do_number,
           delivery_order_id,
@@ -157,40 +160,61 @@ const OperasionalSchedulingPage: React.FC = () => {
   const handleDetailDialogClose = () => {
     setIsDetailDialogOpen(false);
     setSelectedRequest(null);
-    queryClient.invalidateQueries({ queryKey: ["schedulingRequests"] }); // Refresh data after closing detail view
+    queryClient.invalidateQueries({ queryKey: ["schedulingRequests"] });
   };
 
-  // This function will now be used by the SchedulingActionDialog
-  const handleActionSubmitFromDialog = async (actionData: { assignedTechnicianId?: string; notes?: string; status: SchedulingRequest['status'] }) => {
+  const handleActionSubmitFromDialog = async (actionData: {
+    assignedTechnicianId?: string | null;
+    externalTechnicianName?: string | null;
+    technicianType?: 'INTERNAL' | 'EXTERNAL' | null;
+    notes?: string;
+    status: SchedulingRequest['status'];
+  }) => {
     if (!selectedRequestForAction) return;
 
-    const { assignedTechnicianId, notes, status } = actionData;
+    const { assignedTechnicianId, externalTechnicianName, technicianType, notes, status } = actionData;
 
     const updatePayload: any = {
       status: status,
       notes: notes,
+      assigned_technician_id: null, // Reset by default
+      external_technician_name: null, // Reset by default
+      technician_name: null, // Reset by default
+      technician_type: null, // Reset by default
     };
 
     if (status === 'approved') {
-      if (!assignedTechnicianId) {
-        toast({
-          title: "Error",
-          description: "Technician must be assigned for approval.",
-          variant: "destructive",
-        });
-        return;
+      updatePayload.technician_type = technicianType;
+      if (technicianType === 'INTERNAL') {
+        updatePayload.assigned_technician_id = assignedTechnicianId;
+        // Fetch technician name for display
+        if (assignedTechnicianId) {
+          const { data: technicianData, error: techError } = await supabase
+            .from('technicians')
+            .select('name')
+            .eq('id', assignedTechnicianId)
+            .single();
+          if (techError) {
+            console.error('Error fetching technician name:', techError.message);
+            toast({
+              title: "Error",
+              description: "Failed to fetch technician name.",
+              variant: "destructive",
+            });
+            return;
+          }
+          updatePayload.technician_name = technicianData?.name;
+        }
+      } else if (technicianType === 'EXTERNAL') {
+        updatePayload.external_technician_name = externalTechnicianName;
+        updatePayload.technician_name = externalTechnicianName; // Use external name for general technician_name
       }
-      updatePayload.assigned_technician_id = assignedTechnicianId;
-    } else if (status === 'rejected' || status === 'rescheduled' || status === 'cancelled') {
+    } else if (['rejected', 'rescheduled', 'cancelled'].includes(status)) {
+      // For these statuses, clear technician assignments
       updatePayload.assigned_technician_id = null;
-      if (!notes || notes.trim() === "") {
-        toast({
-          title: "Error",
-          description: "Notes are required for this action.",
-          variant: "destructive",
-        });
-        return;
-      }
+      updatePayload.external_technician_name = null;
+      updatePayload.technician_name = null;
+      updatePayload.technician_type = null;
     }
 
     const { error: updateError } = await supabase
@@ -327,7 +351,6 @@ const OperasionalSchedulingPage: React.FC = () => {
         </Table>
       </div>
 
-      {/* Detail Dialog */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
         {selectedRequest && (
           <SchedulingRequestDetail
@@ -338,7 +361,6 @@ const OperasionalSchedulingPage: React.FC = () => {
         )}
       </Dialog>
 
-      {/* Dialog for all actions (Approve, Reject, Reschedule, Cancel) */}
       <Dialog open={!!currentActionType} onOpenChange={(open) => !open && setCurrentActionType(null)}>
         {selectedRequestForAction && currentActionType && (
           <SchedulingActionDialog
