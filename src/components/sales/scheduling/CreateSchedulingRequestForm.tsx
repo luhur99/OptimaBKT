@@ -39,7 +39,8 @@ const formSchema = z.object({
   requestedDate: z.date({ required_error: "A date for the request is required." }),
   requestedTime: z.string().optional(),
   type: z.enum(["INSTALLATION", "MAINTENANCE", "SURVEY", "OTHER"], { required_error: "Please select a request type." }),
-  productCategory: z.enum(["CCTV", "FIBER_OPTIC", "NETWORKING", "OTHER"]).optional(),
+  // Updated productCategory enum values
+  productCategory: z.enum(["Gps Tracker", "Dashcam", "OTHER"]).optional(),
   vehicleDetails: z.string().optional(),
   notes: z.string().optional(),
   paymentMethod: z.string().optional(),
@@ -62,11 +63,11 @@ export const CreateSchedulingRequestForm = () => {
       landmark: "",
       requestedTime: "",
       type: "INSTALLATION",
-      productCategory: "CCTV",
+      productCategory: "Gps Tracker", // Default to Gps Tracker
       vehicleDetails: "",
       notes: "",
       paymentMethod: "",
-      technicianType: "INTERNAL", // Default to internal
+      technicianType: "INTERNAL",
       externalTechnicianName: "",
     },
   });
@@ -95,12 +96,12 @@ export const CreateSchedulingRequestForm = () => {
       vehicle_details: values.vehicleDetails,
       notes: values.notes,
       payment_method: values.paymentMethod,
-      status: "pending", // Initial status
+      status: "pending",
       assigned_technician_id: values.technicianType === "INTERNAL" ? values.assignedTechnicianId : null,
       technician_name: values.technicianType === "INTERNAL" ? values.technicianName : values.externalTechnicianName,
       technician_type: values.technicianType,
       external_technician_name: values.technicianType === "EXTERNAL" ? values.externalTechnicianName : null,
-      user_id: (await supabase.auth.getUser()).data.user?.id, // Assuming user_id is current authenticated user
+      user_id: (await supabase.auth.getUser()).data.user?.id,
     };
 
     const { error } = await supabase.from("scheduling_requests").insert([payload]);
@@ -322,9 +323,8 @@ export const CreateSchedulingRequestForm = () => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
-                      <SelectItem value="CCTV">CCTV</SelectItem>
-                      <SelectItem value="FIBER_OPTIC">Fiber Optic</SelectItem>
-                      <SelectItem value="NETWORKING">Networking</SelectItem>
+                      <SelectItem value="Gps Tracker">Gps Tracker</SelectItem>
+                      <SelectItem value="Dashcam">Dashcam</SelectItem>
                       <SelectItem value="OTHER">Other</SelectItem>
                     </SelectContent>
                   </Select>
