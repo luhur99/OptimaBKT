@@ -58,12 +58,12 @@ const formSchema = z.object({
   requested_time: z.string().optional(),
   contact_person: z.string().min(1, { message: "Contact person is required." }),
   phone_number: z.string().min(1, { message: "Phone number is required." }),
-  payment_method: z.enum(["COD", "TRANSFER", "PAYMENT_GATEWAY", "DP", "OTHER"], { // Updated to enum
+  payment_method: z.enum(["COD", "TRANSFER", "PAYMENT_GATEWAY", "DP", "OTHER"], {
     required_error: "Please select a payment method.",
   }),
   notes: z.string().optional(),
   vehicle_details: z.string().optional(),
-  product_category: z.enum(["SIAP_JUAL", "RUSAK", "MAINTENANCE", "GPS_TRACKER", "DASHCAM"]).optional(),
+  product_category: z.enum(["GPS_TRACKER", "DASHCAM"]).optional(), // Updated enum values
 });
 
 export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRequestFormProps) {
@@ -86,7 +86,7 @@ export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRe
       requested_time: "",
       contact_person: "",
       phone_number: "",
-      payment_method: "COD", // Default payment method
+      payment_method: "COD",
       notes: "",
       vehicle_details: "",
       product_category: undefined,
@@ -362,9 +362,6 @@ export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRe
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
-                      <SelectItem value="SIAP_JUAL">Siap Jual</SelectItem>
-                      <SelectItem value="RUSAK">Rusak</SelectItem>
-                      <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
                       <SelectItem value="GPS_TRACKER">GPS Tracker</SelectItem>
                       <SelectItem value="DASHCAM">Dashcam</SelectItem>
                     </SelectContent>
