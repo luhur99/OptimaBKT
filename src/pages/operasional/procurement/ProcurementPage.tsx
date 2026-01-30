@@ -1,0 +1,173 @@
+import { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuthSession } from "@/hooks/use-auth-session";
+import { supabase } from "@/integrations/supabase/client";
+import { showSuccess, showError } from "@/utils/toast";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import DashboardLayout from "@/layouts/DashboardLayout";
+import { CreatePurchaseRequestForm } from "@/components/procurement/CreatePurchaseRequestForm";
+import { PurchaseOrderTable, createPurchaseOrderColumns, PurchaseOrder } from "@/components/procurement/PurchaseOrderTable";
+import { PurchaseOrderDetail } from "@/components/procurement/PurchaseOrderDetail";
+
+const ProcurementPage = () => {
+  const { session, profile, isLoading: isAuthLoading } = useAuthSession();
+  const navigate = useNavigate();
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [isLoadingPOs, setIsLoadingPOs] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>("manage-pos");
+  const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
+
+  const fetchPurchaseOrders = async () => {
+    setIsLoadingPOs(true);
+    const { data, error } = await supabase
+      .from("purchase_orders")
+      .select(`
+        id,
+        po_number,
+        status,
+        total_biaya,
+        created_at,
+        suppliers (name),
+        profiles!requested_by (full_name)
+      `)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching purchase orders:", error);
+      showError("Failed to load purchase orders.");
+    } else {
+      const formattedData: PurchaseOrder[] = data.map((po: any) => ({
+        ...po,
+        supplier_name: po.suppliers?.name || "N/A",
+        requested_by_name: po.profiles?.full_name || "N/A",
+      }));
+      setPurchaseOrders(formattedData);
+    }
+    setIsLoadingPOs(false);
+  };
+
+  useEffect(() => {
+    if (!isAuthLoading) {
+      if (!session) {
+        navigate("/");
+        return;
+      }
+      if (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN" && profile?.role !== "SALES_DIV") {
+        navigate("/dashboard");
+        showError("You do not have permission to access this page.");
+        return;
+      }
+      fetchPurchaseOrders();
+    }
+  }, [isAuthLoading, session, profile, navigate]);
+
+  const handlePOUpdate = () => {
+    fetchPurchaseOrders();
+    setSelectedPO(null); // Clear selection to refresh detail view
+  };
+
+  const columns = useMemo(() => createPurchaseOrderColumns(), []);
+
+  if (isAuthLoading || isLoadingPOs) {
+    return (
+      <DashboardLayout>
+        <div className="container mx-auto py-10 space-y-6">
+          <Skeleton className="h-10 w-1/2 bg-gray-700" />
+          <div className="flex space-x-2">
+            <Skeleton className="h-9 w-24 bg-gray-700" />
+            <Skeleton className="h-9 w-24 bg-gray-700" />
+          </div>
+          <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg border border-gray-700">
+            <ResizablePanel defaultSize={50}>
+              <div className="flex h-full items-center justify-center p-6">
+                <Skeleton className="h-full w-full bg-gray-800" />
+              </div>
+            </ResizablePanel>
+            <ResizableHandle withHandle className="bg-gray-700 hover:bg-neon-cyan" />
+            <ResizablePanel defaultSize={50}>
+              <div className="flex h-full items-center justify-center p-6">
+                <Skeleton className="h-full w-full bg-gray-800" />
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN" && profile?.role !== "SALES_DIV")) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen text-gray-400">
+          Unauthorized access.
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <h1 className="text-3xl font-bold mb-6 text-neon-cyan">Procurement Management</h1>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+        <TabsList className="bg-midnight-blue border border-gray-700">
+          <TabsTrigger value="create-pr" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Create Purchase Request</TabsTrigger>
+          <TabsTrigger value="manage-pos" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Manage Purchase Orders</TabsTrigger>
+        </TabsList>
+        <TabsContent value="create-pr" className="mt-4">
+          <Card className="glassmorphism border border-electric-violet/30">
+            <CardHeader>
+              <CardTitle className="text-electric-violet">New Purchase Request</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CreatePurchaseRequestForm onPRCreated={() => {
+                showSuccess("Purchase Request created successfully! It will appear in 'Manage Purchase Orders' once approved.");
+                setActiveTab("manage-pos");
+                fetchPurchaseOrders();
+              }} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="manage-pos" className="mt-4">
+          <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg glassmorphism border border-neon-cyan/30">
+            <ResizablePanel defaultSize={50} minSize={30}>
+              <div className="p-4 h-full">
+                <h2 className="text-xl font-semibold mb-4 text-neon-cyan">All Purchase Orders</h2>
+                <PurchaseOrderTable
+                  columns={columns}
+                  data={purchaseOrders}
+                  onRowClick={setSelectedPO}
+                />
+              </div>
+            </ResizablePanel>
+            <ResizableHandle withHandle className="bg-gray-700 hover:bg-neon-cyan transition-colors" />
+            <ResizablePanel defaultSize={50} minSize={30}>
+              <div className="p-6 h-full">
+                {selectedPO ? (
+                  <PurchaseOrderDetail
+                    po={selectedPO}
+                    onUpdate={handlePOUpdate}
+                    onClose={() => setSelectedPO(null)}
+                  />
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-500 border border-dashed border-gray-700 rounded-md p-4 radar-grid-background">
+                    Select a Purchase Order from the left panel to view details and manage arrival.
+                  </div>
+                )}
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </TabsContent>
+      </Tabs>
+    </DashboardLayout>
+  );
+};
+
+export default ProcurementPage;
