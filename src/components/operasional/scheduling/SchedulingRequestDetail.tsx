@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Edit, CheckCircle, XCircle, Calendar, User, MapPin, Phone, Clock, DollarSign, FileText, Truck, Building, Tag, Info, FileUp } from 'lucide-react';
-import { ApprovalDialog } from './ApprovalDialog';
+import { SchedulingActionDialog } from './SchedulingActionDialog'; // Renamed import
 import { useToast } from "@/components/ui/use-toast";
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog } from '@/components/ui/dialog'; // Removed DialogTrigger as it's now handled by individual buttons
 
 interface SchedulingRequest {
   id: string;
@@ -36,9 +36,9 @@ interface SchedulingRequest {
 }
 
 interface SchedulingRequestDetailProps {
-  request: SchedulingRequest; // Menerima request sebagai prop
-  onUpdate: () => void; // Callback untuk memberitahu parent agar memperbarui data
-  onClose: () => void; // Callback untuk menutup detail panel
+  request: SchedulingRequest;
+  onUpdate: () => void;
+  onClose: () => void;
 }
 
 const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }: SchedulingRequestDetailProps) => {
@@ -46,18 +46,18 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
   const [request, setRequest] = useState<SchedulingRequest>(initialRequest);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
+  const [currentAction, setCurrentAction] = useState<'approve' | 'reject' | 'reschedule' | 'cancel' | null>(null); // State for current action dialog
   const { toast } = useToast();
 
   useEffect(() => {
     setRequest(initialRequest);
   }, [initialRequest]);
 
-  const handleApprovalSubmit = async (approvalData: { assignedTechnicianId: string; notes: string; status: 'approved' | 'rejected' }) => {
+  const handleActionSubmit = async (actionData: { assignedTechnicianId?: string; notes?: string; status: SchedulingRequest['status'] }) => {
     if (!request) return;
 
     setLoading(true);
-    const { assignedTechnicianId, notes, status } = approvalData;
+    const { assignedTechnicianId, notes, status } = actionData;
 
     const updatePayload: any = {
       status: status,
@@ -65,21 +65,39 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
     };
 
     if (status === 'approved') {
+      if (!assignedTechnicianId) {
+        toast({
+          title: "Error",
+          description: "Technician must be assigned for approval.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
       updatePayload.assigned_technician_id = assignedTechnicianId;
-    } else if (status === 'rejected') {
-      updatePayload.assigned_technician_id = null; // Clear technician if rejected
+    } else if (status === 'rejected' || status === 'rescheduled' || status === 'cancelled') {
+      updatePayload.assigned_technician_id = null; // Clear technician for these statuses
+      if (!notes || notes.trim() === "") {
+        toast({
+          title: "Error",
+          description: "Notes are required for this action.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
     }
 
-    const { error } = await supabase
+    const { error: updateError } = await supabase
       .from('scheduling_requests')
       .update(updatePayload)
       .eq('id', request.id);
 
-    if (error) {
-      console.error('Error updating scheduling request status:', error.message);
+    if (updateError) {
+      console.error('Error updating scheduling request status:', updateError.message);
       toast({
         title: "Error",
-        description: `Failed to ${status} scheduling request: ${error.message}`,
+        description: `Failed to ${status} scheduling request: ${updateError.message}`,
         variant: "destructive",
       });
     } else {
@@ -90,7 +108,7 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
       onUpdate(); // Trigger parent to refresh data
     }
     setLoading(false);
-    setIsApprovalDialogOpen(false); // Tutup dialog setelah submit
+    setCurrentAction(null); // Close dialog
   };
 
   if (loading) {
@@ -118,44 +136,89 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
     }
   };
 
+  const isPending = request.status === 'pending';
+  const isApprovedOrInProgressOrRescheduled = request.status === 'approved' || request.status === 'in_progress' || request.status === 'rescheduled';
+  const isFinalStatus = request.status === 'rejected' || request.status === 'cancelled' || request.status === 'completed';
+
   return (
     <Card className="glassmorphism border border-gray-700 shadow-lg h-full flex flex-col">
-      <CardHeader className="border-b border-gray-700 pb-3"> {/* Reduced padding */}
+      <CardHeader className="border-b border-gray-700 pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-xl text-neon-cyan flex items-center"> {/* Reduced font size */}
-            <Tag className="mr-2 h-5 w-5" /> {request.sr_number} {/* Reduced icon size */}
+          <CardTitle className="text-xl text-neon-cyan flex items-center">
+            <Tag className="mr-2 h-5 w-5" /> {request.sr_number}
           </CardTitle>
           <Button variant="ghost" onClick={onClose} className="text-neon-cyan hover:text-neon-cyan/80">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Close Details {/* Reduced icon size */}
+            <ArrowLeft className="mr-2 h-4 w-4" /> Close Details
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="p-5 flex-1 overflow-y-auto"> {/* Reduced padding */}
-        <div className="flex items-center justify-between mb-5"> {/* Reduced margin */}
-          <h1 className="text-2xl font-bold text-neon-cyan">Scheduling Request Details</h1> {/* Reduced font size */}
-          <div>
-            {request.status === 'pending' && (
-              <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-neon-cyan text-deep-charcoal hover:bg-neon-cyan/80 neon-glow-hover transition-all duration-300 text-sm py-2 px-3"> {/* Reduced button text size */}
-                    Approve/Reject Request
-                  </Button>
-                </DialogTrigger>
-                <ApprovalDialog
-                  isOpen={isApprovalDialogOpen}
-                  onClose={() => setIsApprovalDialogOpen(false)}
-                  onSubmit={handleApprovalSubmit}
-                  request={request}
-                />
-              </Dialog>
+      <CardContent className="p-5 flex-1 overflow-y-auto">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-4">
+          <h1 className="text-2xl font-bold text-neon-cyan">Scheduling Request Details</h1>
+          <div className="flex flex-wrap gap-2">
+            {isPending && (
+              <>
+                <Button
+                  className="bg-green-600 text-white hover:bg-green-700 transition-all duration-300 text-sm py-2 px-3"
+                  onClick={() => setCurrentAction('approve')}
+                >
+                  Approve
+                </Button>
+                <Button
+                  className="bg-red-600 text-white hover:bg-red-700 transition-all duration-300 text-sm py-2 px-3"
+                  onClick={() => setCurrentAction('reject')}
+                >
+                  Reject
+                </Button>
+                <Button
+                  className="bg-orange-600 text-white hover:bg-orange-700 transition-all duration-300 text-sm py-2 px-3"
+                  onClick={() => setCurrentAction('reschedule')}
+                >
+                  Reschedule
+                </Button>
+                <Button
+                  className="bg-gray-600 text-white hover:bg-gray-700 transition-all duration-300 text-sm py-2 px-3"
+                  onClick={() => setCurrentAction('cancel')}
+                >
+                  Cancel
+                </Button>
+              </>
             )}
+            {isApprovedOrInProgressOrRescheduled && !isFinalStatus && (
+              <>
+                <Button
+                  className="bg-orange-600 text-white hover:bg-orange-700 transition-all duration-300 text-sm py-2 px-3"
+                  onClick={() => setCurrentAction('reschedule')}
+                >
+                  Reschedule
+                </Button>
+                <Button
+                  className="bg-gray-600 text-white hover:bg-gray-700 transition-all duration-300 text-sm py-2 px-3"
+                  onClick={() => setCurrentAction('cancel')}
+                >
+                  Cancel
+                </Button>
+              </>
+            )}
+            {/* Dialog for all actions */}
+            <Dialog open={!!currentAction} onOpenChange={(open) => !open && setCurrentAction(null)}>
+              {currentAction && (
+                <SchedulingActionDialog
+                  isOpen={!!currentAction}
+                  onClose={() => setCurrentAction(null)}
+                  onSubmit={handleActionSubmit}
+                  request={request}
+                  actionType={currentAction}
+                />
+              )}
+            </Dialog>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Reduced gap */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h2 className="text-lg font-semibold text-neon-cyan mb-3">Request Information</h2> {/* Reduced font size */}
-            <div className="space-y-2"> {/* Reduced space */}
+            <h2 className="text-lg font-semibold text-neon-cyan mb-3">Request Information</h2>
+            <div className="space-y-2">
               <p className="flex items-center text-sm text-gray-300"><Info className="mr-2 h-4 w-4 text-blue-400" /> Type: <span className="ml-2 font-medium">{request.type}</span></p>
               <p className="flex items-center text-sm text-gray-300"><Calendar className="mr-2 h-4 w-4 text-purple-400" /> Requested Date: <span className="ml-2 font-medium">{request.requested_date}</span></p>
               <p className="flex items-center text-sm text-gray-300"><Clock className="mr-2 h-4 w-4 text-teal-400" /> Requested Time: <span className="ml-2 font-medium">{request.requested_time || 'N/A'}</span></p>
@@ -183,8 +246,8 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
           <Separator orientation="horizontal" className="md:hidden bg-gray-700" />
 
           <div>
-            <h2 className="text-lg font-semibold text-neon-cyan mb-3">Location & Assignment</h2> {/* Reduced font size */}
-            <div className="space-y-2"> {/* Reduced space */}
+            <h2 className="text-lg font-semibold text-neon-cyan mb-3">Location & Assignment</h2>
+            <div className="space-y-2">
               <p className="flex items-start text-sm text-gray-300"><MapPin className="mr-2 h-4 w-4 text-red-400 mt-1" /> Full Address: <span className="ml-2 font-medium">{request.full_address}</span></p>
               {request.landmark && <p className="flex items-start text-sm text-gray-300"><MapPin className="mr-2 h-4 w-4 text-red-400 mt-1" /> Landmark: <span className="ml-2 font-medium">{request.landmark}</span></p>}
               {request.company_name && <p className="flex items-center text-sm text-gray-300"><Building className="mr-2 h-4 w-4 text-indigo-400" /> Company Name: <span className="ml-2 font-medium">{request.company_name}</span></p>}
