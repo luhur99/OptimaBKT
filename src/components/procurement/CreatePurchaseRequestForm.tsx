@@ -82,6 +82,9 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
     },
   });
 
+  // Fix: Declare selectedProductId using form.watch
+  const selectedProductId = form.watch("product_id");
+
   useEffect(() => {
     const fetchDependencies = async () => {
       const { data: productsData, error: productsError } = await supabase
