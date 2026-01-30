@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { useToast } from "@/components/ui/use-toast";
 import { DeliveryOrderActionDialog } from './DeliveryOrderActionDialog';
 import { DeliveryOrder } from './delivery-order-columns'; // Import the type
+import { Calendar } from "@/components/ui/calendar"; // <--- ADDED THIS IMPORT
 
 interface SchedulingRequestDetails {
   sr_number: string;
