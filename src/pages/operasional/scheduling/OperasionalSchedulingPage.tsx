@@ -56,7 +56,8 @@ const OperasionalSchedulingPage = () => {
 
     if (error) {
       console.error("Error fetching scheduling requests:", error);
-      showError("Failed to load scheduling requests.");
+      // Menampilkan pesan error spesifik dari Supabase
+      showError(`Failed to load scheduling requests: ${error.message}`);
     } else {
       const formattedData: SchedulingRequest[] = data.map((req: any) => ({
         ...req,
