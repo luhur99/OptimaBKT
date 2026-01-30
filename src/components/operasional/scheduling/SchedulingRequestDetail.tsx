@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom'; // Mengganti next/navigation dengan react-router-dom
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,49 +35,24 @@ interface SchedulingRequest {
   document_url: string | null;
 }
 
-const SchedulingRequestDetail = () => {
-  const { id } = useParams();
-  const navigate = useNavigate(); // Mengganti useRouter dengan useNavigate
-  const [request, setRequest] = useState<SchedulingRequest | null>(null);
-  const [loading, setLoading] = useState(true);
+interface SchedulingRequestDetailProps {
+  request: SchedulingRequest; // Menerima request sebagai prop
+  onUpdate: () => void; // Callback untuk memberitahu parent agar memperbarui data
+  onClose: () => void; // Callback untuk menutup detail panel
+}
+
+const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }: SchedulingRequestDetailProps) => {
+  const navigate = useNavigate();
+  const [request, setRequest] = useState<SchedulingRequest>(initialRequest);
+  const [loading, setLoading] = useState(false); // Default to false, as initial data is provided
   const [error, setError] = useState<string | null>(null);
   const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
   const { toast } = useToast();
 
+  // Update internal request state if initialRequest prop changes
   useEffect(() => {
-    if (id) {
-      fetchRequestDetail();
-    }
-  }, [id]);
-
-  const fetchRequestDetail = async () => {
-    setLoading(true);
-    setError(null);
-    const { data, error } = await supabase
-      .from('scheduling_requests')
-      .select(`
-        *,
-        technicians (name)
-      `)
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      console.error('Error fetching scheduling request:', error.message);
-      setError('Failed to load scheduling request details.');
-      toast({
-        title: "Error",
-        description: "Failed to load scheduling request details.",
-        variant: "destructive",
-      });
-    } else {
-      setRequest({
-        ...data,
-        technician_name: data.technicians?.name || null,
-      } as SchedulingRequest);
-    }
-    setLoading(false);
-  };
+    setRequest(initialRequest);
+  }, [initialRequest]);
 
   const handleApprovalSubmit = async (approvalData: { assignedTechnicianId: string; notes: string; status: 'approved' | 'rejected' }) => {
     if (!request) return;
@@ -113,22 +88,23 @@ const SchedulingRequestDetail = () => {
         title: "Success",
         description: `Scheduling request successfully ${status}.`,
       });
-      fetchRequestDetail(); // Refresh data
+      onUpdate(); // Trigger parent to refresh data
     }
     setLoading(false);
     setIsApprovalDialogOpen(false); // Tutup dialog setelah submit
   };
 
   if (loading) {
-    return <div className="flex justify-center items-center h-screen text-neon-cyan">Loading...</div>;
+    return <div className="flex justify-center items-center h-full text-neon-cyan">Updating request...</div>;
   }
 
   if (error) {
-    return <div className="flex justify-center items-center h-screen text-red-500">{error}</div>;
+    return <div className="flex justify-center items-center h-full text-red-500">{error}</div>;
   }
 
   if (!request) {
-    return <div className="flex justify-center items-center h-screen text-gray-400">No scheduling request found.</div>;
+    // This case should ideally not be reached if parent handles null request prop
+    return <div className="flex justify-center items-center h-full text-gray-400">No scheduling request selected.</div>;
   }
 
   const getStatusColor = (status: string) => {
@@ -145,43 +121,41 @@ const SchedulingRequestDetail = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 bg-deep-charcoal text-gray-100 min-h-screen">
-      <div className="flex items-center justify-between mb-6">
-        <Button
-          variant="ghost"
-          onClick={() => navigate(-1)} // Mengganti router.back() dengan navigate(-1)
-          className="text-neon-cyan hover:text-neon-cyan/80"
-        >
-          <ArrowLeft className="mr-2 h-5 w-5" /> Back
-        </Button>
-        <h1 className="text-3xl font-bold text-neon-cyan">Scheduling Request Details</h1>
-        <div>
-          {request.status === 'pending' && (
-            <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-neon-cyan text-deep-charcoal hover:bg-neon-cyan/80 neon-glow-hover transition-all duration-300">
-                  Approve/Reject Request
-                </Button>
-              </DialogTrigger>
-              <ApprovalDialog
-                isOpen={isApprovalDialogOpen}
-                onClose={() => setIsApprovalDialogOpen(false)}
-                onSubmit={handleApprovalSubmit}
-                request={request}
-              />
-            </Dialog>
-          )}
-          {/* Add other action buttons here based on status and user roles */}
-        </div>
-      </div>
-
-      <Card className="glassmorphism border border-gray-700 shadow-lg">
-        <CardHeader className="border-b border-gray-700">
+    <Card className="glassmorphism border border-gray-700 shadow-lg h-full flex flex-col">
+      <CardHeader className="border-b border-gray-700 pb-4">
+        <div className="flex items-center justify-between">
           <CardTitle className="text-2xl text-neon-cyan flex items-center">
             <Tag className="mr-2 h-6 w-6" /> {request.sr_number}
           </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <Button variant="ghost" onClick={onClose} className="text-neon-cyan hover:text-neon-cyan/80">
+            <ArrowLeft className="mr-2 h-5 w-5" /> Close Details
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="p-6 flex-1 overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold text-neon-cyan">Scheduling Request Details</h1>
+          <div>
+            {request.status === 'pending' && (
+              <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-neon-cyan text-deep-charcoal hover:bg-neon-cyan/80 neon-glow-hover transition-all duration-300">
+                    Approve/Reject Request
+                  </Button>
+                </DialogTrigger>
+                <ApprovalDialog
+                  isOpen={isApprovalDialogOpen}
+                  onClose={() => setIsApprovalDialogOpen(false)}
+                  onSubmit={handleApprovalSubmit}
+                  request={request}
+                />
+              </Dialog>
+            )}
+            {/* Add other action buttons here based on status and user roles */}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
             <h2 className="text-xl font-semibold text-neon-cyan mb-4">Request Information</h2>
             <div className="space-y-3">
@@ -224,9 +198,9 @@ const SchedulingRequestDetail = () => {
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
