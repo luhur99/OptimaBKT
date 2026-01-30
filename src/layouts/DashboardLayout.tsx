@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Users, CalendarDays, Package, Receipt, Settings, Box, ShoppingCart, LayoutDashboard, ClipboardList, Menu, ArrowLeft } from "lucide-react";
+import { Home, Users, CalendarDays, Package, Receipt, Settings, Box, ShoppingCart, LayoutDashboard, ClipboardList, Menu, ArrowLeft, Truck } from "lucide-react"; // Import Truck icon
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -82,6 +82,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       href: "/operasional/procurement",
       icon: ClipboardList,
       roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"],
+    },
+    {
+      name: "Delivery Orders", // New navigation item
+      href: "/operasional/delivery-orders",
+      icon: Truck, // Using Truck icon
+      roles: ["SUPER_ADMIN", "OPERASIONAL_DIV"],
     },
     {
       name: "Stock Movement",

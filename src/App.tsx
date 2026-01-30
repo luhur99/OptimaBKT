@@ -14,6 +14,7 @@ import ProductCatalogPage from "./pages/operasional/products/ProductCatalogPage"
 import SalesSchedulingPage from "./pages/sales/scheduling/SalesSchedulingPage";
 import InventoryDashboardPage from "./pages/operasional/inventory-dashboard/InventoryDashboardPage";
 import ProcurementPage from "./pages/operasional/procurement/ProcurementPage";
+import DeliveryOrderPage from "./pages/operasional/delivery-orders/DeliveryOrderPage"; // Import new page
 import LoginPage from "./pages/LoginPage";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
           <Route path="/operasional/stock-movement" element={<StockMovementPage />} />
           <Route path="/operasional/products" element={<ProductCatalogPage />} />
           <Route path="/operasional/inventory-dashboard" element={<InventoryDashboardPage />} />
+          <Route path="/operasional/delivery-orders" element={<DeliveryOrderPage />} /> {/* New Route */}
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
