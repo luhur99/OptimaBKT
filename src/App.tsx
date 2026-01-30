@@ -22,6 +22,7 @@ import SettingsPage from './pages/SettingsPage';
 import DashboardPage from './pages/dashboard/DashboardPage'; // Import DashboardPage
 import BillingReviewPage from './pages/operasional/billing-review/BillingReviewPage'; // Import BillingReviewPage
 import ProcurementPage from './pages/operasional/procurement/ProcurementPage'; // Import ProcurementPage
+import ProductCatalogPage from './pages/operasional/products/ProductCatalogPage'; // Import ProductCatalogPage
 
 function App() {
   return (
