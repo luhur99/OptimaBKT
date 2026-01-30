@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } => '@/components/ui/separator';
+import { Separator } from '@/components/ui/separator'; // Memperbaiki sintaks di sini
 import { ArrowLeft, Truck, CheckCircle, XCircle, Clock, FileText, User, MapPin, Phone, Building, Tag, Info, Loader2 } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
