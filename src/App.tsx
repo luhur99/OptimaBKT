@@ -1,50 +1,47 @@
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { SessionContextProvider } from "@supabase/auth-ui-react";
-import { supabase } from "@/integrations/supabase/client";
-import { AuthLayout } from "@/layouts/AuthLayout";
-import { DashboardLayout } from "@/layouts/DashboardLayout";
-import Index from "@/pages/Index";
-import Login from "@/pages/Login";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import SettingsPage from "@/pages/SettingsPage";
-import ProfilePage from "@/pages/ProfilePage";
-import SchedulingRequestsPage from "@/pages/scheduling/SchedulingRequestsPage"; // Import the new page
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
+import UserManagementPage from "./pages/admin/users/UserManagementPage";
+import DashboardPage from "./pages/dashboard/DashboardPage";
+import OperasionalSchedulingPage from "./pages/operasional/scheduling/OperasionalSchedulingPage";
+import BillingReviewPage from "./pages/operasional/billing-review/BillingReviewPage";
+import StockMovementPage from "./pages/operasional/stock-movement/StockMovementPage";
+import ProductCatalogPage from "./pages/operasional/products/ProductCatalogPage";
+import SalesSchedulingPage from "./pages/sales/scheduling/SalesSchedulingPage";
+import InventoryDashboardPage from "./pages/operasional/inventory-dashboard/InventoryDashboardPage";
+import ProcurementPage from "./pages/operasional/procurement/ProcurementPage";
+import LoginPage from "./pages/LoginPage";
 
 const queryClient = new QueryClient();
 
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <SessionContextProvider supabaseClient={supabase}>
-        <TooltipProvider>
-          <Toaster />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <DashboardLayout>
-                      <Outlet />
-                    </DashboardLayout>
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<Index />} />
-                <Route path="settings" element={<SettingsPage />} />
-                <Route path="profile" element={<ProfilePage />} />
-                <Route path="scheduling-requests" element={<SchedulingRequestsPage />} /> {/* Add new route */}
-              </Route>
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </SessionContextProvider>
-    </QueryClientProvider>
-  );
-}
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/admin/users" element={<UserManagementPage />} />
+          <Route path="/operasional/scheduling" element={<OperasionalSchedulingPage />} />
+          <Route path="/sales/scheduling" element={<SalesSchedulingPage />} />
+          <Route path="/operasional/procurement" element={<ProcurementPage />} />
+          <Route path="/operasional/billing-review" element={<BillingReviewPage />} />
+          <Route path="/operasional/stock-movement" element={<StockMovementPage />} />
+          <Route path="/operasional/products" element={<ProductCatalogPage />} />
+          <Route path="/operasional/inventory-dashboard" element={<InventoryDashboardPage />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
 
 export default App;
