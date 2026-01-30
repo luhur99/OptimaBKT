@@ -1,26 +1,18 @@
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+"use client";
 
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import {
+  Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -28,277 +20,166 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
-import { showSuccess, showError } from "@/utils/toast";
-import { SchedulingRequest } from "./scheduling-columns";
+import { Textarea } from "@/components/ui/textarea";
+import { useForm, Controller } from 'react-hook-form';
+import { toast } from 'react-hot-toast';
+import { FormControl } from "@/components/ui/form";
 
-interface ApprovalDialogProps {
-  request: SchedulingRequest | null;
-  onApproveSuccess: () => void;
-  onClose: () => void;
-}
-
+// Define Technician type based on schema
 interface Technician {
   id: string;
-  full_name: string;
+  name: string;
+  type: 'internal' | 'external';
 }
 
-const formSchema = z.object({
-  technicianType: z.enum(["INTERNAL", "EXTERNAL"], {
-    required_error: "Please select a technician type.",
-  }),
-  assigned_technician_id: z.string().optional(),
-  external_technician_name: z.string().optional(),
-  scheduled_date: z.date({
-    required_error: "A scheduled date is required.",
-  }),
-});
+interface ApprovalDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: { assignedTechnicianId: string; notes: string; status: 'approved' | 'rejected' }) => void;
+  request: {
+    id: string;
+    assigned_technician_id?: string;
+    // ... other request properties
+  };
+}
 
-export function ApprovalDialog({
-  request,
-  onApproveSuccess,
-  onClose,
-}: ApprovalDialogProps) {
-  const [technicians, setTechnicians] = useState<Technician[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+const ApprovalDialog = ({ isOpen, onClose, onSubmit, request }: ApprovalDialogProps) => {
+  const { control, handleSubmit, reset, setValue } = useForm({
     defaultValues: {
-      technicianType: "INTERNAL",
-      assigned_technician_id: "",
-      external_technician_name: "",
-      scheduled_date: new Date(),
-    },
+      assignedTechnicianId: request?.assigned_technician_id || '',
+      notes: '',
+      status: '',
+    }
   });
 
-  const technicianType = form.watch("technicianType");
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [loadingTechnicians, setLoadingTechnicians] = useState(true);
+  const [errorTechnicians, setErrorTechnicians] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTechnicians = async () => {
+      setLoadingTechnicians(true);
+      setErrorTechnicians(null);
       const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .eq("role", "TECHNICIAN");
+        .from('technicians')
+        .select('id, name, type')
+        .eq('type', 'internal'); // Filter for internal technicians
 
       if (error) {
-        console.error("Error fetching technicians:", error);
-        showError("Failed to load technicians.");
+        console.error('Error fetching internal technicians:', error.message);
+        setErrorTechnicians('Failed to load internal technicians.');
+        toast.error('Failed to load internal technicians.');
       } else {
         setTechnicians(data || []);
       }
+      setLoadingTechnicians(false);
     };
 
-    fetchTechnicians();
-  }, []);
-
-  useEffect(() => {
-    if (request) {
-      form.reset({
-        technicianType: "INTERNAL",
-        assigned_technician_id: "",
-        external_technician_name: "",
-        scheduled_date: new Date(),
+    if (isOpen) {
+      fetchTechnicians();
+      // Reset form values when dialog opens or request changes
+      reset({
+        assignedTechnicianId: request?.assigned_technician_id || '',
+        notes: '',
+        status: '',
       });
     }
-  }, [request, form]);
+  }, [isOpen, request, reset]);
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!request) return;
-
-    setIsSubmitting(true);
-    try {
-      const updateData: any = {
-        status: "approved",
-        technician_type: values.technicianType,
-        requested_date: format(values.scheduled_date, "yyyy-MM-dd"),
-      };
-
-      if (values.technicianType === "INTERNAL") {
-        if (!values.assigned_technician_id) {
-          showError("Please select an internal technician.");
-          setIsSubmitting(false);
-          return;
-        }
-        updateData.assigned_technician_id = values.assigned_technician_id;
-        updateData.external_technician_name = null;
-      } else {
-        if (!values.external_technician_name) {
-          showError("Please enter an external technician name.");
-          setIsSubmitting(false);
-          return;
-        }
-        updateData.external_technician_name = values.external_technician_name;
-        updateData.assigned_technician_id = null;
-      }
-
-      const { data, error } = await supabase
-        .from("scheduling_requests")
-        .update(updateData)
-        .eq("id", request.id)
-        .select("do_number")
-        .single();
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      showSuccess(`Scheduling request approved! DO Number: ${data?.do_number || 'N/A'} has been issued.`);
-      onApproveSuccess();
-      onClose();
-    } catch (error: any) {
-      showError(error.message || "Failed to approve request.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  if (!request) return null;
+  const handleFormSubmit = (data: { assignedTechnicianId: string; notes: string; status: 'approved' | 'rejected' }) => {
+    onSubmit(data);
+    onClose();
+  };
 
   return (
-    <DialogContent className="glassmorphism border border-electric-violet/30 text-foreground">
-      <DialogHeader>
-        <DialogTitle className="text-neon-cyan">Approve Scheduling Request</DialogTitle>
-        <DialogDescription className="text-gray-400">
-          Approve SR Number: <strong className="text-neon-cyan">{request.sr_number}</strong> and assign a technician.
-        </DialogDescription>
-      </DialogHeader>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-          <FormField
-            control={form.control}
-            name="technicianType"
-            render={({ field }) => (
-              <FormItem className="space-y-3">
-                <FormLabel className="text-gray-300">Technician Type</FormLabel>
-                <FormControl>
-                  <RadioGroup
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    className="flex flex-col space-y-1"
-                  >
-                    <FormItem className="flex items-center space-x-3 space-y-0">
-                      <FormControl>
-                        <RadioGroupItem value="INTERNAL" className="border-neon-cyan text-neon-cyan focus:ring-neon-cyan" />
-                      </FormControl>
-                      <FormLabel className="font-normal text-gray-300">
-                        Internal Technician
-                      </FormLabel>
-                    </FormItem>
-                    <FormItem className="flex items-center space-x-3 space-y-0">
-                      <FormControl>
-                        <RadioGroupItem value="EXTERNAL" className="border-neon-cyan text-neon-cyan focus:ring-neon-cyan" />
-                      </FormControl>
-                      <FormLabel className="font-normal text-gray-300">
-                        External Technician/Vendor
-                      </FormLabel>
-                    </FormItem>
-                  </RadioGroup>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {technicianType === "INTERNAL" && (
-            <FormField
-              control={form.control}
-              name="assigned_technician_id"
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[425px] glassmorphism border border-gray-700 text-gray-300">
+        <DialogHeader>
+          <DialogTitle className="text-neon-cyan">Approve/Reject Scheduling Request</DialogTitle>
+          <DialogDescription className="text-gray-400">
+            Review the scheduling request and assign a technician if approving.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="assignedTechnicianId" className="text-right text-gray-300">
+              Technician
+            </Label>
+            <Controller
+              name="assignedTechnicianId"
+              control={control}
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-gray-300">Internal Technician</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ""}>
-                    <FormControl>
-                      <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
-                        <SelectValue placeholder="Select an internal technician" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
-                      {technicians.map((tech) => (
-                        <SelectItem key={tech.id} value={tech.id}>
-                          {tech.full_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
-
-          {technicianType === "EXTERNAL" && (
-            <FormField
-              control={form.control}
-              name="external_technician_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-gray-300">External Technician/Vendor Name</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value} disabled={loadingTechnicians}>
                   <FormControl>
-                    <Input placeholder="External Technician Name" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
+                    <SelectTrigger className="col-span-3 glassmorphism border border-gray-700 text-gray-300">
+                      <SelectValue placeholder="Select an internal technician" />
+                    </SelectTrigger>
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
+                  <SelectContent className="glassmorphism border border-gray-700 text-gray-300 bg-gray-800">
+                    {loadingTechnicians ? (
+                      <SelectItem value="" disabled>Loading technicians...</SelectItem>
+                    ) : errorTechnicians ? (
+                      <SelectItem value="" disabled>{errorTechnicians}</SelectItem>
+                    ) : technicians.length === 0 ? (
+                      <SelectItem value="" disabled>No internal technicians found.</SelectItem>
+                    ) : (
+                      technicians.map((tech) => (
+                        <SelectItem key={tech.id} value={tech.id}>
+                          {tech.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               )}
             />
-          )}
+          </div>
 
-          <FormField
-            control={form.control}
-            name="scheduled_date"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel className="text-gray-300">Scheduled Date</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-[240px] pl-3 text-left font-normal glassmorphism border border-gray-700 text-gray-300 hover:bg-gray-800",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, "PPP")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 glassmorphism border border-gray-700" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      disabled={(date) => date < new Date("1900-01-01")}
-                      initialFocus
-                      className="text-gray-300"
-                    />
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="notes" className="text-right text-gray-300">
+              Notes
+            </Label>
+            <Controller
+              name="notes"
+              control={control}
+              render={({ field }) => (
+                <Textarea
+                  id="notes"
+                  placeholder="Add any relevant notes"
+                  className="col-span-3 glassmorphism border border-gray-700 text-gray-300 bg-gray-800"
+                  {...field}
+                />
+              )}
+            />
+          </div>
 
-          <DialogFooter className="pt-4">
-            <Button variant="outline" onClick={onClose} disabled={isSubmitting} className="glassmorphism border border-gray-700 text-gray-300 hover:bg-gray-800">
-              Cancel
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setValue('status', 'rejected');
+                handleSubmit(handleFormSubmit)();
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Reject
             </Button>
-            <Button type="submit" disabled={isSubmitting} className="bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300">
-              {isSubmitting ? "Confirming..." : "Confirm & Approve"}
+            <Button
+              type="button"
+              onClick={() => {
+                setValue('status', 'approved');
+                handleSubmit(handleFormSubmit)();
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              Approve
             </Button>
           </DialogFooter>
         </form>
-      </Form>
-    </DialogContent>
+      </DialogContent>
+    </Dialog>
   );
-}
+};
+
+export default ApprovalDialog;
