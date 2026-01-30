@@ -66,21 +66,21 @@ const DashboardLayout: React.FC = () => {
   const userRole = profile?.role;
 
   const navItems = [
-    { to: "/", icon: Home, label: "Dashboard", end: true, allowedRoles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "TECHNICIAN", "SALES", "WAREHOUSE_STAFF", "PURCHASING_STAFF"] },
+    { to: "/dashboard", icon: Home, label: "Dashboard", end: true, allowedRoles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "TECHNICIAN", "SALES_DIV", "WAREHOUSE_STAFF", "PURCHASING_STAFF", "ACCOUNTING"] },
     { to: "/operasional/scheduling", icon: CalendarDays, label: "Scheduling", allowedRoles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "TECHNICIAN"] },
     { to: "/operasional/delivery-orders", icon: Truck, label: "Delivery Orders", allowedRoles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "WAREHOUSE_STAFF"] }, // New DO menu
-    { to: "/operasional/invoices", icon: FileText, label: "Invoices", allowedRoles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES"] },
-    { to: "/operasional/sales-details", icon: ScrollText, label: "Sales Details", allowedRoles: ["SUPER_ADMIN", "SALES"] },
+    { to: "/operasional/invoices", icon: FileText, label: "Invoices", allowedRoles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"] },
+    { to: "/operasional/sales-details", icon: ScrollText, label: "Sales Details", allowedRoles: ["SUPER_ADMIN", "SALES_DIV"] },
     { to: "/purchasing/purchase-requests", icon: ClipboardList, label: "Purchase Requests", allowedRoles: ["SUPER_ADMIN", "PURCHASING_STAFF"] },
     { to: "/purchasing/purchase-orders", icon: ReceiptText, label: "Purchase Orders", allowedRoles: ["SUPER_ADMIN", "PURCHASING_STAFF", "WAREHOUSE_STAFF"] },
     { to: "/warehouse/products", icon: Package, label: "Products", allowedRoles: ["SUPER_ADMIN", "WAREHOUSE_STAFF", "PURCHASING_STAFF"] },
     { to: "/warehouse/inventories", icon: Boxes, label: "Inventories", allowedRoles: ["SUPER_ADMIN", "WAREHOUSE_STAFF"] },
     { to: "/warehouse/stock-ledger", icon: BarChart3, label: "Stock Ledger", allowedRoles: ["SUPER_ADMIN", "WAREHOUSE_STAFF"] },
-    { to: "/master-data/customers", icon: Users, label: "Customers", allowedRoles: ["SUPER_ADMIN", "SALES", "OPERASIONAL_DIV"] },
+    { to: "/master-data/customers", icon: Users, label: "Customers", allowedRoles: ["SUPER_ADMIN", "SALES_DIV", "OPERASIONAL_DIV"] },
     { to: "/master-data/suppliers", icon: Handshake, label: "Suppliers", allowedRoles: ["SUPER_ADMIN", "PURCHASING_STAFF"] },
     { to: "/master-data/technicians", icon: UserCog, label: "Technicians", allowedRoles: ["SUPER_ADMIN", "OPERASIONAL_DIV"] },
     { to: "/master-data/warehouse-categories", icon: Factory, label: "Warehouse Categories", allowedRoles: ["SUPER_ADMIN", "WAREHOUSE_STAFF"] },
-    { to: "/master-data/sales-invoices", icon: FileStack, label: "Sales Invoices", allowedRoles: ["SUPER_ADMIN", "SALES"] },
+    { to: "/master-data/sales-invoices", icon: FileStack, label: "Sales Invoices", allowedRoles: ["SUPER_ADMIN", "SALES_DIV"] },
     { to: "/settings", icon: Settings, label: "Settings", allowedRoles: ["SUPER_ADMIN"] },
   ];
 
