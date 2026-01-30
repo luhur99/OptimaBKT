@@ -168,20 +168,39 @@ const OperasionalSchedulingPage: React.FC = () => {
     externalTechnicianName?: string | null;
     technicianType?: 'INTERNAL' | 'EXTERNAL' | null;
     notes?: string;
-    status: SchedulingRequest['status'];
+    status: 'approve' | 'reject' | 'reschedule' | 'cancel'; // Keep actionType here
   }) => {
     if (!selectedRequestForAction) return;
 
-    const { assignedTechnicianId, externalTechnicianName, technicianType, notes, status } = actionData;
+    const { assignedTechnicianId, externalTechnicianName, technicianType, notes, status: actionStatus } = actionData;
+
+    // Map actionStatus to database enum value
+    let dbStatus: SchedulingRequest['status'];
+    switch (actionStatus) {
+      case 'approve':
+        dbStatus = 'approved';
+        break;
+      case 'reject':
+        dbStatus = 'rejected';
+        break;
+      case 'cancel':
+        dbStatus = 'cancelled';
+        break;
+      case 'reschedule':
+        dbStatus = 'rescheduled';
+        break;
+      default:
+        dbStatus = 'pending'; // Fallback, though should not be reached
+    }
 
     const updatePayload: any = {
-      status: status,
+      status: dbStatus,
       notes: notes,
     };
 
     // Only modify technician assignment fields if the status is 'approved'
     // or if explicitly clearing them for 'rejected'/'cancelled'
-    if (status === 'approved') {
+    if (dbStatus === 'approved') {
       updatePayload.technician_type = technicianType;
       if (technicianType === 'INTERNAL') {
         updatePayload.assigned_technician_id = assignedTechnicianId;
@@ -215,7 +234,7 @@ const OperasionalSchedulingPage: React.FC = () => {
         updatePayload.technician_name = externalTechnicianName; // Use external name for general technician_name
         updatePayload.assigned_technician_id = null; // Clear internal ID if external is assigned
       }
-    } else if (['rejected', 'cancelled'].includes(status)) {
+    } else if (['rejected', 'cancelled'].includes(dbStatus)) {
       // For these statuses, explicitly clear all technician assignments
       updatePayload.assigned_technician_id = null;
       updatePayload.external_technician_name = null;
@@ -234,13 +253,13 @@ const OperasionalSchedulingPage: React.FC = () => {
       console.error('Error updating scheduling request status:', updateError.message);
       toast({
         title: "Error",
-        description: `Failed to ${status} scheduling request: ${updateError.message}`,
+        description: `Failed to ${dbStatus} scheduling request: ${updateError.message}`,
         variant: "destructive",
       });
     } else {
       toast({
         title: "Success",
-        description: `Scheduling request successfully ${status}.`,
+        description: `Scheduling request successfully ${dbStatus}.`,
       });
       queryClient.invalidateQueries({ queryKey: ["schedulingRequests"] });
     }
