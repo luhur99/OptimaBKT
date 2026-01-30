@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Users, CalendarDays, Package, Receipt, Settings } from "lucide-react";
+import { Home, Users, CalendarDays, Package, Receipt, Settings, Box } from "lucide-react"; // Import Box icon
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -75,6 +75,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       href: "/operasional/stock-movement",
       icon: Package,
       roles: ["SUPER_ADMIN", "OPERASIONAL_DIV"],
+    },
+    {
+      name: "Product Catalog", // New item
+      href: "/operasional/products", // New route
+      icon: Box, // New icon
+      roles: ["SUPER_ADMIN", "OPERASIONAL_DIV"], // Roles that can access
     },
     {
       name: "Billing Review",
