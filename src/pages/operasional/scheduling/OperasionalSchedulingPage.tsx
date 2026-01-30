@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Skeleton } from "@/components/ui/skeleton"; // Menambahkan import Skeleton
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Define types for scheduling requests
 interface SchedulingRequest {
@@ -247,10 +247,8 @@ const OperasionalSchedulingPage: React.FC = () => {
     createRequestMutation.mutate({ ...newRequest, user_id: profile.id });
   };
 
-  const handleUpdateRequest = async () => {
-    if (selectedRequest) {
-      updateRequestMutation.mutate(selectedRequest);
-    }
+  const handleUpdateRequest = async (request: SchedulingRequest) => {
+    updateRequestMutation.mutate(request);
   };
 
   const handleDeleteRequest = async (id: string) => {
@@ -309,77 +307,39 @@ const OperasionalSchedulingPage: React.FC = () => {
 
   const getRoleBasedActions = (request: SchedulingRequest) => {
     const actions = [];
+
+    // Always include View button
+    actions.push(
+      <Button key="view" variant="ghost" size="icon" onClick={() => { setSelectedRequest(request); setIsViewRequestDialogOpen(true); }}>
+        <Eye className="h-4 w-4 text-gray-400" />
+      </Button>
+    );
+
+    // Only SUPER_ADMIN and OPERASIONAL_DIV can change status
     if (profile?.role === "SUPER_ADMIN" || profile?.role === "OPERASIONAL_DIV") {
-      actions.push(
-        <Button key="edit" variant="ghost" size="icon" onClick={() => { setSelectedRequest(request); setIsEditRequestDialogOpen(true); }}>
-          <Edit className="h-4 w-4 text-blue-500" />
-        </Button>,
-        <AlertDialog key="delete">
-          <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <Trash2 className="h-4 w-4 text-red-500" />
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the scheduling request.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => handleDeleteRequest(request.id)}>Continue</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>,
-        <Dialog key="upload">
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="icon" onClick={() => setSelectedRequest(request)}>
-              <Upload className="h-4 w-4 text-green-500" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Upload Document for SR: {request.sr_number}</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <Label htmlFor="document" className="text-right">Document File</Label>
-              <Input
-                id="document"
-                type="file"
-                onChange={(e) => setDocumentFile(e.target.files ? e.target.files[0] : null)}
-              />
-            </div>
-            <DialogFooter>
-              <Button onClick={handleUploadDocument} disabled={!documentFile || uploadDocumentMutation.isPending}>
-                {uploadDocumentMutation.isPending ? "Uploading..." : "Upload Document"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      );
-    }
-    // Add technician specific actions if needed
-    if (profile?.role === "TECHNICIAN" && request.assigned_technician_id === profile.id) {
-      // Technician can update status to 'in_progress' or 'completed'
-      if (request.status === "approved" || request.status === "rescheduled") {
+      // Approved button
+      if (request.status === "pending" || request.status === "rescheduled") {
         actions.push(
-          <Button key="start" variant="ghost" size="icon" onClick={() => {
-            setSelectedRequest({ ...request, status: "in_progress" });
-            setIsEditRequestDialogOpen(true);
-          }}>
-            <Clock className="h-4 w-4 text-yellow-500" />
+          <Button key="approve" variant="ghost" size="icon" onClick={() => handleUpdateRequest({ ...request, status: "approved" })}>
+            <CheckCircle2 className="h-4 w-4 text-green-500" />
           </Button>
         );
       }
-      if (request.status === "in_progress") {
+
+      // Rejected button
+      if (["pending", "approved", "in_progress", "rescheduled"].includes(request.status)) {
         actions.push(
-          <Button key="complete" variant="ghost" size="icon" onClick={() => {
-            setSelectedRequest({ ...request, status: "completed" });
-            setIsEditRequestDialogOpen(true);
-          }}>
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
+          <Button key="reject" variant="ghost" size="icon" onClick={() => handleUpdateRequest({ ...request, status: "rejected" })}>
+            <XCircle className="h-4 w-4 text-red-500" />
+          </Button>
+        );
+      }
+
+      // Cancelled button
+      if (["pending", "approved", "in_progress", "rescheduled"].includes(request.status)) {
+        actions.push(
+          <Button key="cancel" variant="ghost" size="icon" onClick={() => handleUpdateRequest({ ...request, status: "cancelled" })}>
+            <RefreshCcw className="h-4 w-4 text-orange-500" />
           </Button>
         );
       }
@@ -719,9 +679,6 @@ const OperasionalSchedulingPage: React.FC = () => {
                         </TableCell>
                         <TableCell className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center space-x-1">
-                            <Button variant="ghost" size="icon" onClick={() => { setSelectedRequest(request); setIsViewRequestDialogOpen(true); }}>
-                              <Eye className="h-4 w-4 text-gray-400" />
-                            </Button>
                             {getRoleBasedActions(request)}
                           </div>
                         </TableCell>
@@ -1030,7 +987,7 @@ const OperasionalSchedulingPage: React.FC = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleUpdateRequest} disabled={updateRequestMutation.isPending}>
+            <Button onClick={() => handleUpdateRequest(selectedRequest!)} disabled={updateRequestMutation.isPending}>
               {updateRequestMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
