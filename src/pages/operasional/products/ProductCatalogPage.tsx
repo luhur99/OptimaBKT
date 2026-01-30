@@ -6,7 +6,18 @@ import { showSuccess, showError } from "@/utils/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import DashboardLayout from "@/layouts/DashboardLayout";
-import { ProductCard } from "@/components/operasional/products/ProductCard"; // Import the new ProductCard
+import { ProductCard } from "@/components/operasional/products/ProductCard";
+import { Button } from "@/components/ui/button";
+import { PlusCircle } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { AddProductForm } from "@/components/operasional/products/AddProductForm"; // Import the new form
 
 interface Product {
   id: string;
@@ -25,6 +36,7 @@ const ProductCatalogPage = () => {
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false); // State for dialog
 
   const fetchProducts = async () => {
     setIsLoadingProducts(true);
@@ -94,7 +106,31 @@ const ProductCatalogPage = () => {
 
   return (
     <DashboardLayout>
-      <h1 className="text-3xl font-bold mb-6 text-neon-cyan">Product Catalog</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-neon-cyan">Product Catalog</h1>
+        <Dialog open={isAddProductDialogOpen} onOpenChange={setIsAddProductDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300">
+              <PlusCircle className="mr-2 h-4 w-4" /> Add New Product
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px] glassmorphism border border-electric-violet/30">
+            <DialogHeader>
+              <DialogTitle className="text-neon-cyan">Add New Product</DialogTitle>
+              <DialogDescription className="text-gray-400">
+                Fill in the details to add a new product to the catalog.
+              </DialogDescription>
+            </DialogHeader>
+            <AddProductForm
+              onProductAdded={() => {
+                fetchProducts(); // Re-fetch products to update the list
+                setIsAddProductDialogOpen(false); // Close the dialog
+              }}
+              onClose={() => setIsAddProductDialogOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
 
       <ScrollArea className="h-[calc(100vh-180px)] pr-4"> {/* Adjust height based on header/footer */}
         {products.length === 0 ? (
