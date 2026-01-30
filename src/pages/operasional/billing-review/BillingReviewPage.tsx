@@ -121,6 +121,26 @@ const BillingReviewPage = () => {
   const [invoiceDate, setInvoiceDate] = useState<Date>(new Date());
   const [activeRowId, setActiveRowId] = useState<string | null>(null); // State for active row in table
 
+  const hasUnsavedChanges = useMemo(() => {
+    return selectedRequest !== null && invoiceItems.length > 0;
+  }, [selectedRequest, invoiceItems]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        event.preventDefault();
+        event.returnValue = ""; // Required for Chrome
+        return ""; // Required for Firefox
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges]);
+
   const fetchQueue = async () => {
     setIsLoadingQueue(true);
     const { data, error } = await supabase
@@ -651,7 +671,7 @@ const BillingReviewPage = () => {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-500 border border-dashed border-gray-700 rounded-md p-4 radar-grid-background">
+              <div className="h-full flex items-center justify-center text-gray-500 border border-dashed border-gray-700 rounded-md p-4 radar-grid-background">
                 Select a completed request from the left panel to review and generate invoice.
               </div>
             )}
