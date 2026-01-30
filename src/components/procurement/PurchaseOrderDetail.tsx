@@ -76,7 +76,7 @@ const POStatusStepper: React.FC<{ currentStatus: PurchaseOrder['status'] }> = ({
         const isActive = relevantStatuses.indexOf(currentStatus) >= index;
         return (
           <React.Fragment key={status}>
-            <div className="flex flex-col items-center">
+            <div className={cn("flex flex-col items-center", index > 0 && "ml-2")}>
               <div className={cn("p-2 rounded-full border-2",
                 isActive ? "border-neon-cyan bg-neon-cyan/20 neon-glow" : "border-gray-700 bg-gray-800"
               )}>

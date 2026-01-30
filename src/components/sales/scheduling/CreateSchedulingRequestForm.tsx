@@ -436,9 +436,9 @@ export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRe
                     <Input placeholder="e.g., Near ABC Mall" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
                   </FormControl>
                   <FormMessage />
-                </FormItem>
-              )}
-            />
+            </FormItem>
+          )}
+        />
 
             <FormField
               control={form.control}

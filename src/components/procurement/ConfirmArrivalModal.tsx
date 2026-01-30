@@ -75,7 +75,7 @@ export function ConfirmArrivalModal({
           },
           body: JSON.stringify({ po_id: poId, items_received: itemsToUpdate }),
         }
-      );
+      )
 
       const data = await response.json();
 
