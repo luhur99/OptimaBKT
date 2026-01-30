@@ -7,9 +7,9 @@ import { ArrowLeft, Truck, CheckCircle, XCircle, Clock, FileText, User, MapPin, 
 import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { showSuccess, showError } from "@/utils/toast"; // Menggunakan toast dari utils
+import { showSuccess, showError } from "@/utils/toast";
 import { DeliveryOrderActionDialog } from './DeliveryOrderActionDialog';
-import { DeliveryOrder } from './delivery-order-columns'; // Import the type
+import { DeliveryOrder } from './delivery-order-columns';
 
 
 interface SchedulingRequestDetails {
@@ -41,13 +41,11 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
   const [order, setOrder] = useState<DeliveryOrder>(initialOrder);
   const [schedulingRequest, setSchedulingRequest] = useState<SchedulingRequestDetails | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
-  const [currentAction, setCurrentAction] = useState<'on_delivery' | 'delivered' | 'cancelled' | null>(null);
-  // const { toast } = useToast(); // Dihapus, akan menggunakan showSuccess/showError
+  const [currentAction, setCurrentAction] = useState<'in_progress' | 'delivered' | 'cancelled' | null>(null);
 
   const fetchOrderDetails = useCallback(async () => {
     setIsLoadingDetails(true);
     try {
-      // Fetch the delivery order itself (in case it was updated externally)
       const { data: updatedOrder, error: orderError } = await supabase
         .from('delivery_orders')
         .select(`
@@ -60,7 +58,6 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
       if (orderError) throw new Error(orderError.message);
       setOrder({ ...updatedOrder, user_full_name: updatedOrder.profiles?.full_name || "System" });
 
-      // Fetch associated scheduling request details
       if (updatedOrder.request_id) {
         const { data: srData, error: srError } = await supabase
           .from('scheduling_requests')
@@ -100,7 +97,7 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
     } finally {
       setIsLoadingDetails(false);
     }
-  }, [initialOrder.id]); // Menghapus toast dari dependency array
+  }, [initialOrder.id]);
 
   useEffect(() => {
     fetchOrderDetails();
@@ -112,7 +109,7 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
   }) => {
     if (!order) return;
 
-    setIsLoadingDetails(true); // Use this to indicate action is in progress
+    setIsLoadingDetails(true);
     const { status: newStatus, notes } = actionData;
 
     try {
@@ -126,21 +123,21 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
       }
 
       showSuccess(`Delivery Order status updated to ${newStatus.replace(/_/g, ' ').toUpperCase()}.`);
-      onUpdate(); // Trigger parent to refresh data
-      fetchOrderDetails(); // Re-fetch details to show updated status
+      onUpdate();
+      fetchOrderDetails();
     } catch (error: any) {
       console.error('Error updating delivery order status:', error.message);
       showError(`Failed to update delivery order status: ${error.message}`);
     } finally {
       setIsLoadingDetails(false);
-      setCurrentAction(null); // Close dialog
+      setCurrentAction(null);
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-600/20 text-yellow-300 border border-yellow-500/30';
-      case 'on_delivery': return 'bg-blue-600/20 text-blue-300 border border-blue-500/30';
+      case 'in_progress': return 'bg-blue-600/20 text-blue-300 border border-blue-500/30'; // Changed from on_delivery
       case 'delivered': return 'bg-green-600/20 text-green-300 border border-green-500/30';
       case 'cancelled': return 'bg-red-600/20 text-red-300 border border-red-500/30';
       default: return 'bg-gray-700/20 text-gray-400 border border-gray-600/30';
@@ -148,7 +145,7 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
   };
 
   const isPending = order.status === 'pending';
-  const isOnDelivery = order.status === 'on_delivery';
+  const isInProgress = order.status === 'in_progress'; // Changed from isOnDelivery
   const isFinalStatus = order.status === 'delivered' || order.status === 'cancelled';
 
   if (isLoadingDetails) {
@@ -195,13 +192,13 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
             {isPending && (
               <Button
                 className="bg-blue-600 text-white hover:bg-blue-700 transition-all duration-300 text-sm py-2 px-3"
-                onClick={() => setCurrentAction('on_delivery')}
+                onClick={() => setCurrentAction('in_progress')} // Changed to 'in_progress'
                 disabled={isLoadingDetails}
               >
-                {isLoadingDetails ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Truck className="mr-2 h-4 w-4" />} Set On Delivery
+                {isLoadingDetails ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Truck className="mr-2 h-4 w-4" />} Set In Progress
               </Button>
             )}
-            {isOnDelivery && (
+            {isInProgress && ( // Changed from isOnDelivery
               <Button
                 className="bg-green-600 text-white hover:bg-green-700 transition-all duration-300 text-sm py-2 px-3"
                 onClick={() => setCurrentAction('delivered')}

@@ -9,11 +9,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { showSuccess, showError } from "@/utils/toast"; // Menggunakan toast dari utils
+import { showSuccess, showError } from "@/utils/toast";
 
 interface DeliveryOrder {
   id: string;
-  status: 'pending' | 'on_delivery' | 'delivered' | 'cancelled';
+  status: 'pending' | 'in_progress' | 'delivered' | 'cancelled'; // Changed from on_delivery
   notes: string | null;
 }
 
@@ -25,7 +25,7 @@ interface DeliveryOrderActionDialogProps {
     notes?: string;
   }) => Promise<void>;
   order: DeliveryOrder;
-  actionType: 'on_delivery' | 'delivered' | 'cancelled';
+  actionType: 'in_progress' | 'delivered' | 'cancelled'; // Changed from on_delivery
 }
 
 export const DeliveryOrderActionDialog: React.FC<DeliveryOrderActionDialogProps> = ({
@@ -37,12 +37,11 @@ export const DeliveryOrderActionDialog: React.FC<DeliveryOrderActionDialogProps>
 }) => {
   const [notes, setNotes] = useState(order.notes || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // const { toast } = useToast(); // Dihapus, akan menggunakan showSuccess/showError
 
   const getDialogTitle = () => {
     switch (actionType) {
-      case "on_delivery":
-        return "Set Delivery Order On Delivery";
+      case "in_progress": // Changed from on_delivery
+        return "Set Delivery Order In Progress";
       case "delivered":
         return "Mark Delivery Order as Delivered";
       case "cancelled":
@@ -68,7 +67,6 @@ export const DeliveryOrderActionDialog: React.FC<DeliveryOrderActionDialogProps>
       onClose();
     } catch (error) {
       console.error('Error submitting action:', error);
-      // Error handling is already done in the parent component's onSubmit (handleActionSubmit)
     } finally {
       setIsSubmitting(false);
     }
@@ -79,7 +77,7 @@ export const DeliveryOrderActionDialog: React.FC<DeliveryOrderActionDialogProps>
       <DialogHeader>
         <DialogTitle className="text-neon-cyan">{getDialogTitle()}</DialogTitle>
         <DialogDescription className="text-gray-400">
-          {actionType === 'on_delivery' && "Confirm that this delivery order is now on delivery."}
+          {actionType === 'in_progress' && "Confirm that this delivery order is now in progress."} {/* Changed from on_delivery */}
           {actionType === 'delivered' && "Confirm that this delivery order has been successfully delivered."}
           {actionType === 'cancelled' && "Please provide notes for cancelling this delivery order."}
         </DialogDescription>

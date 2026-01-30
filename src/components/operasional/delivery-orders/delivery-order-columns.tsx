@@ -10,7 +10,7 @@ export type DeliveryOrder = {
   user_full_name: string; // From join
   delivery_date: string;
   delivery_time?: string;
-  status: 'pending' | 'on_delivery' | 'delivered' | 'cancelled';
+  status: 'pending' | 'in_progress' | 'delivered' | 'cancelled'; // Changed from on_delivery
   notes?: string;
   created_at: string;
 };
@@ -48,7 +48,7 @@ export const createDeliveryOrderColumns = (): ColumnDef<DeliveryOrder>[] => [
         case "pending":
           colorClass = "bg-yellow-600/20 text-yellow-300 border border-yellow-500/30";
           break;
-        case "on_delivery":
+        case "in_progress": // Changed from on_delivery
           colorClass = "bg-blue-600/20 text-blue-300 border border-blue-500/30";
           break;
         case "delivered":
