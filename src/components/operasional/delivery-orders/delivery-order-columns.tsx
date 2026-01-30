@@ -5,14 +5,15 @@ import { format } from "date-fns";
 export type DeliveryOrder = {
   id: string;
   do_number: string;
-  request_id: string; // Link to scheduling_request
-  user_id: string; // User who created the DO
-  user_full_name: string; // From join
+  request_id: string;
+  user_id: string;
+  user_full_name: string;
   delivery_date: string;
   delivery_time?: string;
-  status: 'PENDING' | 'IN_PROGRESS' | 'DELIVERED' | 'CANCELLED';
+  status: 'pending' | 'in progress' | 'completed' | 'cancelled';
   notes?: string;
   created_at: string;
+  items_json?: any;
 };
 
 export const createDeliveryOrderColumns = (): ColumnDef<DeliveryOrder>[] => [
@@ -45,16 +46,16 @@ export const createDeliveryOrderColumns = (): ColumnDef<DeliveryOrder>[] => [
       let colorClass = "";
 
       switch (status) {
-        case "PENDING":
+        case "pending":
           colorClass = "bg-yellow-600/20 text-yellow-300 border border-yellow-500/30";
           break;
-        case "IN_PROGRESS":
+        case "in progress":
           colorClass = "bg-blue-600/20 text-blue-300 border border-blue-500/30";
           break;
-        case "DELIVERED":
+        case "completed":
           colorClass = "bg-green-600/20 text-green-300 border border-green-500/30";
           break;
-        case "CANCELLED":
+        case "cancelled":
           colorClass = "bg-red-600/20 text-red-300 border border-red-500/30";
           break;
         default:

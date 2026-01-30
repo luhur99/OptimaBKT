@@ -41,7 +41,7 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
   const [order, setOrder] = useState<DeliveryOrder>(initialOrder);
   const [schedulingRequest, setSchedulingRequest] = useState<SchedulingRequestDetails | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
-  const [currentAction, setCurrentAction] = useState<'IN_PROGRESS' | 'DELIVERED' | 'CANCELLED' | null>(null);
+  const [currentAction, setCurrentAction] = useState<'in progress' | 'completed' | 'cancelled' | null>(null);
 
   const fetchOrderDetails = useCallback(async () => {
     setIsLoadingDetails(true);
@@ -59,7 +59,7 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
       setOrder({
         ...updatedOrder,
         user_full_name: updatedOrder.profiles?.full_name || "System",
-        status: updatedOrder.status.toUpperCase() as DeliveryOrder['status'], // Convert status to uppercase
+        status: updatedOrder.status as DeliveryOrder['status'],
       });
 
       if (updatedOrder.request_id) {
@@ -140,17 +140,17 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'PENDING': return 'bg-yellow-600/20 text-yellow-300 border border-yellow-500/30';
-      case 'IN_PROGRESS': return 'bg-blue-600/20 text-blue-300 border border-blue-500/30';
-      case 'DELIVERED': return 'bg-green-600/20 text-green-300 border border-green-500/30';
-      case 'CANCELLED': return 'bg-red-600/20 text-red-300 border border-red-500/30';
+      case 'pending': return 'bg-yellow-600/20 text-yellow-300 border border-yellow-500/30';
+      case 'in progress': return 'bg-blue-600/20 text-blue-300 border border-blue-500/30';
+      case 'completed': return 'bg-green-600/20 text-green-300 border border-green-500/30';
+      case 'cancelled': return 'bg-red-600/20 text-red-300 border border-red-500/30';
       default: return 'bg-gray-700/20 text-gray-400 border border-gray-600/30';
     }
   };
 
-  const isPending = order.status === 'PENDING';
-  const isInProgress = order.status === 'IN_PROGRESS';
-  const isFinalStatus = order.status === 'DELIVERED' || order.status === 'CANCELLED';
+  const isPending = order.status === 'pending';
+  const isInProgress = order.status === 'in progress';
+  const isFinalStatus = order.status === 'completed' || order.status === 'cancelled';
 
   if (isLoadingDetails) {
     return (
@@ -196,7 +196,7 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
             {isPending && (
               <Button
                 className="bg-blue-600 text-white hover:bg-blue-700 transition-all duration-300 text-sm py-2 px-3"
-                onClick={() => setCurrentAction('IN_PROGRESS')}
+                onClick={() => setCurrentAction('in progress')}
                 disabled={isLoadingDetails}
               >
                 {isLoadingDetails ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Truck className="mr-2 h-4 w-4" />} Set In Progress
@@ -205,16 +205,16 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
             {isInProgress && (
               <Button
                 className="bg-green-600 text-white hover:bg-green-700 transition-all duration-300 text-sm py-2 px-3"
-                onClick={() => setCurrentAction('DELIVERED')}
+                onClick={() => setCurrentAction('completed')}
                 disabled={isLoadingDetails}
               >
-                {isLoadingDetails ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />} Mark Delivered
+                {isLoadingDetails ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />} Mark Completed
               </Button>
             )}
             {!isFinalStatus && (
               <Button
                 className="bg-red-600 text-white hover:bg-red-700 transition-all duration-300 text-sm py-2 px-3"
-                onClick={() => setCurrentAction('CANCELLED')}
+                onClick={() => setCurrentAction('cancelled')}
                 disabled={isLoadingDetails}
               >
                 {isLoadingDetails ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />} Cancel DO
