@@ -12,7 +12,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { showSuccess, showError } from "@/utils/toast";
-import { SchedulingRequestDetail } from "@/components/operasional/scheduling/SchedulingRequestDetail";
+import SchedulingRequestDetail from "@/components/operasional/scheduling/SchedulingRequestDetail"; // Diperbaiki: Menggunakan default import
 import DashboardLayout from "@/layouts/DashboardLayout";
 
 const OperasionalSchedulingPage = () => {
