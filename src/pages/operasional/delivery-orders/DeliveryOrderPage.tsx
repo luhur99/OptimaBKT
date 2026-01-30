@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { DeliveryOrderTable } from "@/components/operasional/delivery-orders/DeliveryOrderTable";
-import { createDeliveryOrderColumns, DeliveryOrder } from "@/components/operasional/delivery-orders/delivery-order-columns"; // Corrected import path
+import { createDeliveryOrderColumns, DeliveryOrder } from "@/components/operasional/delivery-orders/delivery-order-columns";
 import { Truck } from "lucide-react";
 
 const DeliveryOrderPage = () => {
@@ -36,7 +36,7 @@ const DeliveryOrderPage = () => {
 
     if (error) {
       console.error("Error fetching delivery orders:", error);
-      showError("Failed to load delivery orders.");
+      showError("Failed to load delivery orders: " + error.message); // Menambahkan pesan kesalahan Supabase
     } else {
       const formattedData: DeliveryOrder[] = data.map((order: any) => ({
         ...order,
