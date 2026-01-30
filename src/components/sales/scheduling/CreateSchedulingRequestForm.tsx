@@ -47,7 +47,7 @@ const formSchema = z.object({
   customer_id: z.string().min(1, { message: "Customer is required." }),
   customer_name: z.string().min(1, { message: "Customer name is required." }),
   company_name: z.string().optional(),
-  type: z.enum(["INSTALLATION", "MAINTENANCE", "REPAIR", "SURVEY"], {
+  type: z.enum(["INSTALLATION", "SERVICE", "SERVICE_UNBILL", "DELIVERY"], { // Updated enum values
     required_error: "Please select a request type.",
   }),
   full_address: z.string().min(1, { message: "Full address is required." }),
@@ -61,7 +61,7 @@ const formSchema = z.object({
   payment_method: z.string().optional(),
   notes: z.string().optional(),
   vehicle_details: z.string().optional(),
-  product_category: z.enum(["SIAP_JUAL", "RUSAK", "MAINTENANCE", "GPS_TRACKER", "DASHCAM"]).optional(), // Updated enum values
+  product_category: z.enum(["SIAP_JUAL", "RUSAK", "MAINTENANCE", "GPS_TRACKER", "DASHCAM"]).optional(),
 });
 
 export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRequestFormProps) {
@@ -77,7 +77,7 @@ export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRe
       customer_id: "",
       customer_name: "",
       company_name: "",
-      type: "INSTALLATION",
+      type: "INSTALLATION", // Default type
       full_address: "",
       landmark: "",
       requested_date: new Date(),
@@ -279,10 +279,10 @@ export function CreateSchedulingRequestForm({ onFormSubmit }: CreateSchedulingRe
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
-                      <SelectItem value="INSTALLATION">Installation</SelectItem>
-                      <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
-                      <SelectItem value="REPAIR">Repair</SelectItem>
-                      <SelectItem value="SURVEY">Survey</SelectItem>
+                      <SelectItem value="INSTALLATION">Instalasi</SelectItem>
+                      <SelectItem value="SERVICE">Service</SelectItem>
+                      <SelectItem value="SERVICE_UNBILL">Service Unbill</SelectItem>
+                      <SelectItem value="DELIVERY">Kirim</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
