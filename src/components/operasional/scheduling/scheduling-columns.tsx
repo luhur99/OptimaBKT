@@ -11,6 +11,7 @@ export type SchedulingRequest = {
   do_number?: string;
   assigned_technician_id?: string;
   technician_name?: string;
+  external_technician_name?: string;
   full_address: string;
   requested_date: string;
   requested_time?: string;
@@ -27,7 +28,6 @@ export type SchedulingRequest = {
   customer_id?: string;
   sales_id?: string;
   technician_type?: "INTERNAL" | "EXTERNAL";
-  external_technician_name?: string;
 };
 
 interface CreateSchedulingColumnsOptions {

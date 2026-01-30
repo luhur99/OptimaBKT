@@ -177,17 +177,14 @@ const OperasionalSchedulingPage: React.FC = () => {
     const updatePayload: any = {
       status: status,
       notes: notes,
-      assigned_technician_id: null, // Reset by default
-      external_technician_name: null, // Reset by default
-      technician_name: null, // Reset by default
-      technician_type: null, // Reset by default
     };
 
+    // Only modify technician assignment fields if the status is 'approved'
+    // or if explicitly clearing them for 'rejected'/'cancelled'
     if (status === 'approved') {
       updatePayload.technician_type = technicianType;
       if (technicianType === 'INTERNAL') {
         updatePayload.assigned_technician_id = assignedTechnicianId;
-        // Fetch technician name for display
         if (assignedTechnicianId) {
           const { data: technicianData, error: techError } = await supabase
             .from('technicians')
@@ -204,8 +201,8 @@ const OperasionalSchedulingPage: React.FC = () => {
             return;
           }
           updatePayload.technician_name = technicianData?.name;
+          updatePayload.external_technician_name = null; // Clear external name if internal is assigned
         } else {
-          // If internal technician type is selected but no ID, it's an error
           toast({
             title: "Error",
             description: "Internal technician ID is missing for approval.",
@@ -216,19 +213,17 @@ const OperasionalSchedulingPage: React.FC = () => {
       } else if (technicianType === 'EXTERNAL') {
         updatePayload.external_technician_name = externalTechnicianName;
         updatePayload.technician_name = externalTechnicianName; // Use external name for general technician_name
+        updatePayload.assigned_technician_id = null; // Clear internal ID if external is assigned
       }
-    } else if (['rejected', 'rescheduled', 'cancelled'].includes(status)) {
-      // For these statuses, clear technician assignments
+    } else if (['rejected', 'cancelled'].includes(status)) {
+      // For these statuses, explicitly clear all technician assignments
       updatePayload.assigned_technician_id = null;
       updatePayload.external_technician_name = null;
       updatePayload.technician_name = null;
       updatePayload.technician_type = null;
     }
-
-    // Ensure technician_name is explicitly set to null if no technician is assigned for non-approved statuses
-    if (status !== 'approved') {
-        updatePayload.technician_name = null;
-    }
+    // For 'in_progress', 'completed', 'rescheduled', technician details should persist from 'approved' state
+    // No explicit clearing or setting here, they retain their previous values.
 
     const { error: updateError } = await supabase
       .from('scheduling_requests')
@@ -308,6 +303,7 @@ const OperasionalSchedulingPage: React.FC = () => {
               <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Customer</TableHead>
               <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Type</TableHead>
               <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Requested Date</TableHead>
+              <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Technician</TableHead> {/* Added Technician column */}
               <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</TableHead>
               <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</TableHead>
             </TableRow>
@@ -315,7 +311,7 @@ const OperasionalSchedulingPage: React.FC = () => {
           <TableBody className="bg-deep-charcoal divide-y divide-gray-800">
             {schedulingRequests?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-4 text-gray-400">No scheduling requests found.</TableCell>
+                <TableCell colSpan={7} className="text-center py-4 text-gray-400">No scheduling requests found.</TableCell>
               </TableRow>
             ) : (
               schedulingRequests?.map((request) => {
@@ -345,6 +341,7 @@ const OperasionalSchedulingPage: React.FC = () => {
                     <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{request.customer_name || "N/A"}</TableCell>
                     <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{request.type}</TableCell>
                     <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{format(new Date(request.requested_date), "PPP")}</TableCell>
+                    <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{request.technician_name || "N/A"}</TableCell> {/* Display Technician Name */}
                     <TableCell className="px-4 py-2 whitespace-nowrap text-sm">
                       <Badge variant={getStatusBadgeVariant(request.status)}>{getStatusText(request.status)}</Badge>
                     </TableCell>

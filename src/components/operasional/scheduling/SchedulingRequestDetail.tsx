@@ -71,12 +71,10 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
     const updatePayload: any = {
       status: status,
       notes: notes,
-      assigned_technician_id: null, // Reset by default
-      external_technician_name: null, // Reset by default
-      technician_name: null, // Reset by default
-      technician_type: null, // Reset by default
     };
 
+    // Only modify technician assignment fields if the status is 'approved'
+    // or if explicitly clearing them for 'rejected'/'cancelled'
     if (status === 'approved') {
       updatePayload.technician_type = technicianType;
       if (technicianType === 'INTERNAL') {
@@ -98,6 +96,7 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
             return;
           }
           updatePayload.technician_name = technicianData?.name;
+          updatePayload.external_technician_name = null; // Clear external name if internal is assigned
         } else {
           toast({
             title: "Error",
@@ -110,19 +109,17 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
       } else if (technicianType === 'EXTERNAL') {
         updatePayload.external_technician_name = externalTechnicianName;
         updatePayload.technician_name = externalTechnicianName; // Use external name for general technician_name
+        updatePayload.assigned_technician_id = null; // Clear internal ID if external is assigned
       }
-    } else if (['rejected', 'rescheduled', 'cancelled'].includes(status)) {
-      // For these statuses, clear technician assignments
+    } else if (['rejected', 'cancelled'].includes(status)) {
+      // For these statuses, explicitly clear all technician assignments
       updatePayload.assigned_technician_id = null;
       updatePayload.external_technician_name = null;
       updatePayload.technician_name = null;
       updatePayload.technician_type = null;
     }
-
-    // Ensure technician_name is explicitly set to null if no technician is assigned for non-approved statuses
-    if (status !== 'approved') {
-        updatePayload.technician_name = null;
-    }
+    // For 'in_progress', 'completed', 'rescheduled', technician details should persist from 'approved' state
+    // No explicit clearing or setting here, they retain their previous values.
 
     const { error: updateError } = await supabase
       .from('scheduling_requests')
