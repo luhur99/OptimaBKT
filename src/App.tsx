@@ -25,6 +25,7 @@ import ProcurementPage from './pages/operasional/procurement/ProcurementPage'; /
 import ProductCatalogPage from './pages/operasional/products/ProductCatalogPage'; // Import ProductCatalogPage
 import InventoryDashboardPage from './pages/operasional/inventory-dashboard/InventoryDashboardPage'; // Import InventoryDashboardPage
 import StockMovementPage from './pages/operasional/stock-movement/StockMovementPage'; // Import StockMovementPage
+import UserManagementPage from './pages/admin/users/UserManagementPage'; // Import UserManagementPage
 
 function App() {
   return (
