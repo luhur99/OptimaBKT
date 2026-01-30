@@ -55,7 +55,7 @@ const OperasionalSchedulingPage: React.FC = () => {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
   const [selectedRequestForAction, setSelectedRequestForAction] = useState<SchedulingRequest | null>(null);
-  const [currentActionType, setCurrentActionType] = useState<'approve' | 'reject' | 'reschedule' | 'cancel' | null>(null);
+  const [currentActionType, setCurrentActionType] = useState<'approved' | 'rejected' | 'rescheduled' | 'cancelled' | null>(null); // Changed type
 
   const { data: schedulingRequests, isLoading: isLoadingRequests, error: requestsError } = useQuery<SchedulingRequest[]>({
     queryKey: ["schedulingRequests", searchTerm],
@@ -168,30 +168,11 @@ const OperasionalSchedulingPage: React.FC = () => {
     externalTechnicianName?: string | null;
     technicianType?: 'INTERNAL' | 'EXTERNAL' | null;
     notes?: string;
-    status: 'approve' | 'reject' | 'reschedule' | 'cancel'; // Keep actionType here
+    status: SchedulingRequest['status']; // Now directly the database status
   }) => {
     if (!selectedRequestForAction) return;
 
-    const { assignedTechnicianId, externalTechnicianName, technicianType, notes, status: actionStatus } = actionData;
-
-    // Map actionStatus to database enum value
-    let dbStatus: SchedulingRequest['status'];
-    switch (actionStatus) {
-      case 'approve':
-        dbStatus = 'approved';
-        break;
-      case 'reject':
-        dbStatus = 'rejected';
-        break;
-      case 'cancel':
-        dbStatus = 'cancelled';
-        break;
-      case 'reschedule':
-        dbStatus = 'rescheduled';
-        break;
-      default:
-        dbStatus = 'pending'; // Fallback, though should not be reached
-    }
+    const { assignedTechnicianId, externalTechnicianName, technicianType, notes, status: dbStatus } = actionData; // dbStatus is now directly from actionData.status
 
     const updatePayload: any = {
       status: dbStatus,
@@ -339,7 +320,7 @@ const OperasionalSchedulingPage: React.FC = () => {
                   actions.push(
                     <Button key="approve" variant="ghost" size="icon" onClick={() => {
                       setSelectedRequestForAction(request);
-                      setCurrentActionType('approve');
+                      setCurrentActionType('approved'); // Changed to 'approved'
                     }}>
                       <CheckCircle2 className="h-4 w-4 text-green-500" />
                     </Button>
@@ -347,7 +328,7 @@ const OperasionalSchedulingPage: React.FC = () => {
                   actions.push(
                     <Button key="reject" variant="ghost" size="icon" onClick={() => {
                       setSelectedRequestForAction(request);
-                      setCurrentActionType('reject');
+                      setCurrentActionType('rejected'); // Changed to 'rejected'
                     }}>
                       <XCircle className="h-4 w-4 text-red-500" />
                     </Button>

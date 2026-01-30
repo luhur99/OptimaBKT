@@ -49,7 +49,7 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
   const [request, setRequest] = useState<SchedulingRequest>(initialRequest);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentAction, setCurrentAction] = useState<'approve' | 'reject' | 'reschedule' | 'cancel' | null>(null);
+  const [currentAction, setCurrentAction] = useState<'approved' | 'rejected' | 'rescheduled' | 'cancelled' | null>(null); // Changed type
   const { toast } = useToast();
 
   useEffect(() => {
@@ -61,31 +61,12 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
     externalTechnicianName?: string | null;
     technicianType?: 'INTERNAL' | 'EXTERNAL' | null;
     notes?: string;
-    status: 'approve' | 'reject' | 'reschedule' | 'cancel'; // Keep actionType here
+    status: SchedulingRequest['status']; // Now directly the database status
   }) => {
     if (!request) return;
 
     setLoading(true);
-    const { assignedTechnicianId, externalTechnicianName, technicianType, notes, status: actionStatus } = actionData;
-
-    // Map actionStatus to database enum value
-    let dbStatus: SchedulingRequest['status'];
-    switch (actionStatus) {
-      case 'approve':
-        dbStatus = 'approved';
-        break;
-      case 'reject':
-        dbStatus = 'rejected';
-        break;
-      case 'cancel':
-        dbStatus = 'cancelled';
-        break;
-      case 'reschedule':
-        dbStatus = 'rescheduled';
-        break;
-      default:
-        dbStatus = 'pending'; // Fallback, though should not be reached
-    }
+    const { assignedTechnicianId, externalTechnicianName, technicianType, notes, status: dbStatus } = actionData; // dbStatus is now directly from actionData.status
 
     const updatePayload: any = {
       status: dbStatus,
@@ -212,25 +193,25 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
               <>
                 <Button
                   className="bg-green-600 text-white hover:bg-green-700 transition-all duration-300 text-sm py-2 px-3"
-                  onClick={() => setCurrentAction('approve')}
+                  onClick={() => setCurrentAction('approved')} // Changed to 'approved'
                 >
                   Approve
                 </Button>
                 <Button
                   className="bg-red-600 text-white hover:bg-red-700 transition-all duration-300 text-sm py-2 px-3"
-                  onClick={() => setCurrentAction('reject')}
+                  onClick={() => setCurrentAction('rejected')} // Changed to 'rejected'
                 >
                   Reject
                 </Button>
                 <Button
                   className="bg-orange-600 text-white hover:bg-orange-700 transition-all duration-300 text-sm py-2 px-3"
-                  onClick={() => setCurrentAction('reschedule')}
+                  onClick={() => setCurrentAction('rescheduled')} // Changed to 'rescheduled'
                 >
                   Reschedule
                 </Button>
                 <Button
                   className="bg-gray-600 text-white hover:bg-gray-700 transition-all duration-300 text-sm py-2 px-3"
-                  onClick={() => setCurrentAction('cancel')}
+                  onClick={() => setCurrentAction('cancelled')} // Changed to 'cancelled'
                 >
                   Cancel
                 </Button>
@@ -240,13 +221,13 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
               <>
                 <Button
                   className="bg-orange-600 text-white hover:bg-orange-700 transition-all duration-300 text-sm py-2 px-3"
-                  onClick={() => setCurrentAction('reschedule')}
+                  onClick={() => setCurrentAction('rescheduled')} // Changed to 'rescheduled'
                 >
                   Reschedule
                 </Button>
                 <Button
                   className="bg-gray-600 text-white hover:bg-gray-700 transition-all duration-300 text-sm py-2 px-3"
-                  onClick={() => setCurrentAction('cancel')}
+                  onClick={() => setCurrentAction('cancelled')} // Changed to 'cancelled'
                 >
                   Cancel
                 </Button>

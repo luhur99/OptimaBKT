@@ -46,10 +46,10 @@ interface SchedulingActionDialogProps {
     externalTechnicianName?: string | null;
     technicianType?: 'INTERNAL' | 'EXTERNAL' | null;
     notes?: string;
-    status: SchedulingRequest['status'];
+    status: SchedulingRequest['status']; // Now directly uses the database status type
   }) => void;
   request: SchedulingRequest;
-  actionType: 'approve' | 'reject' | 'reschedule' | 'cancel';
+  actionType: 'approved' | 'rejected' | 'rescheduled' | 'cancelled'; // Changed from 'approve' to 'approved'
 }
 
 export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
@@ -86,13 +86,13 @@ export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
 
   const getDialogTitle = () => {
     switch (actionType) {
-      case "approve":
+      case "approved": // Changed from "approve"
         return "Approve Scheduling Request";
-      case "reject":
+      case "rejected":
         return "Reject Scheduling Request";
-      case "reschedule":
+      case "rescheduled":
         return "Reschedule Scheduling Request";
-      case "cancel":
+      case "cancelled":
         return "Cancel Scheduling Request";
       default:
         return "Scheduling Action";
@@ -100,7 +100,7 @@ export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
   };
 
   const handleSubmit = () => {
-    if (actionType === 'approve') {
+    if (actionType === 'approved') { // Changed from 'approve'
       if (selectedTechnicianType === 'INTERNAL' && !assignedTechnicianId) {
         toast({
           title: "Validation Error",
@@ -119,7 +119,7 @@ export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
       }
     }
 
-    if (['reject', 'reschedule', 'cancel'].includes(actionType) && (!notes || notes.trim() === "")) {
+    if (['rejected', 'rescheduled', 'cancelled'].includes(actionType) && (!notes || notes.trim() === "")) { // Changed actionType values
       toast({
         title: "Validation Error",
         description: "Notes are required for this action.",
@@ -129,7 +129,7 @@ export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
     }
 
     onSubmit({
-      status: actionType,
+      status: actionType, // Now directly passing the database status
       notes: notes,
       assignedTechnicianId: selectedTechnicianType === 'INTERNAL' ? assignedTechnicianId : null,
       externalTechnicianName: selectedTechnicianType === 'EXTERNAL' ? externalTechnicianName : null,
@@ -145,13 +145,13 @@ export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
       <DialogHeader>
         <DialogTitle className="text-neon-cyan">{getDialogTitle()}</DialogTitle>
         <DialogDescription className="text-gray-400">
-          {actionType === 'approve'
+          {actionType === 'approved' // Changed from 'approve'
             ? "Assign a technician and confirm approval for this scheduling request."
             : `Please provide notes for ${actionType} this scheduling request.`}
         </DialogDescription>
       </DialogHeader>
       <div className="grid gap-4 py-4">
-        {actionType === 'approve' && (
+        {actionType === 'approved' && ( // Changed from 'approve'
           <>
             <div className="space-y-2">
               <Label htmlFor="technicianType" className="text-gray-300">Technician Type</Label>
@@ -211,7 +211,7 @@ export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
           </>
         )}
 
-        {['reject', 'reschedule', 'cancel'].includes(actionType) && (
+        {['rejected', 'rescheduled', 'cancelled'].includes(actionType) && ( // Changed actionType values
           <div className="space-y-2">
             <Label htmlFor="notes" className="text-gray-300">Notes</Label>
             <Textarea
