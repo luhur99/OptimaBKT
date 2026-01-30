@@ -46,10 +46,10 @@ interface SchedulingActionDialogProps {
     externalTechnicianName?: string | null;
     technicianType?: 'INTERNAL' | 'EXTERNAL' | null;
     notes?: string;
-    status: SchedulingRequest['status']; // Now directly uses the database status type
-  }) => void;
+    status: SchedulingRequest['status'];
+  }) => Promise<void>; // Changed to return Promise
   request: SchedulingRequest;
-  actionType: 'approved' | 'rejected' | 'rescheduled' | 'cancelled'; // Changed from 'approve' to 'approved'
+  actionType: 'approved' | 'rejected' | 'rescheduled' | 'cancelled';
 }
 
 export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
@@ -63,6 +63,7 @@ export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
   const [assignedTechnicianId, setAssignedTechnicianId] = useState<string | null>(request.assigned_technician_id);
   const [externalTechnicianName, setExternalTechnicianName] = useState<string | null>(request.external_technician_name);
   const [selectedTechnicianType, setSelectedTechnicianType] = useState<'INTERNAL' | 'EXTERNAL'>(request.technician_type || 'INTERNAL');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const { data: technicians, isLoading: isLoadingTechnicians, error: techniciansError } = useQuery<Technician[]>({
@@ -86,7 +87,7 @@ export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
 
   const getDialogTitle = () => {
     switch (actionType) {
-      case "approved": // Changed from "approve"
+      case "approved":
         return "Approve Scheduling Request";
       case "rejected":
         return "Reject Scheduling Request";
@@ -99,8 +100,8 @@ export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
     }
   };
 
-  const handleSubmit = () => {
-    if (actionType === 'approved') { // Changed from 'approve'
+  const handleSubmit = async () => { // Changed to async
+    if (actionType === 'approved') {
       if (selectedTechnicianType === 'INTERNAL' && !assignedTechnicianId) {
         toast({
           title: "Validation Error",
@@ -119,7 +120,7 @@ export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
       }
     }
 
-    if (['rejected', 'rescheduled', 'cancelled'].includes(actionType) && (!notes || notes.trim() === "")) { // Changed actionType values
+    if (['rejected', 'rescheduled', 'cancelled'].includes(actionType) && (!notes || notes.trim() === "")) {
       toast({
         title: "Validation Error",
         description: "Notes are required for this action.",
@@ -128,14 +129,27 @@ export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
       return;
     }
 
-    onSubmit({
-      status: actionType, // Now directly passing the database status
-      notes: notes,
-      assignedTechnicianId: selectedTechnicianType === 'INTERNAL' ? assignedTechnicianId : null,
-      externalTechnicianName: selectedTechnicianType === 'EXTERNAL' ? externalTechnicianName : null,
-      technicianType: selectedTechnicianType,
-    });
-    onClose();
+    setIsSubmitting(true);
+    try {
+      await onSubmit({
+        status: actionType,
+        notes: notes,
+        assignedTechnicianId: selectedTechnicianType === 'INTERNAL' ? assignedTechnicianId : null,
+        externalTechnicianName: selectedTechnicianType === 'EXTERNAL' ? externalTechnicianName : null,
+        technicianType: selectedTechnicianType,
+      });
+      // Reset state after successful submit
+      setNotes("");
+      setAssignedTechnicianId(null);
+      setExternalTechnicianName(null);
+      setSelectedTechnicianType('INTERNAL');
+      onClose();
+    } catch (error) {
+      // Error is already handled by parent, just log it
+      console.error('Error submitting action:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const internalTechnicians = technicians?.filter(t => t.type === 'internal') || [];
@@ -145,13 +159,13 @@ export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
       <DialogHeader>
         <DialogTitle className="text-neon-cyan">{getDialogTitle()}</DialogTitle>
         <DialogDescription className="text-gray-400">
-          {actionType === 'approved' // Changed from 'approve'
+          {actionType === 'approved'
             ? "Assign a technician and confirm approval for this scheduling request."
             : `Please provide notes for ${actionType} this scheduling request.`}
         </DialogDescription>
       </DialogHeader>
       <div className="grid gap-4 py-4">
-        {actionType === 'approved' && ( // Changed from 'approve'
+        {actionType === 'approved' && (
           <>
             <div className="space-y-2">
               <Label htmlFor="technicianType" className="text-gray-300">Technician Type</Label>
@@ -211,7 +225,7 @@ export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
           </>
         )}
 
-        {['rejected', 'rescheduled', 'cancelled'].includes(actionType) && ( // Changed actionType values
+        {['rejected', 'rescheduled', 'cancelled'].includes(actionType) && (
           <div className="space-y-2">
             <Label htmlFor="notes" className="text-gray-300">Notes</Label>
             <Textarea
@@ -225,11 +239,20 @@ export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
         )}
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose} className="bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800">
+        <Button 
+          variant="outline" 
+          onClick={onClose} 
+          className="bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800"
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
-        <Button onClick={handleSubmit} className="bg-neon-cyan text-midnight-blue hover:bg-neon-cyan/90">
-          Confirm {actionType.charAt(0).toUpperCase() + actionType.slice(1)}
+        <Button 
+          onClick={handleSubmit} 
+          className="bg-neon-cyan text-midnight-blue hover:bg-neon-cyan/90"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Processing..." : `Confirm ${actionType.charAt(0).toUpperCase() + actionType.slice(1)}`}
         </Button>
       </DialogFooter>
     </DialogContent>
