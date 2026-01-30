@@ -2,12 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator'; // Memperbaiki sintaks di sini
+import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Truck, CheckCircle, XCircle, Clock, FileText, User, MapPin, Phone, Building, Tag, Info, Loader2 } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { useToast } from "@/components/ui/use-toast";
+import { showSuccess, showError } from "@/utils/toast"; // Menggunakan toast dari utils
 import { DeliveryOrderActionDialog } from './DeliveryOrderActionDialog';
 import { DeliveryOrder } from './delivery-order-columns'; // Import the type
 
@@ -42,7 +42,7 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
   const [schedulingRequest, setSchedulingRequest] = useState<SchedulingRequestDetails | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
   const [currentAction, setCurrentAction] = useState<'on_delivery' | 'delivered' | 'cancelled' | null>(null);
-  const { toast } = useToast();
+  // const { toast } = useToast(); // Dihapus, akan menggunakan showSuccess/showError
 
   const fetchOrderDetails = useCallback(async () => {
     setIsLoadingDetails(true);
@@ -96,15 +96,11 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
       }
     } catch (error: any) {
       console.error("Error fetching delivery order details:", error.message);
-      toast({
-        title: "Error",
-        description: "Failed to load delivery order details: " + error.message,
-        variant: "destructive",
-      });
+      showError("Failed to load delivery order details: " + error.message);
     } finally {
       setIsLoadingDetails(false);
     }
-  }, [initialOrder.id, toast]);
+  }, [initialOrder.id]); // Menghapus toast dari dependency array
 
   useEffect(() => {
     fetchOrderDetails();
@@ -129,19 +125,12 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
         throw new Error(updateError.message);
       }
 
-      toast({
-        title: "Success",
-        description: `Delivery Order status updated to ${newStatus.replace(/_/g, ' ').toUpperCase()}.`,
-      });
+      showSuccess(`Delivery Order status updated to ${newStatus.replace(/_/g, ' ').toUpperCase()}.`);
       onUpdate(); // Trigger parent to refresh data
       fetchOrderDetails(); // Re-fetch details to show updated status
     } catch (error: any) {
       console.error('Error updating delivery order status:', error.message);
-      toast({
-        title: "Error",
-        description: `Failed to update delivery order status: ${error.message}`,
-        variant: "destructive",
-      });
+      showError(`Failed to update delivery order status: ${error.message}`);
     } finally {
       setIsLoadingDetails(false);
       setCurrentAction(null); // Close dialog

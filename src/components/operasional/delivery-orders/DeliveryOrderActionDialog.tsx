@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
+import { showSuccess, showError } from "@/utils/toast"; // Menggunakan toast dari utils
 
 interface DeliveryOrder {
   id: string;
@@ -37,7 +37,7 @@ export const DeliveryOrderActionDialog: React.FC<DeliveryOrderActionDialogProps>
 }) => {
   const [notes, setNotes] = useState(order.notes || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
+  // const { toast } = useToast(); // Dihapus, akan menggunakan showSuccess/showError
 
   const getDialogTitle = () => {
     switch (actionType) {
@@ -54,11 +54,7 @@ export const DeliveryOrderActionDialog: React.FC<DeliveryOrderActionDialogProps>
 
   const handleSubmit = async () => {
     if (actionType === 'cancelled' && (!notes || notes.trim() === "")) {
-      toast({
-        title: "Validation Error",
-        description: "Notes are required for cancelling a delivery order.",
-        variant: "destructive",
-      });
+      showError("Notes are required for cancelling a delivery order.");
       return;
     }
 
@@ -72,6 +68,7 @@ export const DeliveryOrderActionDialog: React.FC<DeliveryOrderActionDialogProps>
       onClose();
     } catch (error) {
       console.error('Error submitting action:', error);
+      // Error handling is already done in the parent component's onSubmit (handleActionSubmit)
     } finally {
       setIsSubmitting(false);
     }
