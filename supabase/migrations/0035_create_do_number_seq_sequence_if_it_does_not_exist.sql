@@ -1,0 +1,1 @@
+CREATE SEQUENCE IF NOT EXISTS public.do_number_seq;
