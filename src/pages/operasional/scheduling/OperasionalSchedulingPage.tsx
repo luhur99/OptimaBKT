@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CheckCircle, XCircle, CalendarDays, Truck, FileText, Edit, Trash2, Loader2, CalendarIcon } from "lucide-react"; // CalendarIcon ditambahkan di sini
+import { CheckCircle, XCircle, CalendarDays, Truck, FileText, Edit, Trash2, Loader2, CalendarIcon } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -42,6 +42,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"; // Import Tooltip components
 
 // Define the type for a scheduling request based on your Supabase schema
 interface SchedulingRequest {
@@ -78,7 +84,7 @@ interface Technician {
   type: "INTERNAL" | "EXTERNAL";
 }
 
-const OperasionalSchedulingPage = () => { // Changed to a regular function component
+const OperasionalSchedulingPage = () => {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRequestForAction, setSelectedRequestForAction] = useState<SchedulingRequest | null>(null);
@@ -90,7 +96,7 @@ const OperasionalSchedulingPage = () => { // Changed to a regular function compo
   const [technicianName, setTechnicianName] = useState<string | undefined>(undefined);
   const [technicianType, setTechnicianType] = useState<"INTERNAL" | "EXTERNAL">("INTERNAL");
   const [externalTechnicianName, setExternalTechnicianName] = useState<string | undefined>(undefined);
-  const [isApproving, setIsApproving] = useState<string | null>(null); // To track which request is being approved
+  const [isApproving, setIsApproving] = useState<string | null>(null);
 
   const { data: schedulingRequests, isLoading, error } = useQuery<SchedulingRequest[]>({
     queryKey: ["scheduling_requests"],
@@ -380,80 +386,152 @@ const OperasionalSchedulingPage = () => { // Changed to a regular function compo
                   <Badge variant={getStatusBadgeVariant(request.status)}>{request.status}</Badge>
                 </TableCell>
                 <TableCell className="text-right flex space-x-2 justify-end">
-                  {request.status === "pending" && (
-                    <>
-                      <Button
-                        key="approve"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleApproveRequest(request)}
-                        disabled={isApproving === request.id}
-                      >
-                        {isApproving === request.id ? (
-                          <Loader2 className="h-5 w-5 text-green-500 animate-spin" />
-                        ) : (
-                          <CheckCircle className="h-5 w-5 text-green-500" />
-                        )}
-                      </Button>
-                      <Button key="reject" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'rejected')}>
-                        <XCircle className="h-5 w-5 text-red-500" />
-                      </Button>
-                      <Button key="reschedule" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'rescheduled')}>
-                        <CalendarDays className="h-5 w-5 text-blue-500" />
-                      </Button>
-                    </>
-                  )}
-                  {(request.status === "approved" || request.status === "in_progress" || request.status === "rescheduled") && (
-                    <>
-                      <Button key="in_progress" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'in_progress')}>
-                        <Truck className="h-5 w-5 text-orange-500" />
-                      </Button>
-                      <Button key="complete" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'completed')}>
-                        <CheckCircle className="h-5 w-5 text-purple-500" />
-                      </Button>
-                      <Button key="cancel" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'cancelled')}>
-                        <XCircle className="h-5 w-5 text-gray-500" />
-                      </Button>
-                    </>
-                  )}
-                  <Button key="edit" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'edit')}>
-                    <Edit className="h-5 w-5 text-blue-400" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <Trash2 className="h-5 w-5 text-red-600" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent className="bg-gray-800 border-gray-700 text-gray-300">
-                      <AlertDialogHeader>
-                        <AlertDialogTitle className="text-neon-cyan">Are you absolutely sure?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-gray-400">
-                          This action cannot be undone. This will permanently delete the
-                          scheduling request.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel className="bg-gray-700 text-gray-300 hover:bg-gray-600">Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDeleteRequest(request.id)}
-                          className="bg-red-600 hover:bg-red-700 text-white"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                  {request.invoice_id && (
-                    <Button key="view_invoice" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'view_invoice')}>
-                      <FileText className="h-5 w-5 text-indigo-500" />
-                    </Button>
-                  )}
-                  {request.status === "approved" && !request.delivery_order_id && (
-                    <Button key="create_delivery_order" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'create_delivery_order')}>
-                      <Truck className="h-5 w-5 text-cyan-500" />
-                    </Button>
-                  )}
+                  <TooltipProvider>
+                    {request.status === "pending" && (
+                      <>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              key="approve"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleApproveRequest(request)}
+                              disabled={isApproving === request.id}
+                            >
+                              {isApproving === request.id ? (
+                                <Loader2 className="h-5 w-5 text-green-500 animate-spin" />
+                              ) : (
+                                <CheckCircle className="h-5 w-5 text-green-500" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                            <p>Approve Request</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button key="reject" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'rejected')}>
+                              <XCircle className="h-5 w-5 text-red-500" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                            <p>Reject Request</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button key="reschedule" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'rescheduled')}>
+                              <CalendarDays className="h-5 w-5 text-blue-500" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                            <p>Reschedule Request</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </>
+                    )}
+                    {(request.status === "approved" || request.status === "in_progress" || request.status === "rescheduled") && (
+                      <>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button key="in_progress" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'in_progress')}>
+                              <Truck className="h-5 w-5 text-orange-500" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                            <p>Set In Progress</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button key="complete" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'completed')}>
+                              <CheckCircle className="h-5 w-5 text-purple-500" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                            <p>Complete Request</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button key="cancel" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'cancelled')}>
+                              <XCircle className="h-5 w-5 text-gray-500" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                            <p>Cancel Request</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </>
+                    )}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button key="edit" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'edit')}>
+                          <Edit className="h-5 w-5 text-blue-400" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                        <p>Edit Request</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <Trash2 className="h-5 w-5 text-red-600" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                            <p>Delete Request</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="bg-gray-800 border-gray-700 text-gray-300">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="text-neon-cyan">Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription className="text-gray-400">
+                            This action cannot be undone. This will permanently delete the
+                            scheduling request.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="bg-gray-700 text-gray-300 hover:bg-gray-600">Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteRequest(request.id)}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    {request.invoice_id && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button key="view_invoice" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'view_invoice')}>
+                            <FileText className="h-5 w-5 text-indigo-500" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                          <p>View Invoice</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                    {request.status === "approved" && !request.delivery_order_id && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button key="create_delivery_order" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'create_delivery_order')}>
+                            <Truck className="h-5 w-5 text-cyan-500" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                          <p>Create Delivery Order</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </TooltipProvider>
                 </TableCell>
               </TableRow>
             ))}
@@ -677,4 +755,4 @@ const OperasionalSchedulingPage = () => { // Changed to a regular function compo
   );
 };
 
-export default OperasionalSchedulingPage; // Export as default
+export default OperasionalSchedulingPage;
