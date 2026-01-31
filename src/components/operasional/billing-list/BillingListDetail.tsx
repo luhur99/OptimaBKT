@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, DollarSign, User, Calendar, FileText, Building, Clock, Loader2, CheckCircle, XCircle, Info } from 'lucide-react'; // Added Info import
+import { ArrowLeft, DollarSign, User, Calendar, FileText, Building, Clock, Loader2, CheckCircle, XCircle, Info } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -34,7 +34,8 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
   const [currentAction, setCurrentAction] = useState<'paid' | 'overdue' | null>(null);
 
   const fetchInvoiceDetails = useCallback(async () => {
-    console.log(`BillingListDetail: fetchInvoiceDetails called for invoice ID: ${initialInvoice.id}`); // Added log
+    console.log(`BillingListDetail: fetchInvoiceDetails called for invoice ID: ${initialInvoice.id}`);
+    console.log("Current Invoice ID for item fetch:", initialInvoice.id); // Log the ID used for item fetch
     setIsLoadingDetails(true);
     try {
       const { data: updatedInvoice, error: invoiceError } = await supabase
@@ -74,7 +75,9 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
         console.warn("Could not fetch associated invoice items:", itemsError.message);
         setInvoiceItems([]);
       } else {
+        console.log("Fetched itemsData from Supabase:", itemsData); // Log fetched data
         setInvoiceItems(itemsData || []);
+        console.log("Invoice items state after set:", itemsData || []); // Log state after set
       }
 
     } catch (error: any) {
@@ -216,7 +219,7 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
               <p className="flex items-center text-sm"><User className="mr-2 h-4 w-4 text-yellow-400" /> Customer Name: <span className="ml-2 font-medium">{invoice.customer_name}</span></p>
               {invoice.company_name && <p className="flex items-center text-sm"><Building className="mr-2 h-4 w-4 text-indigo-400" /> Company Name: <span className="ml-2 font-medium">{invoice.company_name}</span></p>}
               <p className="flex items-center text-sm"><DollarSign className="mr-2 h-4 w-4 text-lime-400" /> Total Amount: <span className="ml-2 font-medium">Rp {invoice.total_amount.toLocaleString("id-ID")}</span></p>
-              <p className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Payment Status: <Badge className={getPaymentStatusColor(invoice.payment_status)}>{invoice.payment_status.replace(/_/g, ' ').toUpperCase()}</Badge></p>
+              <div className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Payment Status: <Badge className={getPaymentStatusColor(invoice.payment_status)}>{invoice.payment_status.replace(/_/g, ' ').toUpperCase()}</Badge></div>
               <p className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Invoice Status: <Badge className="bg-gray-700/20 text-gray-400 border border-gray-600/30">{invoice.invoice_status.replace(/_/g, ' ').toUpperCase()}</Badge></p>
               {invoice.notes && <p className="flex items-start text-sm"><FileText className="mr-2 h-4 w-4 text-orange-400 mt-1" /> Notes: <span className="ml-2 font-medium">{invoice.notes}</span></p>}
               {invoice.document_url && (
