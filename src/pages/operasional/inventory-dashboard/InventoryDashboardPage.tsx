@@ -91,6 +91,7 @@ const InventoryDashboardPage = () => {
       setInventorySummary(formattedSummary);
 
       // Fetch stock ledger
+      console.log("Fetching stock ledger entries..."); // Log start of fetch
       const { data: ledgerData, error: ledgerError } = await supabase
         .from("stock_ledger")
         .select(`
@@ -107,7 +108,12 @@ const InventoryDashboardPage = () => {
         .order("event_date", { ascending: false })
         .limit(50); // Limit to recent 50 entries
 
-      if (ledgerError) throw new Error(ledgerError.message);
+      if (ledgerError) {
+        console.error("Error fetching stock ledger:", ledgerError); // Log error
+        throw new Error(ledgerError.message);
+      } else {
+        console.log("Stock ledger data received:", ledgerData); // Log successful data
+      }
 
       const formattedLedger: StockLedgerEntry[] = ledgerData.map((entry: any) => ({
         id: entry.id,
