@@ -19,7 +19,7 @@ export type PoItemForArrival = {
   product_name: string;
   qty_request: number;
   qty_received: number; // Already received
-  current_input_qty: number; // For this session's input
+  current_input_qty: number; // For this session's input (no longer directly used for input value)
 };
 
 interface ConfirmArrivalModalProps {
@@ -39,8 +39,9 @@ export function ConfirmArrivalModal({
 }: ConfirmArrivalModalProps) {
   const { session } = useAuthSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Initialize receivedQuantities with the current total received for each item
   const [receivedQuantities, setReceivedQuantities] = useState<{ [key: string]: number }>(
-    items.reduce((acc, item) => ({ ...acc, [item.id]: 0 }), {})
+    items.reduce((acc, item) => ({ ...acc, [item.id]: item.qty_received }), {})
   );
 
   const handleQuantityChange = (itemId: string, value: string) => {
@@ -54,18 +55,9 @@ export function ConfirmArrivalModal({
   const handleSubmitArrival = async () => {
     setIsSubmitting(true);
     try {
-      const itemsToUpdate = items.map((item) => ({
-        po_item_id: item.id,
-        qty_received: receivedQuantities[item.id] || 0,
-      })).filter(item => item.qty_received > 0); // Only send items with positive received quantity
+      const itemsToProcess: { po_item_id: string; qty_to_add: number; product_name: string; }[] = [];
 
-      if (itemsToUpdate.length === 0) {
-        showError("Please enter at least one received quantity.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Client-side re-validation before sending to edge function
+      // Client-side re-validation and calculation of quantity to add
       const { data: latestPoItems, error: latestItemsError } = await supabase
         .from('po_items')
         .select('id, qty_request, qty_received')
@@ -80,11 +72,40 @@ export function ConfirmArrivalModal({
         if (!latestItem) {
           throw new Error(`Item ${item.product_name} not found during re-validation.`);
         }
-        const currentInputQty = receivedQuantities[item.id] || 0;
-        if (latestItem.qty_received + currentInputQty > latestItem.qty_request) {
-          throw new Error(`Received quantity for item ${item.product_name} (currently ${latestItem.qty_received} received, trying to add ${currentInputQty}) exceeds requested quantity (${latestItem.qty_request}). Please refresh the page and try again.`);
+
+        const newTotalReceivedInput = receivedQuantities[item.id] || 0; // This is the total quantity the user wants to set
+        const alreadyReceived = latestItem.qty_received;
+        const requestedQuantity = latestItem.qty_request;
+
+        if (newTotalReceivedInput < alreadyReceived) {
+          throw new Error(`Cannot reduce already received quantity for item ${item.product_name}. Current received: ${alreadyReceived}, Attempted to set: ${newTotalReceivedInput}.`);
+        }
+        if (newTotalReceivedInput > requestedQuantity) {
+          throw new Error(`Total received quantity for item ${item.product_name} (${newTotalReceivedInput}) exceeds requested quantity (${requestedQuantity}).`);
+        }
+
+        const quantityToAdd = newTotalReceivedInput - alreadyReceived;
+
+        if (quantityToAdd > 0) {
+          itemsToProcess.push({
+            po_item_id: item.id,
+            qty_to_add: quantityToAdd,
+            product_name: item.product_name, // For better error messages
+          });
         }
       }
+
+      if (itemsToProcess.length === 0) {
+        showError("No new quantities entered or all items already fully received.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Prepare payload for edge function (which expects qty_received as *additional*)
+      const payloadItems = itemsToProcess.map(item => ({
+        po_item_id: item.po_item_id,
+        qty_received: item.qty_to_add,
+      }));
 
       const response = await fetch(
         `https://hhhzugqimtypijkdxxsm.supabase.co/functions/v1/confirm-po-arrival`,
@@ -94,9 +115,9 @@ export function ConfirmArrivalModal({
             "Content-Type": "application/json",
             Authorization: `Bearer ${session?.access_token}`,
           },
-          body: JSON.stringify({ po_id: poId, items_received: itemsToUpdate }),
+          body: JSON.stringify({ po_id: poId, items_received: payloadItems }),
         }
-      )
+      );
 
       const data = await response.json();
 
@@ -119,14 +140,14 @@ export function ConfirmArrivalModal({
       <DialogHeader>
         <DialogTitle className="text-neon-cyan">Confirm Arrival for PO: <span className="text-electric-violet">{poNumber}</span></DialogTitle>
         <DialogDescription className="text-gray-400">
-          Enter the quantity received for each item.
+          Enter the total quantity received for each item.
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
         {items.map((item) => (
           <div key={item.id} className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor={`qty-${item.id}`} className="col-span-2 text-gray-300">
-              {item.product_name} (Req: {item.qty_request}, Rec: {item.qty_received})
+              {item.product_name} (Requested: {item.qty_request})
             </Label>
             <Input
               id={`qty-${item.id}`}
@@ -134,11 +155,11 @@ export function ConfirmArrivalModal({
               value={receivedQuantities[item.id]}
               onChange={(e) => handleQuantityChange(item.id, e.target.value)}
               min="0"
-              max={item.qty_request - item.qty_received}
+              max={item.qty_request} {/* Max is now the total requested quantity */}
               className="col-span-2 glassmorphism border border-gray-700 text-gray-300"
-              disabled={item.qty_request === item.qty_received}
+              disabled={receivedQuantities[item.id] === item.qty_request} {/* Disable if total received equals requested */}
             />
-            {item.qty_request === item.qty_received && (
+            {receivedQuantities[item.id] === item.qty_request && (
               <span className="col-span-4 text-xs text-green-500">All items received.</span>
             )}
           </div>
