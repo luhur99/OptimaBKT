@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import {
   Card,
@@ -9,15 +9,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input"; // Import Input component
 import {
   Dialog,
   DialogTrigger,
-  DialogContent, // Import DialogContent here
+  DialogContent,
 } from "@/components/ui/dialog";
-// import { ConfirmArrivalModal, PoItemForArrival } from "./ConfirmArrivalModal"; // Removed
 import { PurchaseOrder } from "./PurchaseOrderTable";
 import { cn } from "@/lib/utils";
-import { Package, CheckCircle, XCircle, Clock, Truck } from "lucide-react";
+import { Package, CheckCircle, XCircle, Clock, Truck, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -39,16 +39,17 @@ type PoItem = {
   subtotal: number;
 };
 
+// Type for items in the arrival input state
+type PoItemForArrivalInput = PoItem & {
+  current_input_qty: number; // Quantity to be received in this session
+};
+
 const POStatusStepper: React.FC<{ currentStatus: PurchaseOrder['status'] }> = ({ currentStatus }) => {
   const statuses: Array<PurchaseOrder['status']> = [
-    'PR_PENDING', // This status is for the PR, not PO. PO starts at WAITING_RECEIVED.
     'WAITING_RECEIVED',
     'RECEIVED',
     'CLOSED',
   ];
-
-  // Adjust statuses to start from where a PO would typically be
-  const relevantStatuses = statuses.slice(1); // Start from WAITING_RECEIVED
 
   const getStatusIcon = (status: PurchaseOrder['status'], isActive: boolean) => {
     const baseClass = "h-5 w-5";
@@ -73,8 +74,8 @@ const POStatusStepper: React.FC<{ currentStatus: PurchaseOrder['status'] }> = ({
 
   return (
     <div className="flex items-center justify-between text-sm text-gray-400">
-      {relevantStatuses.map((status, index) => {
-        const isActive = relevantStatuses.indexOf(currentStatus) >= index;
+      {statuses.map((status, index) => {
+        const isActive = statuses.indexOf(currentStatus) >= index;
         return (
           <React.Fragment key={status}>
             <div className={cn("flex flex-col items-center", index > 0 && "ml-2")}>
@@ -87,7 +88,7 @@ const POStatusStepper: React.FC<{ currentStatus: PurchaseOrder['status'] }> = ({
                 {status.replace(/_/g, ' ').toUpperCase()}
               </span>
             </div>
-            {index < relevantStatuses.length - 1 && (
+            {index < statuses.length - 1 && (
               <div className={cn("flex-1 h-0.5 mx-2",
                 isActive ? "bg-neon-cyan neon-glow" : "bg-gray-700"
               )} />
@@ -105,12 +106,14 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
   onUpdate,
   onClose,
 }) => {
-  const { profile } = useAuthSession();
-  const [poItems, setPoItems] = React.useState<PoItem[]>([]);
-  const [isLoadingItems, setIsLoadingItems] = React.useState(true);
-  // const [isConfirmArrivalDialogOpen, setIsConfirmArrivalDialogOpen] = React.useState(false); // Removed
+  const { profile, isLoading: isAuthLoading } = useAuthSession();
+  const [poItems, setPoItems] = useState<PoItem[]>([]);
+  const [isLoadingItems, setIsLoadingItems] = useState(true);
+  const [isConfirmingArrival, setIsConfirmingArrival] = useState(false);
+  const [itemsForArrivalInput, setItemsForArrivalInput] = useState<PoItemForArrivalInput[]>([]);
+  const [isInputMode, setIsInputMode] = useState(false); // New state to toggle input mode
 
-  const fetchPoItems = React.useCallback(async () => {
+  const fetchPoItems = useCallback(async () => {
     setIsLoadingItems(true);
     const { data, error } = await supabase
       .from("po_items")
@@ -135,29 +138,115 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
         product_name: item.products?.nama_barang || "N/A",
       }));
       setPoItems(formattedItems);
+      // Initialize itemsForArrivalInput when items are fetched
+      setItemsForArrivalInput(formattedItems.map(item => ({
+        ...item,
+        current_input_qty: 0, // Default to 0 for new input
+      })));
     }
     setIsLoadingItems(false);
   }, [po.id]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchPoItems();
   }, [fetchPoItems]);
 
-  // const handleConfirmArrivalSuccess = () => { // Removed
-  //   fetchPoItems(); // Re-fetch items to update received quantities
-  //   onUpdate(); // Trigger parent to re-fetch POs and update status
-  // };
+  const handleInputChange = (itemId: string, value: number) => {
+    setItemsForArrivalInput(prev =>
+      prev.map(item =>
+        item.id === itemId
+          ? { ...item, current_input_qty: value }
+          : item
+      )
+    );
+  };
 
-  // const canConfirmArrival = (profile?.role === "OPERASIONAL_DIV" || profile?.role === "SUPER_ADMIN") &&
-  //                           (po.status === "WAITING_RECEIVED" || po.status === "RECEIVED"); // Removed
+  const handleConfirmArrival = async () => {
+    if (!profile || (profile.role !== "OPERASIONAL_DIV" && profile.role !== "SUPER_ADMIN")) {
+      showError("You do not have permission to perform this action.");
+      return;
+    }
 
-  // const itemsForArrivalModal: PoItemForArrival[] = poItems.map(item => ({ // Removed
-  //   id: item.id,
-  //   product_name: item.product_name,
-  //   qty_request: item.qty_request,
-  //   qty_received: item.qty_received,
-  //   current_input_qty: 0, // Initial input for the modal
-  // }));
+    setIsConfirmingArrival(true);
+    try {
+      const itemsToSubmit = itemsForArrivalInput
+        .filter(item => item.current_input_qty > 0)
+        .map(item => ({
+          po_item_id: item.id,
+          qty_received: item.current_input_qty,
+        }));
+
+      if (itemsToSubmit.length === 0) {
+        showError("Please enter quantities for at least one item.");
+        setIsConfirmingArrival(false);
+        return;
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (!accessToken) {
+        throw new Error("User not authenticated.");
+      }
+
+      const response = await fetch(
+        `https://hhhzugqimtypijkdxxsm.supabase.co/functions/v1/confirm-po-arrival`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            po_id: po.id,
+            items_received: itemsToSubmit,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to confirm PO arrival.");
+      }
+
+      showSuccess("PO arrival confirmed successfully!");
+      setIsInputMode(false); // Exit input mode
+      fetchPoItems(); // Re-fetch items to update received quantities
+      onUpdate(); // Trigger parent to re-fetch POs and update status
+    } catch (error: any) {
+      showError(error.message || "An unexpected error occurred.");
+    } finally {
+      setIsConfirmingArrival(false);
+    }
+  };
+
+  const canConfirmArrival = (profile?.role === "OPERASIONAL_DIV" || profile?.role === "SUPER_ADMIN") &&
+                            (po.status === "WAITING_RECEIVED" || po.status === "RECEIVED");
+
+  if (isLoadingItems || isAuthLoading) {
+    return (
+      <Card className="glassmorphism border border-electric-violet/30 h-full flex flex-col animate-pulse">
+        <CardHeader className="pb-4">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-2xl text-neon-cyan">Loading PO Details...</CardTitle>
+            <Button variant="ghost" disabled>Close</Button>
+          </div>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-y-auto space-y-6">
+          <div className="h-8 w-3/4 bg-gray-800 rounded" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="h-6 w-full bg-gray-800 rounded" />
+            <div className="h-6 w-full bg-gray-800 rounded" />
+            <div className="h-6 w-full bg-gray-800 rounded" />
+            <div className="h-6 w-full bg-gray-800 rounded" />
+          </div>
+          <Separator className="bg-gray-700" />
+          <div className="h-24 w-full bg-gray-800 rounded" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="glassmorphism border border-electric-violet/30 h-full flex flex-col">
@@ -209,12 +298,7 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
         <Separator className="bg-gray-700" />
 
         <h3 className="text-lg font-semibold text-neon-cyan">PO Items</h3>
-        {isLoadingItems ? (
-          <div className="space-y-2">
-            <div className="h-8 w-full bg-gray-800 rounded" />
-            <div className="h-8 w-full bg-gray-800 rounded" />
-          </div>
-        ) : poItems.length === 0 ? (
+        {poItems.length === 0 ? (
           <p className="text-gray-500">No items found for this Purchase Order.</p>
         ) : (
           <div className="rounded-md border border-gray-700">
@@ -224,6 +308,7 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
                   <th className="p-2 text-neon-cyan">Product</th>
                   <th className="p-2 text-neon-cyan">Requested</th>
                   <th className="p-2 text-neon-cyan">Received</th>
+                  {isInputMode && <th className="p-2 text-neon-cyan">Qty to Receive</th>}
                   <th className="p-2 text-neon-cyan">Unit Price</th>
                   <th className="p-2 text-neon-cyan">Subtotal</th>
                 </tr>
@@ -234,6 +319,19 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
                     <td className="p-2">{item.product_name}</td>
                     <td className="p-2">{item.qty_request}</td>
                     <td className="p-2">{item.qty_received}</td>
+                    {isInputMode && (
+                      <td className="p-2">
+                        <Input
+                          type="number"
+                          min="0"
+                          max={item.qty_request - item.qty_received}
+                          value={itemsForArrivalInput.find(i => i.id === item.id)?.current_input_qty || 0}
+                          onChange={(e) => handleInputChange(item.id, parseInt(e.target.value) || 0)}
+                          className="w-24 bg-midnight-blue border-gray-700 text-gray-200"
+                          disabled={isConfirmingArrival || item.qty_received >= item.qty_request}
+                        />
+                      </td>
+                    )}
                     <td className="p-2">Rp {item.harga_beli_satuan.toLocaleString("id-ID")}</td>
                     <td className="p-2">Rp {item.subtotal.toLocaleString("id-ID")}</td>
                   </tr>
@@ -244,7 +342,34 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
         )}
 
         <div className="flex justify-end mt-6">
-          {/* Removed the "Confirm Arrival" button and its dialog trigger */}
+          {canConfirmArrival && !isInputMode && (
+            <Button
+              onClick={() => setIsInputMode(true)}
+              className="bg-neon-cyan text-deep-charcoal hover:bg-neon-cyan/80 neon-glow-hover transition-all duration-300"
+              disabled={isLoadingItems || isConfirmingArrival}
+            >
+              <Truck className="mr-2 h-4 w-4" /> Confirm Arrival
+            </Button>
+          )}
+          {isInputMode && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setIsInputMode(false)}
+                className="mr-2 bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800"
+                disabled={isConfirmingArrival}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirmArrival}
+                className="bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300"
+                disabled={isConfirmingArrival}
+              >
+                {isConfirmingArrival ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />} Save Received Quantities
+              </Button>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>
