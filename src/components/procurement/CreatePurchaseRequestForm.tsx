@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -21,7 +24,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { showSuccess, showError } from "@/utils/toast";
@@ -82,6 +84,9 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
     },
   });
 
+  // Watch the product_id field from the form
+  const selectedProductId = form.watch("product_id");
+
   useEffect(() => {
     const fetchDependencies = async () => {
       const { data: productsData, error: productsError } = await supabase
@@ -125,7 +130,7 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
     if (product) {
       form.setValue("unit_price", product.harga_beli);
     }
-  }, [selectedProductId, products, form]);
+  }, [selectedProductId, products, form]); // Now selectedProductId is correctly in the dependency array
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
