@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS tr_calc_po_subtotal ON public.po_items;
