@@ -105,7 +105,7 @@ const InventoryDashboardPage = () => {
           products (nama_barang),
           profiles (full_name)
         `)
-        .order("event_date", { ascending: false })
+        .order("created_at", { ascending: false }) // Changed to order by created_at for newest first
         .limit(50); // Limit to recent 50 entries
 
       if (ledgerError) {
