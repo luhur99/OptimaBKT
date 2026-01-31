@@ -14,7 +14,7 @@ import {
   DialogTrigger,
   DialogContent, // Import DialogContent here
 } from "@/components/ui/dialog";
-import { ConfirmArrivalModal, PoItemForArrival } from "./ConfirmArrivalModal";
+// import { ConfirmArrivalModal, PoItemForArrival } from "./ConfirmArrivalModal"; // Removed
 import { PurchaseOrder } from "./PurchaseOrderTable";
 import { cn } from "@/lib/utils";
 import { Package, CheckCircle, XCircle, Clock, Truck } from "lucide-react";
@@ -108,7 +108,7 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
   const { profile } = useAuthSession();
   const [poItems, setPoItems] = React.useState<PoItem[]>([]);
   const [isLoadingItems, setIsLoadingItems] = React.useState(true);
-  const [isConfirmArrivalDialogOpen, setIsConfirmArrivalDialogOpen] = React.useState(false);
+  // const [isConfirmArrivalDialogOpen, setIsConfirmArrivalDialogOpen] = React.useState(false); // Removed
 
   const fetchPoItems = React.useCallback(async () => {
     setIsLoadingItems(true);
@@ -143,21 +143,21 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
     fetchPoItems();
   }, [fetchPoItems]);
 
-  const handleConfirmArrivalSuccess = () => {
-    fetchPoItems(); // Re-fetch items to update received quantities
-    onUpdate(); // Trigger parent to re-fetch POs and update status
-  };
+  // const handleConfirmArrivalSuccess = () => { // Removed
+  //   fetchPoItems(); // Re-fetch items to update received quantities
+  //   onUpdate(); // Trigger parent to re-fetch POs and update status
+  // };
 
-  const canConfirmArrival = (profile?.role === "OPERASIONAL_DIV" || profile?.role === "SUPER_ADMIN") &&
-                            (po.status === "WAITING_RECEIVED" || po.status === "RECEIVED");
+  // const canConfirmArrival = (profile?.role === "OPERASIONAL_DIV" || profile?.role === "SUPER_ADMIN") &&
+  //                           (po.status === "WAITING_RECEIVED" || po.status === "RECEIVED"); // Removed
 
-  const itemsForArrivalModal: PoItemForArrival[] = poItems.map(item => ({
-    id: item.id,
-    product_name: item.product_name,
-    qty_request: item.qty_request,
-    qty_received: item.qty_received,
-    current_input_qty: 0, // Initial input for the modal
-  }));
+  // const itemsForArrivalModal: PoItemForArrival[] = poItems.map(item => ({ // Removed
+  //   id: item.id,
+  //   product_name: item.product_name,
+  //   qty_request: item.qty_request,
+  //   qty_received: item.qty_received,
+  //   current_input_qty: 0, // Initial input for the modal
+  // }));
 
   return (
     <Card className="glassmorphism border border-electric-violet/30 h-full flex flex-col">
@@ -244,24 +244,7 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
         )}
 
         <div className="flex justify-end mt-6">
-          {canConfirmArrival && (
-            <Dialog open={isConfirmArrivalDialogOpen} onOpenChange={setIsConfirmArrivalDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-neon-cyan text-deep-charcoal hover:bg-neon-cyan/80 neon-glow-hover transition-all duration-300">
-                  Confirm Arrival
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="glassmorphism border border-electric-violet/30 text-foreground animate-in fade-in-50 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95">
-                <ConfirmArrivalModal
-                  poId={po.id}
-                  poNumber={po.po_number}
-                  items={itemsForArrivalModal}
-                  onConfirmSuccess={handleConfirmArrivalSuccess}
-                  onClose={() => setIsConfirmArrivalDialogOpen(false)}
-                />
-              </DialogContent>
-            </Dialog>
-          )}
+          {/* Removed the "Confirm Arrival" button and its dialog trigger */}
         </div>
       </CardContent>
     </Card>
