@@ -6,7 +6,6 @@ import { showSuccess, showError } from "@/utils/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import DashboardLayout from "@/layouts/DashboardLayout";
-import { ProductCard } from "@/components/operasional/products/ProductCard";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import {
@@ -17,7 +16,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { AddProductForm } from "@/components/operasional/products/AddProductForm"; // Import the new form
+import { AddProductForm } from "@/components/operasional/products/AddProductForm";
+import { ProductTable } from "@/components/operasional/products/ProductTable"; // Import ProductTable
+import { columns } from "@/components/operasional/products/product-columns"; // Import columns
 
 interface Product {
   id: string;
@@ -36,7 +37,7 @@ const ProductCatalogPage = () => {
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
-  const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false); // State for dialog
+  const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
 
   const fetchProducts = async () => {
     setIsLoadingProducts(true);
@@ -84,11 +85,7 @@ const ProductCatalogPage = () => {
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
           <Skeleton className="h-10 w-1/2 bg-gray-700" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <Skeleton key={i} className="h-[200px] w-full bg-gray-800" />
-            ))}
-          </div>
+          <Skeleton className="h-[500px] w-full bg-gray-800" />
         </div>
       </DashboardLayout>
     );
@@ -132,17 +129,13 @@ const ProductCatalogPage = () => {
         </Dialog>
       </div>
 
-      <ScrollArea className="h-[calc(100vh-180px)] pr-4"> {/* Adjust height based on header/footer */}
+      <ScrollArea className="h-[calc(100vh-180px)] pr-4">
         {products.length === 0 ? (
           <div className="h-full flex items-center justify-center text-gray-500 border border-dashed border-gray-700 rounded-md p-4 radar-grid-background">
             <p>No products found in the catalog. Initiating scan...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {/* Bento Grid */}
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          <ProductTable columns={columns} data={products} />
         )}
       </ScrollArea>
     </DashboardLayout>
