@@ -102,7 +102,8 @@ const OperasionalSchedulingPage = () => {
   const { data: schedulingRequests, isLoading, error } = useQuery<SchedulingRequest[]>({
     queryKey: ["scheduling_requests"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("scheduling_requests").select("*");
+      const { data, error } = await supabase.from("scheduling_requests").select("*")
+        .order("created_at", { ascending: false }); // Sort by created_at in descending order
       if (error) throw error;
       return data;
     },
@@ -390,7 +391,7 @@ const OperasionalSchedulingPage = () => {
                   <TableCell>{request.customer_name}</TableCell>
                   <TableCell>{request.type}</TableCell>
                   <TableCell>{request.product_category}</TableCell>
-                  <TableCell>{format(new Date(request.requested_date), "PPP")}</TableCell>
+                  <TableCell>{format(new Date(request.created_at), "PPP")}</TableCell> {/* Changed to created_at for consistency with sorting */}
                   <TableCell>{request.technician_name || "N/A"}</TableCell>
                   <TableCell>
                     <Badge variant={getStatusBadgeVariant(request.status)}>{request.status}</Badge>
