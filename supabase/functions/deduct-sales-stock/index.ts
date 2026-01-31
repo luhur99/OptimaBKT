@@ -76,14 +76,12 @@ serve(async (req) => {
       });
     }
 
-    // Fetch invoice items and their associated scheduling request product_category
+    // Fetch invoice items
     const { data: invoiceItems, error: itemsError } = await supabaseAdminClient
       .from('invoice_items')
       .select(`
         product_id,
-        quantity,
-        scheduling_id,
-        scheduling_requests (product_category)
+        quantity
       `)
       .eq('invoice_id', invoice_id);
 
@@ -102,13 +100,8 @@ serve(async (req) => {
     for (const item of invoiceItems) {
       const productId = item.product_id;
       const quantityToDeduct = item.quantity;
-      // Use 'siap_jual' as default if product_category from scheduling_requests is null
-      const fromWarehouseCategory = item.scheduling_requests?.product_category || 'siap_jual';
-
-      if (!fromWarehouseCategory) {
-        // This case should ideally not be hit with the default, but as a safeguard
-        throw new Error(`Product category not found for scheduling request ${item.scheduling_id}. Cannot deduct stock.`);
-      }
+      // ALWAYS deduct from 'siap_jual' warehouse for sales
+      const fromWarehouseCategory = 'siap_jual'; 
 
       // Check available stock
       const { data: inventory, error: inventoryError } = await supabaseAdminClient
@@ -125,7 +118,10 @@ serve(async (req) => {
       const availableQuantity = inventory?.quantity || 0;
 
       if (availableQuantity < quantityToDeduct) {
-        throw new Error(`Insufficient stock for product ${productId} in ${fromWarehouseCategory}. Available: ${availableQuantity}, Requested: ${quantityToDeduct}`);
+        throw new Response(JSON.stringify({ error: `Insufficient stock for product ${productId} in ${fromWarehouseCategory}. Available: ${availableQuantity}, Requested: ${quantityToDeduct}` }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       // Deduct stock
