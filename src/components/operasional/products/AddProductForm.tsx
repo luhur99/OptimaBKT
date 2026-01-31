@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -22,7 +23,6 @@ import {
 } from "@/components/ui/select";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { showSuccess, showError } from "@/utils/toast";
@@ -106,7 +106,7 @@ export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps)
           harga_jual: values.harga_jual,
           safe_stock_limit: values.safe_stock_limit,
           supplier_id: values.supplier_id || null,
-          stok_sekarang: values.initial_stock || 0, // Set initial stock directly
+          // stok_sekarang will be set by the trigger after warehouse_inventories insert
           // notes: values.notes, // Add notes to product if schema supports it, otherwise omit
         })
         .select("id")
