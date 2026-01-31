@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { PurchaseOrder } from "./PurchaseOrderTable";
 import { cn } from "@/lib/utils";
-import { Package, CheckCircle, XCircle, Clock, Truck, Loader2, Undo2 } from "lucide-react"; // Added Undo2 icon for returns
+import { Package, CheckCircle, XCircle, Clock, Truck, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -39,9 +39,9 @@ type PoItem = {
   subtotal: number;
 };
 
-// Type for items in the arrival/return input state
-type PoItemForInput = PoItem & {
-  current_input_qty: number; // Quantity to be received/returned in this session
+// Type for items in the arrival input state
+type PoItemForArrivalInput = PoItem & {
+  current_input_qty: number; // Quantity to be received in this session
 };
 
 const POStatusStepper: React.FC<{ currentStatus: PurchaseOrder['status'] }> = ({ currentStatus }) => {
@@ -109,9 +109,9 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
   const { profile, isLoading: isAuthLoading } = useAuthSession();
   const [poItems, setPoItems] = useState<PoItem[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(true);
-  const [isProcessingAction, setIsProcessingAction] = useState(false); // Unified loading state for actions
-  const [itemsForInput, setItemsForInput] = useState<PoItemForInput[]>([]);
-  const [inputMode, setInputMode] = useState<'none' | 'receive' | 'return'>('none'); // 'none', 'receive', 'return'
+  const [isConfirmingArrival, setIsConfirmingArrival] = useState(false);
+  const [itemsForArrivalInput, setItemsForArrivalInput] = useState<PoItemForArrivalInput[]>([]);
+  const [isInputMode, setIsInputMode] = useState(false); // New state to toggle input mode
 
   const fetchPoItems = useCallback(async () => {
     setIsLoadingItems(true);
@@ -138,8 +138,8 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
         product_name: item.products?.nama_barang || "N/A",
       }));
       setPoItems(formattedItems);
-      // Initialize itemsForInput when items are fetched
-      setItemsForInput(formattedItems.map(item => ({
+      // Initialize itemsForArrivalInput when items are fetched
+      setItemsForArrivalInput(formattedItems.map(item => ({
         ...item,
         current_input_qty: 0, // Default to 0 for new input
       })));
@@ -152,7 +152,7 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
   }, [fetchPoItems]);
 
   const handleInputChange = (itemId: string, value: number) => {
-    setItemsForInput(prev =>
+    setItemsForArrivalInput(prev =>
       prev.map(item =>
         item.id === itemId
           ? { ...item, current_input_qty: value }
@@ -167,9 +167,9 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
       return;
     }
 
-    setIsProcessingAction(true);
+    setIsConfirmingArrival(true);
     try {
-      const itemsToSubmit = itemsForInput
+      const itemsToSubmit = itemsForArrivalInput
         .filter(item => item.current_input_qty > 0)
         .map(item => ({
           po_item_id: item.id,
@@ -178,7 +178,7 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
 
       if (itemsToSubmit.length === 0) {
         showError("Please enter quantities for at least one item to receive.");
-        setIsProcessingAction(false);
+        setIsConfirmingArrival(false);
         return;
       }
 
@@ -211,80 +211,18 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
       }
 
       showSuccess("PO arrival confirmed successfully!");
-      setInputMode('none'); // Exit input mode
+      setIsInputMode(false); // Exit input mode
       fetchPoItems(); // Re-fetch items to update received quantities
       onUpdate(); // Trigger parent to re-fetch POs and update status
     } catch (error: any) {
       showError(error.message || "An unexpected error occurred.");
     } finally {
-      setIsProcessingAction(false);
+      setIsConfirmingArrival(false);
     }
   };
 
-  const handleReturnItems = async () => {
-    if (!profile || (profile.role !== "OPERASIONAL_DIV" && profile.role !== "SUPER_ADMIN")) {
-      showError("You do not have permission to perform this action.");
-      return;
-    }
-
-    setIsProcessingAction(true);
-    try {
-      const itemsToSubmit = itemsForInput
-        .filter(item => item.current_input_qty > 0)
-        .map(item => ({
-          po_item_id: item.id,
-          qty_returned: item.current_input_qty,
-        }));
-
-      if (itemsToSubmit.length === 0) {
-        showError("Please enter quantities for at least one item to return.");
-        setIsProcessingAction(false);
-        return;
-      }
-
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-
-      if (!accessToken) {
-        throw new Error("User not authenticated.");
-      }
-
-      const response = await fetch(
-        `https://hhhzugqimtypijkdxxsm.supabase.co/functions/v1/return-po-items`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            po_id: po.id,
-            items_returned: itemsToSubmit,
-            notes: "Items returned from PO", // Optional notes
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to return PO items.");
-      }
-
-      showSuccess("PO items returned successfully!");
-      setInputMode('none'); // Exit input mode
-      fetchPoItems(); // Re-fetch items to update returned quantities
-      onUpdate(); // Trigger parent to re-fetch POs
-    } catch (error: any) {
-      showError(error.message || "An unexpected error occurred.");
-    } finally {
-      setIsProcessingAction(false);
-    }
-  };
-
-  const canPerformActions = (profile?.role === "OPERASIONAL_DIV" || profile?.role === "SUPER_ADMIN");
-  const canConfirmArrival = canPerformActions && (po.status === "WAITING_RECEIVED" || po.status === "RECEIVED");
-  const canReturnItems = canPerformActions && (po.status === "RECEIVED" || po.status === "CLOSED"); // Can return from received or closed POs
+  const canConfirmArrival = (profile?.role === "OPERASIONAL_DIV" || profile?.role === "SUPER_ADMIN") &&
+                            (po.status === "WAITING_RECEIVED" || po.status === "RECEIVED");
 
   if (isLoadingItems || isAuthLoading) {
     return (
@@ -371,8 +309,7 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
                   <th className="p-2 text-neon-cyan">Requested</th>
                   <th className="p-2 text-neon-cyan">Received</th>
                   <th className="p-2 text-neon-cyan">Returned</th>
-                  {inputMode === 'receive' && <th className="p-2 text-neon-cyan">Qty to Receive</th>}
-                  {inputMode === 'return' && <th className="p-2 text-neon-cyan">Qty to Return</th>}
+                  {isInputMode && <th className="p-2 text-neon-cyan">Qty to Receive</th>}
                   <th className="p-2 text-neon-cyan">Unit Price</th>
                   <th className="p-2 text-neon-cyan">Subtotal</th>
                 </tr>
@@ -384,31 +321,17 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
                     <td className="p-2">{item.qty_request}</td>
                     <td className="p-2">{item.qty_received}</td>
                     <td className="p-2">{item.qty_return}</td>
-                    {inputMode === 'receive' && (
+                    {isInputMode && (
                       <td className="p-2">
                         <Input
                           type="number"
                           min="0"
                           max={item.qty_request - item.qty_received}
-                          value={itemsForInput.find(i => i.id === item.id)?.current_input_qty || 0}
+                          value={itemsForArrivalInput.find(i => i.id === item.id)?.current_input_qty || 0}
                           onChange={(e) => handleInputChange(item.id, parseInt(e.target.value) || 0)}
-                          placeholder="0" {/* Added placeholder */}
+                          placeholder="0"
                           className="w-24 bg-midnight-blue border-gray-700 text-gray-200"
-                          disabled={isProcessingAction || item.qty_received >= item.qty_request}
-                        />
-                      </td>
-                    )}
-                    {inputMode === 'return' && (
-                      <td className="p-2">
-                        <Input
-                          type="number"
-                          min="0"
-                          max={item.qty_received - item.qty_return}
-                          value={itemsForInput.find(i => i.id === item.id)?.current_input_qty || 0}
-                          onChange={(e) => handleInputChange(item.id, parseInt(e.target.value) || 0)}
-                          placeholder="0" {/* Added placeholder */}
-                          className="w-24 bg-midnight-blue border-gray-700 text-gray-200"
-                          disabled={isProcessingAction || item.qty_received <= item.qty_return}
+                          disabled={isConfirmingArrival || item.qty_received >= item.qty_request}
                         />
                       </td>
                     )}
@@ -422,61 +345,32 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
         )}
 
         <div className="flex justify-end mt-6 space-x-2">
-          {inputMode === 'none' && canConfirmArrival && (
+          {canConfirmArrival && !isInputMode && (
             <Button
-              onClick={() => setInputMode('receive')}
+              onClick={() => setIsInputMode(true)}
               className="bg-neon-cyan text-deep-charcoal hover:bg-neon-cyan/80 neon-glow-hover transition-all duration-300"
-              disabled={isLoadingItems || isProcessingAction}
+              disabled={isLoadingItems || isConfirmingArrival}
             >
               <Truck className="mr-2 h-4 w-4" /> Confirm Arrival
             </Button>
           )}
-          {inputMode === 'none' && canReturnItems && (
-            <Button
-              onClick={() => setInputMode('return')}
-              className="bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300"
-              disabled={isLoadingItems || isProcessingAction}
-            >
-              <Undo2 className="mr-2 h-4 w-4" /> Return Items
-            </Button>
-          )}
 
-          {inputMode === 'receive' && (
+          {isInputMode && (
             <>
               <Button
                 variant="outline"
-                onClick={() => setInputMode('none')}
+                onClick={() => setIsInputMode(false)}
                 className="mr-2 bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800"
-                disabled={isProcessingAction}
+                disabled={isConfirmingArrival}
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleConfirmArrival}
                 className="bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300"
-                disabled={isProcessingAction}
+                disabled={isConfirmingArrival}
               >
-                {isProcessingAction ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />} Save Received Quantities
-              </Button>
-            </>
-          )}
-
-          {inputMode === 'return' && (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => setInputMode('none')}
-                className="mr-2 bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800"
-                disabled={isProcessingAction}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleReturnItems}
-                className="bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300"
-                disabled={isProcessingAction}
-              >
-                {isProcessingAction ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Undo2 className="mr-2 h-4 w-4" />} Save Returned Quantities
+                {isConfirmingArrival ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />} Save Received Quantities
               </Button>
             </>
           )}
