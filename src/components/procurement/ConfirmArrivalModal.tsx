@@ -30,13 +30,13 @@ interface ConfirmArrivalModalProps {
   onClose: () => void;
 }
 
-export function ConfirmArrivalModal({
+export const ConfirmArrivalModal: React.FC<ConfirmArrivalModalProps> = ({
   poId,
   poNumber,
   items,
   onConfirmSuccess,
   onClose,
-}: ConfirmArrivalModalProps) {
+}) => {
   const { session } = useAuthSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Initialize receivedQuantities with the current total received for each item
@@ -175,4 +175,4 @@ export function ConfirmArrivalModal({
       </DialogFooter>
     </DialogContent>
   );
-}
+};
