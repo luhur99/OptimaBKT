@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Users, CalendarDays, Package, Receipt, Settings, Box, ShoppingCart, LayoutDashboard, ClipboardList, Menu, ArrowLeft, Truck, FileText } from "lucide-react"; // Import FileText icon for PR
+import { Home, Users, CalendarDays, Package, Receipt, Settings, Box, ShoppingCart, LayoutDashboard, ClipboardList, Menu, ArrowLeft, Truck, FileText, DollarSign } from "lucide-react"; // Import DollarSign for Billing List
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -84,9 +84,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"],
     },
     {
-      name: "Purchase Requests", // New navigation item
+      name: "Purchase Requests",
       href: "/operasional/purchase-requests",
-      icon: FileText, // Using FileText icon
+      icon: FileText,
       roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"],
     },
     {
@@ -117,6 +117,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       name: "Billing Review",
       href: "/operasional/billing-review",
       icon: Receipt,
+      roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "ACCOUNTING"],
+    },
+    {
+      name: "Billing List", // New navigation item
+      href: "/operasional/billing-list",
+      icon: DollarSign, // Using DollarSign icon
       roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "ACCOUNTING"],
     },
   ];
