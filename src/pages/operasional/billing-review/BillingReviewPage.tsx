@@ -49,7 +49,8 @@ type SchedulingRequestQueueItem = {
   technician_name?: string;
   document_url?: string;
   user_id: string;
-  invoice_id: string;
+  invoice_id: string; // Keep this as it's the FK
+  invoice_number?: string; // Add this to display
   progress_status: number; // Added for progress bar
 };
 
@@ -155,7 +156,8 @@ const BillingReviewPage = () => {
         user_id,
         invoice_id,
         status,
-        technician_name
+        technician_name,
+        invoices (invoice_number)
       `)
       .eq("status", "completed")
       .eq("invoice_status", "DRAFT");
@@ -166,7 +168,8 @@ const BillingReviewPage = () => {
     } else {
       const formattedData: SchedulingRequestQueueItem[] = data.map((req: any) => ({
         ...req,
-        technician_name: req.technician_name || null, // technician_name is now directly from req
+        technician_name: req.technician_name || null,
+        invoice_number: req.invoices?.invoice_number || null, // Extract invoice_number
         progress_status: Math.floor(Math.random() * 100) + 1, // Placeholder progress
       }));
       setQueue(formattedData);
@@ -482,6 +485,10 @@ const BillingReviewPage = () => {
                   <div>
                     <p className="text-sm font-medium text-gray-400">SR Number:</p>
                     <p className="text-lg text-neon-cyan">{selectedRequest.sr_number}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-400">Invoice Number:</p>
+                    <p className="text-lg text-neon-cyan">{selectedRequest.invoice_number || "N/A"}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-400">DO Number:</p>
