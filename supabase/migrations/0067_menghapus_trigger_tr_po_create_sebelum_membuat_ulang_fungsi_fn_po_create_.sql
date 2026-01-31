@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS tr_po_create ON public.purchase_requests;
