@@ -38,6 +38,7 @@ const ProcurementPage = () => {
 
   const fetchPurchaseOrders = async () => {
     setIsLoadingPOs(true);
+    console.log("Fetching purchase orders...");
     const { data, error } = await supabase
       .from("purchase_orders")
       .select(`
@@ -55,6 +56,7 @@ const ProcurementPage = () => {
       console.error("Error fetching purchase orders:", error);
       showError("Failed to load purchase orders.");
     } else {
+      console.log("Purchase orders fetched:", data);
       const formattedData: PurchaseOrder[] = data.map((po: any) => ({
         ...po,
         supplier_name: po.suppliers?.name || "N/A",
