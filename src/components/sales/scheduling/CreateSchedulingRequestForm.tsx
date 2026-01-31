@@ -54,7 +54,7 @@ const formSchema = z.object({
   landmark: z.string().optional(),
   requestedDate: z.date({ required_error: "A date for the request is required." }),
   requestedTime: z.string().optional(),
-  type: z.enum(["INSTALLATION", "MAINTENANCE", "SURVEY", "OTHER"], { required_error: "Please select a request type." }),
+  type: z.enum(["INSTALLATION", "SERVICE", "SERVICE_UNBILL", "DELIVERY"], { required_error: "Please select a request type." }),
   productCategory: z.enum(["gps_tracker", "dashcam", "OTHER"]).optional(),
   vehicleDetails: z.string().optional(),
   notes: z.string().optional(),
@@ -390,9 +390,9 @@ export const CreateSchedulingRequestForm = () => {
                     </FormControl>
                     <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
                       <SelectItem value="INSTALLATION">Installation</SelectItem>
-                      <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
-                      <SelectItem value="SURVEY">Survey</SelectItem>
-                      <SelectItem value="OTHER">Other</SelectItem>
+                      <SelectItem value="SERVICE">Service</SelectItem>
+                      <SelectItem value="SERVICE_UNBILL">Service Unbill</SelectItem>
+                      <SelectItem value="DELIVERY">Delivery</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription className="text-gray-500">
