@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { supabase } from "@/integrations/supabase/client";
-import { showSuccess, showError } from "@/utils/toast";
+import { showError } from "@/utils/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import DashboardLayout from "@/layouts/DashboardLayout";
@@ -17,9 +17,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { AddProductForm } from "@/components/operasional/products/AddProductForm";
-import { ProductTable } from "@/components/operasional/products/ProductTable"; // Import ProductTable
-import { columns } from "@/components/operasional/products/product-columns"; // Import columns
+import { ProductTable } from "@/components/operasional/products/ProductTable";
+import { columns } from "@/components/operasional/products/product-columns";
 
+// Re-define Product interface to ensure it matches the select query and table columns
 interface Product {
   id: string;
   kode_barang: string;
@@ -30,11 +31,10 @@ interface Product {
   safe_stock_limit: number;
   stok_sekarang: number;
   updated_at: string;
-  user_id: string; // Added user_id
+  user_id: string; // Ensure this is included as per RLS policy
 }
 
 const ProductCatalogPage = () => {
-  console.log("ProductCatalogPage: Component rendered.");
   const { session, profile, isLoading: isAuthLoading } = useAuthSession();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
@@ -42,56 +42,65 @@ const ProductCatalogPage = () => {
   const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
 
   const fetchProducts = async () => {
-    console.log("ProductCatalogPage: fetchProducts called.");
     setIsLoadingProducts(true);
-    const { data, error } = await supabase
-      .from("products")
-      .select(`
-        id,
-        kode_barang,
-        nama_barang,
-        satuan,
-        harga_beli,
-        harga_jual,
-        safe_stock_limit,
-        stok_sekarang,
-        updated_at,
-        user_id
-      `);
+    console.log("Attempting to fetch products...");
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select(`
+          id,
+          kode_barang,
+          nama_barang,
+          satuan,
+          harga_beli,
+          harga_jual,
+          safe_stock_limit,
+          stok_sekarang,
+          updated_at,
+          user_id
+        `);
 
-    if (error) {
-      console.error("Error fetching products:", error.message, error.details); // Log message and details
-      showError("Failed to load product catalog.");
-    } else {
-      console.log("ProductCatalogPage: Products fetched successfully:", data);
-      setProducts(data || []);
+      if (error) {
+        // Log all available error details for better debugging
+        console.error("Error fetching products:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        });
+        showError(`Failed to load product catalog: ${error.message}`);
+      } else {
+        console.log("Products fetched successfully:", data);
+        setProducts(data || []);
+      }
+    } catch (err: any) {
+      console.error("Unexpected error during product fetch:", err.message);
+      showError(`An unexpected error occurred: ${err.message}`);
+    } finally {
+      setIsLoadingProducts(false);
+      console.log("Finished product fetch attempt.");
     }
-    setIsLoadingProducts(false);
-    console.log("ProductCatalogPage: setIsLoadingProducts(false)");
   };
 
   useEffect(() => {
-    console.log("ProductCatalogPage: useEffect triggered. isAuthLoading:", isAuthLoading, "session:", !!session, "profile:", profile);
     if (!isAuthLoading) {
       if (!session) {
-        console.log("ProductCatalogPage: Not authenticated, redirecting to /");
+        console.log("Not authenticated, redirecting to /");
         navigate("/");
         return;
       }
-      // Only SUPER_ADMIN and OPERASIONAL_DIV can access this page
       if (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN") {
-        console.log("ProductCatalogPage: Unauthorized role, redirecting to /dashboard. Role:", profile?.role);
+        console.log("Unauthorized role, redirecting to /dashboard. Role:", profile?.role);
         navigate("/dashboard");
         showError("You do not have permission to access this page.");
         return;
       }
-      console.log("ProductCatalogPage: User authorized, fetching products.");
+      console.log("User authorized, initiating product fetch.");
       fetchProducts();
     }
   }, [isAuthLoading, session, profile, navigate]);
 
   if (isAuthLoading || isLoadingProducts) {
-    console.log("ProductCatalogPage: Rendering loading state.");
     return (
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
@@ -103,7 +112,6 @@ const ProductCatalogPage = () => {
   }
 
   if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN")) {
-    console.log("ProductCatalogPage: Rendering unauthorized state.");
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">
@@ -113,7 +121,6 @@ const ProductCatalogPage = () => {
     );
   }
 
-  console.log("ProductCatalogPage: Rendering main content. Products count:", products.length);
   return (
     <DashboardLayout>
       <div className="flex justify-between items-center mb-6">
@@ -133,8 +140,8 @@ const ProductCatalogPage = () => {
             </DialogHeader>
             <AddProductForm
               onProductAdded={() => {
-                fetchProducts(); // Re-fetch products to update the list
-                setIsAddProductDialogOpen(false); // Close the dialog
+                fetchProducts();
+                setIsAddProductDialogOpen(false);
               }}
               onClose={() => setIsAddProductDialogOpen(false)}
             />
