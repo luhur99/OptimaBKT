@@ -249,12 +249,12 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
           <div>
             <h2 className="text-lg font-semibold text-neon-cyan mb-3">Delivery Order Info</h2>
             <div className="space-y-2">
-              <p className="flex items-center text-sm"><Tag className="mr-2 h-4 w-4 text-blue-400" /> DO Number: <span className="ml-2 font-medium">{order.do_number}</span></p>
-              <p className="flex items-center text-sm"><User className="mr-2 h-4 w-4 text-yellow-400" /> Created By: <span className="ml-2 font-medium">{order.user_full_name}</span></p>
-              <p className="flex items-center text-sm"><Clock className="mr-2 h-4 w-4 text-purple-400" /> Delivery Date: <span className="ml-2 font-medium">{format(new Date(order.delivery_date), "PPP")}</span></p>
-              <p className="flex items-center text-sm"><Clock className="mr-2 h-4 w-4 text-teal-400" /> Delivery Time: <span className="ml-2 font-medium">{order.delivery_time || 'N/A'}</span></p>
-              <p className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Status: <Badge className={getStatusColor(order.status)}>{order.status.replace(/_/g, ' ').toUpperCase()}</Badge></p>
-              {order.notes && <p className="flex items-start text-sm"><FileText className="mr-2 h-4 w-4 text-orange-400 mt-1" /> Notes: <span className="ml-2 font-medium">{order.notes}</span></p>}
+              <div className="flex items-center text-sm"><Tag className="mr-2 h-4 w-4 text-blue-400" /> DO Number: <span className="ml-2 font-medium">{order.do_number}</span></div>
+              <div className="flex items-center text-sm"><User className="mr-2 h-4 w-4 text-yellow-400" /> Created By: <span className="ml-2 font-medium">{order.user_full_name}</span></div>
+              <div className="flex items-center text-sm"><Clock className="mr-2 h-4 w-4 text-purple-400" /> Delivery Date: <span className="ml-2 font-medium">{format(new Date(order.delivery_date), "PPP")}</span></div>
+              <div className="flex items-center text-sm"><Clock className="mr-2 h-4 w-4 text-teal-400" /> Delivery Time: <span className="ml-2 font-medium">{order.delivery_time || 'N/A'}</span></div>
+              <div className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Status: <Badge className={getStatusColor(order.status)}>{order.status.replace(/_/g, ' ').toUpperCase()}</Badge></div>
+              {order.notes && <div className="flex items-start text-sm"><FileText className="mr-2 h-4 w-4 text-orange-400 mt-1" /> Notes: <span className="ml-2 font-medium">{order.notes}</span></div>}
             </div>
           </div>
 
@@ -265,23 +265,23 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
             <div>
               <h2 className="text-lg font-semibold text-neon-cyan mb-3">Associated Scheduling Request</h2>
               <div className="space-y-2">
-                <p className="flex items-center text-sm"><Tag className="mr-2 h-4 w-4 text-blue-400" /> SR Number: <span className="ml-2 font-medium">{schedulingRequest.sr_number}</span></p>
-                <p className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-blue-400" /> Type: <span className="ml-2 font-medium">{schedulingRequest.type}</span></p>
-                <p className="flex items-center text-sm"><User className="mr-2 h-4 w-4 text-yellow-400" /> Customer: <span className="ml-2 font-medium">{schedulingRequest.customer_name}</span></p>
-                {schedulingRequest.company_name && <p className="flex items-center text-sm"><Building className="mr-2 h-4 w-4 text-indigo-400" /> Company: <span className="ml-2 font-medium">{schedulingRequest.company_name}</span></p>}
-                <p className="flex items-start text-sm"><MapPin className="mr-2 h-4 w-4 text-red-400 mt-1" /> Address: <span className="ml-2 font-medium">{schedulingRequest.full_address}</span></p>
-                {schedulingRequest.landmark && <p className="flex items-start text-sm"><MapPin className="mr-2 h-4 w-4 text-red-400 mt-1" /> Landmark: <span className="ml-2 font-medium">{schedulingRequest.landmark}</span></p>}
-                <p className="flex items-center text-sm"><Phone className="mr-2 h-4 w-4 text-green-400" /> Contact Phone: <span className="ml-2 font-medium">{schedulingRequest.phone_number || 'N/A'}</span></p>
-                <p className="flex items-center text-sm"><User className="mr-2 h-4 w-4 text-cyan-400" /> Technician: <span className="ml-2 font-medium">{schedulingRequest.technician_name || 'N/A'} {schedulingRequest.technician_type === 'EXTERNAL' && '(External)'}</span></p>
-                {schedulingRequest.product_category && <p className="flex items-center text-sm"><Tag className="mr-2 h-4 w-4 text-pink-400" /> Product Category: <span className="ml-2 font-medium">{schedulingRequest.product_category}</span></p>}
-                {schedulingRequest.vehicle_details && <p className="flex items-center text-sm"><Truck className="mr-2 h-4 w-4 text-orange-400" /> Vehicle: <span className="ml-2 font-medium">{schedulingRequest.vehicle_details}</span></p>}
+                <div className="flex items-center text-sm"><Tag className="mr-2 h-4 w-4 text-blue-400" /> SR Number: <span className="ml-2 font-medium">{schedulingRequest.sr_number}</span></div>
+                <div className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-blue-400" /> Type: <span className="ml-2 font-medium">{schedulingRequest.type}</span></div>
+                <div className="flex items-center text-sm"><User className="mr-2 h-4 w-4 text-yellow-400" /> Customer: <span className="ml-2 font-medium">{schedulingRequest.customer_name}</span></div>
+                {schedulingRequest.company_name && <div className="flex items-center text-sm"><Building className="mr-2 h-4 w-4 text-indigo-400" /> Company: <span className="ml-2 font-medium">{schedulingRequest.company_name}</span></div>}
+                <div className="flex items-start text-sm"><MapPin className="mr-2 h-4 w-4 text-red-400 mt-1" /> Address: <span className="ml-2 font-medium">{schedulingRequest.full_address}</span></div>
+                {schedulingRequest.landmark && <div className="flex items-start text-sm"><MapPin className="mr-2 h-4 w-4 text-red-400 mt-1" /> Landmark: <span className="ml-2 font-medium">{schedulingRequest.landmark}</span></div>}
+                <div className="flex items-center text-sm"><Phone className="mr-2 h-4 w-4 text-green-400" /> Contact Phone: <span className="ml-2 font-medium">{schedulingRequest.phone_number || 'N/A'}</span></div>
+                <div className="flex items-center text-sm"><User className="mr-2 h-4 w-4 text-cyan-400" /> Technician: <span className="ml-2 font-medium">{schedulingRequest.technician_name || 'N/A'} {schedulingRequest.technician_type === 'EXTERNAL' && '(External)'}</span></div>
+                {schedulingRequest.product_category && <div className="flex items-center text-sm"><Tag className="mr-2 h-4 w-4 text-pink-400" /> Product Category: <span className="ml-2 font-medium">{schedulingRequest.product_category}</span></div>}
+                {schedulingRequest.vehicle_details && <div className="flex items-center text-sm"><Truck className="mr-2 h-4 w-4 text-orange-400" /> Vehicle: <span className="ml-2 font-medium">{schedulingRequest.vehicle_details}</span></div>}
                 {schedulingRequest.document_url && (
-                  <p className="flex items-center text-sm">
+                  <div className="flex items-center text-sm">
                     <FileText className="mr-2 h-4 w-4 text-emerald-400" /> Document:
                     <a href={schedulingRequest.document_url} target="_blank" rel="noopener noreferrer" className="ml-2 font-medium text-blue-400 hover:underline">
                       View Document
                     </a>
-                  </p>
+                  </div>
                 )}
               </div>
             </div>
