@@ -107,6 +107,7 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
   const [poItems, setPoItems] = useState<PoItem[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(true);
   const [isConfirmArrivalDialogOpen, setIsConfirmArrivalDialogOpen] = useState(false); // State for the new dialog
+  const [hasItemsToReceive, setHasItemsToReceive] = useState(false); // New state to track if there are items to receive
 
   const fetchPoItems = useCallback(async () => {
     setIsLoadingItems(true);
@@ -134,7 +135,8 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
         product_name: item.products?.nama_barang || "N/A",
       }));
       setPoItems(formattedItems);
-      console.log("PurchaseOrderDetail: poItems state updated to:", formattedItems); // Added log
+      // Check if any item still has a balance > 0
+      setHasItemsToReceive(formattedItems.some(item => item.qty_balance > 0));
     }
     setIsLoadingItems(false);
   }, [po.id]);
@@ -149,8 +151,10 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
     setIsConfirmArrivalDialogOpen(false); // Close the dialog
   };
 
+  // The button should be enabled if the user has the correct role AND there are items with qty_balance > 0
   const canConfirmArrival = (profile?.role === "OPERASIONAL_DIV" || profile?.role === "SUPER_ADMIN") &&
-                            (po.status === "WAITING_RECEIVED" || po.status === "RECEIVED");
+                            (po.status === "WAITING_RECEIVED" || po.status === "RECEIVED") &&
+                            hasItemsToReceive;
 
   if (isLoadingItems || isAuthLoading) {
     return (
