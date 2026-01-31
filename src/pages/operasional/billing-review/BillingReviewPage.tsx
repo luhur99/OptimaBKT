@@ -244,9 +244,18 @@ const BillingReviewPage = () => {
     setInvoiceItems((prev) =>
       prev.map((item) => {
         if (item.tempId === tempId) {
-          const updatedItem = { ...item, [field]: value };
+          let updatedItem = { ...item, [field]: value };
+
           if (field === "quantity" || field === "unit_price") {
+            // If quantity or unit_price changes, recalculate subtotal
             updatedItem.subtotal = updatedItem.quantity * updatedItem.unit_price;
+          } else if (field === "subtotal") {
+            // If subtotal changes, derive unit_price if quantity is not zero
+            if (updatedItem.quantity > 0) {
+              updatedItem.unit_price = updatedItem.subtotal / updatedItem.quantity;
+            } else {
+              updatedItem.unit_price = 0; // Or handle as appropriate if quantity is zero
+            }
           }
           return updatedItem;
         }
@@ -266,10 +275,10 @@ const BillingReviewPage = () => {
               product_id: product.id,
               item_name: product.nama_barang,
               item_code: product.kode_barang,
-              unit_price: product.harga_jual,
+              unit_price: product.harga_jual, // Pre-fill unit price
               unit_type: product.satuan,
             };
-            updatedItem.subtotal = updatedItem.quantity * updatedItem.unit_price;
+            updatedItem.subtotal = updatedItem.quantity * updatedItem.unit_price; // Initial subtotal calculation
             return updatedItem;
           }
           return item;
@@ -631,8 +640,20 @@ const BillingReviewPage = () => {
                             className="glassmorphism border border-gray-700 text-gray-300"
                           />
                         </TableCell>
-                        <TableCell className="font-bold text-neon-cyan">
-                          Rp {item.subtotal.toLocaleString("id-ID")}
+                        <TableCell>
+                          <Input
+                            type="number"
+                            value={item.subtotal}
+                            onChange={(e) =>
+                              handleInvoiceItemChange(
+                                item.tempId,
+                                "subtotal",
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            step="0.01"
+                            className="glassmorphism border border-gray-700 text-gray-300 font-bold text-neon-cyan"
+                          />
                         </TableCell>
                         <TableCell>
                           <Button
