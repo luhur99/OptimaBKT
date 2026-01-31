@@ -19,6 +19,7 @@ interface InvoiceItem {
   unit_price: number;
   subtotal: number;
   unit_type?: string;
+  invoice_number?: string; // Added invoice_number
 }
 
 interface BillingListDetailProps {
@@ -249,6 +250,7 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
                       <th className="p-2 text-neon-cyan">Qty</th>
                       <th className="p-2 text-neon-cyan">Unit Price</th>
                       <th className="p-2 text-neon-cyan">Subtotal</th>
+                      <th className="p-2 text-neon-cyan">Invoice Number</th> {/* New column header */}
                     </tr>
                   </thead>
                   <tbody>
@@ -258,6 +260,7 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
                         <td className="p-2">{item.quantity} {item.unit_type}</td>
                         <td className="p-2">Rp {item.unit_price.toLocaleString("id-ID")}</td>
                         <td className="p-2">Rp {item.subtotal.toLocaleString("id-ID")}</td>
+                        <td className="p-2">{item.invoice_number || 'N/A'}</td> {/* Display invoice_number */}
                       </tr>
                     ))}
                   </tbody>
