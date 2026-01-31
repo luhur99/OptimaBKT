@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.update_sr_on_do_completion() CASCADE;
