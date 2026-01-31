@@ -11,8 +11,9 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { PurchaseRequestTable } from "@/components/procurement/PurchaseRequestTable";
-import { createPurchaseRequestColumns, PurchaseRequest } from "@/components/procurement/purchase-request-columns"; // Corrected import path
-import PurchaseRequestDetail from "@/components/procurement/PurchaseRequestDetail"; // Import new detail component
+import { createPurchaseRequestColumns, PurchaseRequest } from "@/components/procurement/purchase-request-columns";
+import PurchaseRequestDetail from "@/components/procurement/PurchaseRequestDetail";
+import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton component
 
 const PurchaseRequestPage = () => {
   const { session, profile, isLoading: isAuthLoading } = useAuthSession();
