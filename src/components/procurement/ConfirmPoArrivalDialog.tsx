@@ -53,7 +53,7 @@ export const ConfirmPoArrivalDialog: React.FC<ConfirmPoArrivalDialogProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      // Reset input quantities when dialog opens
+      console.log("ConfirmPoArrivalDialog: Initializing itemsForArrivalInput with initialPoItems:", initialPoItems); // Added log
       setItemsForArrivalInput(
         initialPoItems.map((item) => ({
           ...item,

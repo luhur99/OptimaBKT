@@ -132,6 +132,7 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
         product_name: item.products?.nama_barang || "N/A",
       }));
       setPoItems(formattedItems);
+      console.log("PurchaseOrderDetail: poItems state updated to:", formattedItems); // Added log
     }
     setIsLoadingItems(false);
   }, [po.id]);
