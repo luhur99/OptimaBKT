@@ -144,7 +144,8 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
 
       const total_price = values.quantity * values.unit_price;
 
-      const { data, error } = await supabase
+      // 1. Insert into purchase_requests table
+      const { data: newPR, error: prError } = await supabase
         .from("purchase_requests")
         .insert({
           user_id: session?.user?.id,
@@ -161,14 +162,32 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
           satuan: product.satuan,
           status: "pending", // Default status
         })
-        .select("pr_number")
+        .select("id, pr_number") // Select id and pr_number
         .single();
 
-      if (error) {
-        throw new Error(error.message);
+      if (prError) {
+        throw new Error(prError.message);
       }
 
-      showSuccess(`Purchase Request ${data.pr_number} created successfully!`);
+      // 2. Insert into po_items table, linking to the new purchase_request
+      const { error: poItemError } = await supabase
+        .from("po_items")
+        .insert({
+          pr_id: newPR.id, // Link to the newly created purchase_request
+          product_id: values.product_id,
+          qty_request: values.quantity,
+          harga_beli_satuan: values.unit_price,
+          subtotal: total_price,
+          // po_id will be set later by fn_po_create trigger
+        });
+
+      if (poItemError) {
+        // If po_item creation fails, attempt to rollback purchase_request
+        await supabase.from("purchase_requests").delete().eq("id", newPR.id);
+        throw new Error(`Failed to create PO item: ${poItemError.message}`);
+      }
+
+      showSuccess(`Purchase Request ${newPR.pr_number} created successfully!`);
       form.reset();
       onPRCreated();
     } catch (error: any) {
