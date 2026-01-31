@@ -66,7 +66,7 @@ serve(async (req) => {
       .single();
 
     if (invoiceError) {
-      throw new Error(invoiceError.message);
+      throw new Error(`Failed to fetch invoice: ${invoiceError.message}`);
     }
 
     if (invoice?.stock_deducted) {
@@ -86,7 +86,7 @@ serve(async (req) => {
       .eq('invoice_id', invoice_id);
 
     if (itemsError) {
-      throw new Error(itemsError.message);
+      throw new Error(`Failed to fetch invoice items: ${itemsError.message}`);
     }
 
     if (!invoiceItems || invoiceItems.length === 0) {
@@ -108,11 +108,11 @@ serve(async (req) => {
         .from('warehouse_inventories')
         .select('quantity')
         .eq('product_id', productId)
-        .eq('warehouse_category', fromWarehouseCategory)
+        .eq('warehouse_category', fromWarehouseCategory as 'siap_jual') // Explicitly cast
         .single();
 
       if (inventoryError && inventoryError.code !== 'PGRST116') { // PGRST116 means "no rows found"
-        throw new Error(inventoryError.message);
+        throw new Error(`Failed to retrieve inventory for product ${productId}: ${inventoryError.message}`);
       }
 
       const availableQuantity = inventory?.quantity || 0;
@@ -129,10 +129,10 @@ serve(async (req) => {
         .from('warehouse_inventories')
         .update({ quantity: availableQuantity - quantityToDeduct, updated_at: new Date().toISOString() })
         .eq('product_id', productId)
-        .eq('warehouse_category', fromWarehouseCategory);
+        .eq('warehouse_category', fromWarehouseCategory as 'siap_jual'); // Explicitly cast
 
       if (deductError) {
-        throw new Error(deductError.message);
+        throw new Error(`Failed to deduct stock from inventory for product ${productId}: ${deductError.message}`);
       }
 
       // Record in stock_ledger
@@ -154,8 +154,8 @@ serve(async (req) => {
           .from('warehouse_inventories')
           .update({ quantity: availableQuantity, updated_at: new Date().toISOString() })
           .eq('product_id', productId)
-          .eq('warehouse_category', fromWarehouseCategory);
-        throw new Error(ledgerError.message);
+          .eq('warehouse_category', fromWarehouseCategory as 'siap_jual'); // Explicitly cast
+        throw new Error(`Failed to record stock ledger entry for product ${productId}: ${ledgerError.message}`);
       }
     }
 
@@ -166,7 +166,7 @@ serve(async (req) => {
       .eq('id', invoice_id);
 
     if (updateInvoiceFlagError) {
-      throw new Error(updateInvoiceFlagError.message);
+      throw new Error(`Failed to mark invoice as stock deducted: ${updateInvoiceFlagError.message}`);
     }
 
     return new Response(JSON.stringify({ message: 'Stock deducted successfully for invoice.' }), {
@@ -176,7 +176,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error deducting sales stock:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'An unknown error occurred during stock deduction.' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
