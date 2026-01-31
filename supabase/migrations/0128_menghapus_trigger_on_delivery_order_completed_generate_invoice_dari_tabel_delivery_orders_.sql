@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS on_delivery_order_completed_generate_invoice ON public.delivery_orders;

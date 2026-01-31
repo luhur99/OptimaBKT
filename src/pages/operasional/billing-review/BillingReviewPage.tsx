@@ -40,6 +40,8 @@ import { Progress } from "@/components/ui/progress"; // Assuming shadcn Progress
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 // Type definitions
+type InvoiceDocumentStatus = 'DRAFT' | 'PENDING' | 'PAID' | 'CANCELLED';
+
 type SchedulingRequestQueueItem = {
   id: string;
   sr_number: string;
@@ -51,6 +53,7 @@ type SchedulingRequestQueueItem = {
   user_id: string;
   invoice_id: string; // Keep this as it's the FK
   invoice_number?: string; // Add this to display
+  invoice_status: InvoiceDocumentStatus; // Use new enum type
   progress_status: number; // Added for progress bar
 };
 
@@ -157,10 +160,11 @@ const BillingReviewPage = () => {
         invoice_id,
         status,
         technician_name,
+        invoice_status,
         invoices (invoice_number)
       `)
       .eq("status", "completed")
-      .eq("invoice_status", "DRAFT");
+      .eq("invoice_status", "DRAFT"); // Filter by new DRAFT enum
 
     if (error) {
       console.error("Error fetching billing review queue:", error);
@@ -170,6 +174,7 @@ const BillingReviewPage = () => {
         ...req,
         technician_name: req.technician_name || null,
         invoice_number: req.invoices?.invoice_number || null, // Extract invoice_number
+        invoice_status: req.invoice_status as InvoiceDocumentStatus, // Cast to new enum type
         progress_status: Math.floor(Math.random() * 100) + 1, // Placeholder progress
       }));
       setQueue(formattedData);
@@ -316,7 +321,8 @@ const BillingReviewPage = () => {
         .update({
           invoice_date: format(invoiceDate, "yyyy-MM-dd"),
           total_amount: grandTotal,
-          invoice_status: "issued", // Mark as issued
+          invoice_status: "PENDING", // Set to PENDING after finalization
+          payment_status: "pending", // Payment status is pending by default
         })
         .eq("id", selectedRequest.invoice_id)
         .select("invoice_number")
@@ -350,11 +356,11 @@ const BillingReviewPage = () => {
         throw new Error(invoiceItemsError.message || "Failed to insert invoice items.");
       }
 
-      // 3. Update scheduling_requests invoice_status to FINAL
+      // 3. Update scheduling_requests invoice_status to PENDING
       const { error: updateRequestError } = await supabase
         .from("scheduling_requests")
         .update({
-          invoice_status: "FINAL",
+          invoice_status: "PENDING", // Update scheduling_requests.invoice_status to PENDING
         })
         .eq("id", selectedRequest.id);
 

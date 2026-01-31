@@ -1,0 +1,4 @@
+CREATE TRIGGER on_delivery_order_completed_generate_invoice
+AFTER UPDATE ON public.delivery_orders
+FOR EACH ROW
+EXECUTE FUNCTION public.generate_invoice_on_completion();
