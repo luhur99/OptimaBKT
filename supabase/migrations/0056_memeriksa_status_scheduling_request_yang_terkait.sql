@@ -1,0 +1,1 @@
+SELECT id, sr_number, status, invoice_id, invoice_status, updated_at FROM public.scheduling_requests WHERE id = 'f9ebbdd7-6eb8-4835-9c79-93d943a65f09';
