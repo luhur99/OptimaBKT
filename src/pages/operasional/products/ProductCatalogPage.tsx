@@ -33,6 +33,7 @@ interface Product {
 }
 
 const ProductCatalogPage = () => {
+  console.log("ProductCatalogPage: Component rendered.");
   const { session, profile, isLoading: isAuthLoading } = useAuthSession();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
@@ -40,6 +41,7 @@ const ProductCatalogPage = () => {
   const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
 
   const fetchProducts = async () => {
+    console.log("ProductCatalogPage: fetchProducts called.");
     setIsLoadingProducts(true);
     const { data, error } = await supabase
       .from("products")
@@ -59,28 +61,35 @@ const ProductCatalogPage = () => {
       console.error("Error fetching products:", error);
       showError("Failed to load product catalog.");
     } else {
+      console.log("ProductCatalogPage: Products fetched successfully:", data);
       setProducts(data || []);
     }
     setIsLoadingProducts(false);
+    console.log("ProductCatalogPage: setIsLoadingProducts(false)");
   };
 
   useEffect(() => {
+    console.log("ProductCatalogPage: useEffect triggered. isAuthLoading:", isAuthLoading, "session:", !!session, "profile:", profile);
     if (!isAuthLoading) {
       if (!session) {
+        console.log("ProductCatalogPage: Not authenticated, redirecting to /");
         navigate("/");
         return;
       }
       // Only SUPER_ADMIN and OPERASIONAL_DIV can access this page
       if (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN") {
+        console.log("ProductCatalogPage: Unauthorized role, redirecting to /dashboard. Role:", profile?.role);
         navigate("/dashboard");
         showError("You do not have permission to access this page.");
         return;
       }
+      console.log("ProductCatalogPage: User authorized, fetching products.");
       fetchProducts();
     }
   }, [isAuthLoading, session, profile, navigate]);
 
   if (isAuthLoading || isLoadingProducts) {
+    console.log("ProductCatalogPage: Rendering loading state.");
     return (
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
@@ -92,6 +101,7 @@ const ProductCatalogPage = () => {
   }
 
   if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN")) {
+    console.log("ProductCatalogPage: Rendering unauthorized state.");
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">
@@ -101,6 +111,7 @@ const ProductCatalogPage = () => {
     );
   }
 
+  console.log("ProductCatalogPage: Rendering main content. Products count:", products.length);
   return (
     <DashboardLayout>
       <div className="flex justify-between items-center mb-6">
