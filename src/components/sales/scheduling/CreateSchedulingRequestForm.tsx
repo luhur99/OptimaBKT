@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
@@ -28,8 +28,24 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+
+interface Customer {
+  id: string;
+  customer_name: string;
+  company_name?: string;
+  address?: string;
+  phone_number?: string;
+}
+
+interface Technician {
+  id: string;
+  name: string;
+  type: 'internal' | 'external';
+}
 
 const formSchema = z.object({
+  customer_id: z.string().optional(), // New field for selected customer ID
   customerName: z.string().min(2, { message: "Customer name must be at least 2 characters." }),
   companyName: z.string().optional(),
   phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 characters." }),
@@ -39,7 +55,6 @@ const formSchema = z.object({
   requestedDate: z.date({ required_error: "A date for the request is required." }),
   requestedTime: z.string().optional(),
   type: z.enum(["INSTALLATION", "MAINTENANCE", "SURVEY", "OTHER"], { required_error: "Please select a request type." }),
-  // Updated productCategory enum values to lowercase with underscore
   productCategory: z.enum(["gps_tracker", "dashcam", "OTHER"]).optional(),
   vehicleDetails: z.string().optional(),
   notes: z.string().optional(),
@@ -52,9 +67,12 @@ const formSchema = z.object({
 
 export const CreateSchedulingRequestForm = () => {
   const [activeTab, setActiveTab] = useState("customer-contact");
+  const [openCustomerCombobox, setOpenCustomerCombobox] = useState(false);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      customer_id: "",
       customerName: "",
       companyName: "",
       phoneNumber: "",
@@ -63,7 +81,7 @@ export const CreateSchedulingRequestForm = () => {
       landmark: "",
       requestedTime: "",
       type: "INSTALLATION",
-      productCategory: "gps_tracker", // Default to gps_tracker
+      productCategory: "gps_tracker",
       vehicleDetails: "",
       notes: "",
       paymentMethod: "",
@@ -72,7 +90,16 @@ export const CreateSchedulingRequestForm = () => {
     },
   });
 
-  const { data: technicians, isLoading: isLoadingTechnicians } = useQuery({
+  const { data: customers, isLoading: isLoadingCustomers } = useQuery<Customer[]>({
+    queryKey: ["customers"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("customers").select("id, customer_name, company_name, address, phone_number");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: technicians, isLoading: isLoadingTechnicians } = useQuery<Technician[]>({
     queryKey: ["technicians"],
     queryFn: async () => {
       const { data, error } = await supabase.from("technicians").select("id, name, type");
@@ -81,8 +108,30 @@ export const CreateSchedulingRequestForm = () => {
     },
   });
 
+  const selectedCustomerId = form.watch("customer_id");
+
+  useEffect(() => {
+    if (selectedCustomerId) {
+      const customer = customers?.find(c => c.id === selectedCustomerId);
+      if (customer) {
+        form.setValue("customerName", customer.customer_name);
+        form.setValue("companyName", customer.company_name || "");
+        form.setValue("phoneNumber", customer.phone_number || "");
+        form.setValue("fullAddress", customer.address || "");
+        // contactPerson and landmark are not in customers table, so they remain editable or default
+      }
+    } else {
+      // If no customer is selected, allow manual input by clearing values
+      form.setValue("customerName", "");
+      form.setValue("companyName", "");
+      form.setValue("phoneNumber", "");
+      form.setValue("fullAddress", "");
+    }
+  }, [selectedCustomerId, customers, form]);
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     const payload = {
+      customer_id: values.customer_id || null, // Include customer_id if selected
       customer_name: values.customerName,
       company_name: values.companyName,
       phone_number: values.phoneNumber,
@@ -132,12 +181,71 @@ export const CreateSchedulingRequestForm = () => {
           <TabsContent value="customer-contact" className="space-y-4">
             <FormField
               control={form.control}
+              name="customer_id"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel className="text-gray-300">Select Existing Customer (Optional)</FormLabel>
+                  <Popover open={openCustomerCombobox} onOpenChange={setOpenCustomerCombobox}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={cn(
+                            "w-full justify-between glassmorphism border border-gray-700 text-gray-300 hover:bg-gray-800",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value
+                            ? customers?.find((customer) => customer.id === field.value)?.customer_name
+                            : "Select customer or enter new details"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0 glassmorphism border border-gray-700">
+                      <Command>
+                        <CommandInput placeholder="Search customer..." className="text-gray-300" />
+                        <CommandList>
+                          <CommandEmpty>No customer found.</CommandEmpty>
+                          <CommandGroup>
+                            {customers?.map((customer) => (
+                              <CommandItem
+                                value={customer.customer_name}
+                                key={customer.id}
+                                onSelect={() => {
+                                  form.setValue("customer_id", customer.id);
+                                  setOpenCustomerCombobox(false);
+                                }}
+                                className="text-gray-300 hover:bg-gray-800/50"
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    customer.id === field.value ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {customer.customer_name} ({customer.company_name || 'Individual'})
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="customerName"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-gray-300">Customer Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Customer Name" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
+                    <Input placeholder="Customer Name" {...field} className="bg-gray-800 border-gray-700 text-gray-300" disabled={!!selectedCustomerId} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -150,7 +258,7 @@ export const CreateSchedulingRequestForm = () => {
                 <FormItem>
                   <FormLabel className="text-gray-300">Company Name (Optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Company Name" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
+                    <Input placeholder="Company Name" {...field} className="bg-gray-800 border-gray-700 text-gray-300" disabled={!!selectedCustomerId} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -163,7 +271,7 @@ export const CreateSchedulingRequestForm = () => {
                 <FormItem>
                   <FormLabel className="text-gray-300">Phone Number</FormLabel>
                   <FormControl>
-                    <Input placeholder="Phone Number" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
+                    <Input placeholder="Phone Number" {...field} className="bg-gray-800 border-gray-700 text-gray-300" disabled={!!selectedCustomerId} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -189,7 +297,7 @@ export const CreateSchedulingRequestForm = () => {
                 <FormItem>
                   <FormLabel className="text-gray-300">Full Address</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Full Address" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
+                    <Textarea placeholder="Full Address" {...field} className="bg-gray-800 border-gray-700 text-gray-300" disabled={!!selectedCustomerId} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
