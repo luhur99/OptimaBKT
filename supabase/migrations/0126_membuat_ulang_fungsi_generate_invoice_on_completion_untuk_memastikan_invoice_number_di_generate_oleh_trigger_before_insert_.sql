@@ -1,0 +1,74 @@
+CREATE OR REPLACE FUNCTION public.generate_invoice_on_completion()
+RETURNS TRIGGER
+LANGUAGE PLPGSQL
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+    v_invoice_id UUID;
+    v_existing_invoice_status public.invoice_document_status;
+    v_scheduling_request_id UUID;
+    v_scheduling_request_user_id UUID;
+    v_scheduling_request_customer_name TEXT;
+    v_scheduling_request_do_number TEXT;
+BEGIN
+    -- Hanya lanjutkan jika status delivery_order berubah menjadi 'completed'
+    IF NEW.status = 'completed'::public.delivery_order_status AND OLD.status IS DISTINCT FROM 'completed'::public.delivery_order_status THEN
+        -- Dapatkan detail scheduling_request yang terkait
+        SELECT id, user_id, customer_name, do_number
+        INTO v_scheduling_request_id, v_scheduling_request_user_id, v_scheduling_request_customer_name, v_scheduling_request_do_number
+        FROM public.scheduling_requests
+        WHERE id = NEW.request_id;
+
+        IF v_scheduling_request_id IS NULL THEN
+            RAISE WARNING 'Scheduling request with ID % not found for Delivery Order %', NEW.request_id, NEW.do_number;
+            RETURN NEW;
+        END IF;
+
+        -- 1. Coba cari invoice yang sudah ada dengan do_number yang sama
+        SELECT id, invoice_status INTO v_invoice_id, v_existing_invoice_status
+        FROM public.invoices
+        WHERE do_number = NEW.do_number;
+
+        IF v_invoice_id IS NOT NULL THEN
+            -- Jika invoice sudah ada, gunakan ID-nya dan pastikan statusnya DRAFT atau PENDING
+            -- Update scheduling_requests dengan invoice_id (UUID) dan invoice_status yang sudah ada
+            UPDATE public.scheduling_requests
+            SET invoice_id = v_invoice_id,
+                invoice_status = v_existing_invoice_status
+            WHERE id = v_scheduling_request_id;
+        ELSE
+            -- Jika invoice belum ada, buat entri baru di tabel invoices
+            INSERT INTO public.invoices (
+                user_id,
+                invoice_date,
+                customer_name,
+                total_amount,
+                payment_status,
+                invoice_status,
+                type,
+                do_number,
+                invoice_number -- Explicitly set to NULL here
+            ) VALUES (
+                v_scheduling_request_user_id,
+                NOW(),
+                v_scheduling_request_customer_name,
+                0,
+                'pending',
+                'DRAFT'::public.invoice_document_status, -- Set to DRAFT
+                'sales',
+                v_scheduling_request_do_number,
+                NULL -- Explicitly pass NULL to ensure trigger generates it
+            )
+            RETURNING id INTO v_invoice_id; -- Ambil UUID dari invoice yang baru dibuat
+
+            -- Update scheduling_requests dengan invoice_id (UUID) dan invoice_status yang baru
+            UPDATE public.scheduling_requests
+            SET invoice_id = v_invoice_id,
+                invoice_status = 'DRAFT'::public.invoice_document_status
+            WHERE id = v_scheduling_request_id;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$;
