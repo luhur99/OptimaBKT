@@ -65,6 +65,27 @@ export function ConfirmArrivalModal({
         return;
       }
 
+      // Client-side re-validation before sending to edge function
+      const { data: latestPoItems, error: latestItemsError } = await supabase
+        .from('po_items')
+        .select('id, qty_request, qty_received')
+        .in('id', items.map(item => item.id));
+
+      if (latestItemsError) {
+        throw new Error(latestItemsError.message || "Failed to re-validate item quantities.");
+      }
+
+      for (const item of items) {
+        const latestItem = latestPoItems.find(li => li.id === item.id);
+        if (!latestItem) {
+          throw new Error(`Item ${item.product_name} not found during re-validation.`);
+        }
+        const currentInputQty = receivedQuantities[item.id] || 0;
+        if (latestItem.qty_received + currentInputQty > latestItem.qty_request) {
+          throw new Error(`Received quantity for item ${item.product_name} (currently ${latestItem.qty_received} received, trying to add ${currentInputQty}) exceeds requested quantity (${latestItem.qty_request}). Please refresh the page and try again.`);
+        }
+      }
+
       const response = await fetch(
         `https://hhhzugqimtypijkdxxsm.supabase.co/functions/v1/confirm-po-arrival`,
         {
