@@ -58,7 +58,7 @@ const formSchema = z.object({
   productCategory: z.enum(["gps_tracker", "dashcam", "OTHER"]).optional(),
   vehicleDetails: z.string().optional(),
   notes: z.string().optional(),
-  paymentMethod: z.string().optional(),
+  paymentMethod: z.enum(["Cash", "Transfer", "DP", "Lainnya"]).optional(), // Updated to enum
   assignedTechnicianId: z.string().optional(),
   technicianName: z.string().optional(),
   technicianType: z.enum(["INTERNAL", "EXTERNAL"]).optional(),
@@ -84,7 +84,7 @@ export const CreateSchedulingRequestForm = () => {
       productCategory: "gps_tracker",
       vehicleDetails: "",
       notes: "",
-      paymentMethod: "",
+      paymentMethod: "Cash", // Default to Cash
       technicianType: "INTERNAL",
       externalTechnicianName: "",
     },
@@ -408,9 +408,19 @@ export const CreateSchedulingRequestForm = () => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-gray-300">Payment Method (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Cash, Transfer" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
-                  </FormControl>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-300">
+                        <SelectValue placeholder="Select payment method" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
+                      <SelectItem value="Cash">Cash</SelectItem>
+                      <SelectItem value="Transfer">Transfer</SelectItem>
+                      <SelectItem value="DP">DP</SelectItem>
+                      <SelectItem value="Lainnya">Lainnya</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
