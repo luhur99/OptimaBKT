@@ -30,6 +30,7 @@ interface Product {
   safe_stock_limit: number;
   stok_sekarang: number;
   updated_at: string;
+  user_id: string; // Added user_id
 }
 
 const ProductCatalogPage = () => {
@@ -54,11 +55,12 @@ const ProductCatalogPage = () => {
         harga_jual,
         safe_stock_limit,
         stok_sekarang,
-        updated_at
+        updated_at,
+        user_id
       `);
 
     if (error) {
-      console.error("Error fetching products:", error);
+      console.error("Error fetching products:", error.message, error.details); // Log message and details
       showError("Failed to load product catalog.");
     } else {
       console.log("ProductCatalogPage: Products fetched successfully:", data);

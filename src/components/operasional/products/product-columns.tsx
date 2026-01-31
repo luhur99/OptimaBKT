@@ -15,6 +15,7 @@ export type Product = {
   safe_stock_limit: number;
   stok_sekarang: number;
   updated_at: string;
+  user_id: string; // Added user_id
 };
 
 export const columns: ColumnDef<Product>[] = [
