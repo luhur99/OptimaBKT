@@ -58,9 +58,6 @@ serve(async (req) => {
       });
     }
 
-    let allItemsFullyReceived = true;
-    let anyItemsReceived = false;
-
     for (const item of items_received) {
       const { po_item_id, qty_received } = item;
 
@@ -92,10 +89,6 @@ serve(async (req) => {
         });
       }
 
-      if (qty_received > 0) {
-        anyItemsReceived = true;
-      }
-
       // Update po_item
       const { error: updateItemError } = await supabaseAdminClient
         .from('po_items')
@@ -105,18 +98,44 @@ serve(async (req) => {
       if (updateItemError) {
         throw new Error(updateItemError.message);
       }
-
-      if (newQtyReceived < existingPoItem.qty_request) {
-        allItemsFullyReceived = false;
-      }
     }
 
-    // Determine new PO status
+    // After updating individual items, check the overall status of the PO
+    const { data: allPoItems, error: fetchAllItemsError } = await supabaseAdminClient
+      .from('po_items')
+      .select('qty_request, qty_received')
+      .eq('po_id', po_id);
+
+    if (fetchAllItemsError) {
+      throw new Error(fetchAllItemsError.message);
+    }
+
+    let allItemsFullyReceived = true;
+    let anyItemsReceivedOverall = false;
+
+    if (allPoItems && allPoItems.length > 0) {
+      for (const item of allPoItems) {
+        if (item.qty_received < item.qty_request) {
+          allItemsFullyReceived = false;
+        }
+        if (item.qty_received > 0) {
+          anyItemsReceivedOverall = true;
+        }
+      }
+    } else {
+      // If there are no items, the PO cannot be closed or received
+      allItemsFullyReceived = false;
+      anyItemsReceivedOverall = false;
+    }
+
+    // Determine new PO status based on overall item status
     let newPoStatus: 'WAITING_RECEIVED' | 'RECEIVED' | 'CLOSED' = 'WAITING_RECEIVED';
-    if (allItemsFullyReceived && anyItemsReceived) {
+    if (allItemsFullyReceived && anyItemsReceivedOverall) {
       newPoStatus = 'CLOSED'; // All items received, PO is closed
-    } else if (anyItemsReceived) {
+    } else if (anyItemsReceivedOverall) {
       newPoStatus = 'RECEIVED'; // Some items received, but not all
+    } else {
+      newPoStatus = 'WAITING_RECEIVED'; // No items received yet
     }
 
     // Update purchase_order status
