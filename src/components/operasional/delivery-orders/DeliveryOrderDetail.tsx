@@ -63,34 +63,45 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
       });
 
       if (updatedOrder.request_id) {
-        const { data: srData, error: srError } = await supabase
-          .from('scheduling_requests')
-          .select(`
-            sr_number,
-            type,
-            full_address,
-            landmark,
-            requested_date,
-            requested_time,
-            contact_person,
-            phone_number,
-            customer_name,
-            company_name,
-            product_category,
-            vehicle_details,
-            technician_name,
-            external_technician_name,
-            technician_type,
-            document_url
-          `)
-          .eq('id', updatedOrder.request_id)
-          .single();
+        let requestIdToUse: string | null = updatedOrder.request_id;
 
-        if (srError) {
-          console.warn("Could not fetch associated scheduling request:", srError.message);
-          setSchedulingRequest(null);
+        // Check if it's the string "null" and treat it as actual null
+        if (typeof updatedOrder.request_id === 'string' && updatedOrder.request_id.toLowerCase() === 'null') {
+          requestIdToUse = null;
+        }
+
+        if (requestIdToUse) { // Only proceed if it's a valid (non-null string) UUID
+          const { data: srData, error: srError } = await supabase
+            .from('scheduling_requests')
+            .select(`
+              sr_number,
+              type,
+              full_address,
+              landmark,
+              requested_date,
+              requested_time,
+              contact_person,
+              phone_number,
+              customer_name,
+              company_name,
+              product_category,
+              vehicle_details,
+              technician_name,
+              external_technician_name,
+              technician_type,
+              document_url
+            `)
+            .eq('id', requestIdToUse) // Use the cleaned value
+            .single();
+
+          if (srError) {
+            console.warn("Could not fetch associated scheduling request:", srError.message);
+            setSchedulingRequest(null);
+          } else {
+            setSchedulingRequest(srData);
+          }
         } else {
-          setSchedulingRequest(srData);
+          setSchedulingRequest(null);
         }
       } else {
         setSchedulingRequest(null);
