@@ -53,7 +53,8 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
           user_id,
           do_number,
           notes,
-          document_url
+          document_url,
+          stock_deducted
         `)
         .eq('id', initialInvoice.id)
         .single();
@@ -121,6 +122,38 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
       if (updateError) {
         throw new Error(updateError.message);
       }
+
+      // If the invoice is marked as 'paid', call the deduct-sales-stock edge function
+      if (newPaymentStatus === 'paid' && !invoice.stock_deducted) {
+        const accessToken = (await supabase.auth.getSession()).data.session?.access_token;
+        if (!accessToken) {
+          throw new Error("User not authenticated for stock deduction.");
+        }
+
+        const deductStockResponse = await fetch(
+          `https://hhhzugqimtypijkdxxsm.supabase.co/functions/v1/deduct-sales-stock`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({ invoice_id: invoice.id }),
+          }
+        );
+
+        const deductStockData = await deductStockResponse.json();
+
+        if (!deductStockResponse.ok) {
+          // Specific error message for stock insufficiency
+          if (deductStockData.error && deductStockData.error.includes("Insufficient stock")) {
+            throw new Error("Stok Gudang Siap Jual Tidak Mencukupi!");
+          }
+          throw new Error(deductStockData.error || "Failed to deduct stock for invoice.");
+        }
+        showSuccess("Stock deducted successfully!");
+      }
+
 
       showSuccess(`Invoice payment status updated to ${newPaymentStatus.replace(/_/g, ' ').toUpperCase()}.`);
       onUpdate();
