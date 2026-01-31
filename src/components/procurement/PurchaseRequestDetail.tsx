@@ -20,7 +20,7 @@ interface PurchaseRequestDetailProps {
 const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: initialRequest, onUpdate, onClose }) => {
   const [request, setRequest] = useState<PurchaseRequest>(initialRequest);
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
-  const [currentAction, setCurrentAction] = useState<'rejected' | null>(null); // Only 'rejected' will use the dialog now
+  const [currentAction, setCurrentAction] = useState<'approved' | 'rejected' | null>(null); // Now 'approved' also uses the dialog
 
   const fetchRequestDetails = useCallback(async () => {
     setIsLoadingDetails(true);
@@ -55,30 +55,6 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
   useEffect(() => {
     fetchRequestDetails();
   }, [fetchRequestDetails]);
-
-  const handleDirectApprove = async () => {
-    if (!request) return;
-    setIsLoadingDetails(true);
-    try {
-      const { error: updateError } = await supabase
-        .from('purchase_requests')
-        .update({ status: 'approved', notes: request.notes }) // Keep existing notes, no new notes input for direct approve
-        .eq('id', request.id);
-
-      if (updateError) {
-        throw new Error(updateError.message);
-      }
-
-      showSuccess(`Purchase Request ${request.pr_number} approved successfully!`);
-      onUpdate(); // Trigger parent to refresh data
-      fetchRequestDetails(); // Re-fetch details to update local state
-    } catch (error: any) {
-      console.error('Error approving purchase request:', error.message);
-      showError(`Failed to approve purchase request: ${error.message}`);
-    } finally {
-      setIsLoadingDetails(false);
-    }
-  };
 
   const handleActionSubmit = async (actionData: {
     status: PurchaseRequest['status'];
@@ -171,7 +147,7 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
               <>
                 <Button
                   className="bg-green-600 text-white hover:bg-green-700 transition-all duration-300 text-sm py-2 px-3"
-                  onClick={handleDirectApprove} // Direct approval
+                  onClick={() => setCurrentAction('approved')} // Now opens dialog for approval
                   disabled={isLoadingDetails}
                 >
                   {isLoadingDetails ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />} Approve
@@ -185,14 +161,14 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
                 </Button>
               </>
             )}
-            <Dialog open={currentAction === 'rejected'} onOpenChange={(open) => !open && setCurrentAction(null)}>
-              {currentAction === 'rejected' && (
+            <Dialog open={!!currentAction} onOpenChange={(open) => !open && setCurrentAction(null)}>
+              {currentAction && (
                 <PurchaseRequestActionDialog
                   isOpen={true}
                   onClose={() => setCurrentAction(null)}
                   onSubmit={handleActionSubmit}
                   request={request}
-                  actionType={'rejected'}
+                  actionType={currentAction}
                 />
               )}
             </Dialog>
