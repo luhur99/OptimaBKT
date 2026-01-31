@@ -3,14 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { supabase } from "@/integrations/supabase/client";
 import { showError } from "@/utils/toast";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import DashboardLayout from "@/layouts/DashboardLayout";
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import DashboardLayout from "@/layouts/DashboardLayout";
 import { BillingListTable } from "@/components/operasional/billing-list/BillingListTable";
 import { createBillingListColumns, Invoice } from "@/components/operasional/billing-list/billing-list-columns";
 import BillingListDetail from "@/components/operasional/billing-list/BillingListDetail";
@@ -40,7 +40,7 @@ const BillingListPage = () => {
         do_number,
         notes,
         document_url,
-        profiles (full_name)
+        profiles!user_id (full_name)
       `)
       .eq("invoice_status", "issued") // Filter for issued invoices
       .order("invoice_date", { ascending: false });

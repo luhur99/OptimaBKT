@@ -40,7 +40,7 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
         .from('invoices')
         .select(`
           *,
-          profiles (full_name)
+          profiles!user_id (full_name)
         `)
         .eq('id', initialInvoice.id)
         .single();
