@@ -480,7 +480,7 @@ const BillingReviewPage = () => {
           <ScrollArea className="h-full p-6">
             {selectedRequest ? (
               <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-neon-cyan">Detail Request: <span className="text-electric-violet">{selectedRequest.sr_number}</span></h2>
+                <h2 className="text-2xl font-bold text-neon-cyan">Detail Invoice: <span className="text-electric-violet">{selectedRequest.invoice_number || selectedRequest.sr_number}</span></h2>
                 <div className="grid grid-cols-2 gap-4 text-gray-300">
                   <div>
                     <p className="text-sm font-medium text-gray-400">SR Number:</p>
