@@ -58,10 +58,10 @@ serve(async (req) => {
       });
     }
 
-    // Fetch invoice details and check stock_deducted flag
+    // Fetch invoice details and check stock_deducted flag, and get invoice_number
     const { data: invoice, error: invoiceError } = await supabaseAdminClient
       .from('invoices')
-      .select('stock_deducted')
+      .select('stock_deducted, invoice_number')
       .eq('id', invoice_id)
       .single();
 
@@ -74,6 +74,11 @@ serve(async (req) => {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    const invoiceNumber = invoice?.invoice_number; // Get the invoice number
+    if (!invoiceNumber) {
+        throw new Error(`Invoice number not found for invoice ID: ${invoice_id}`);
     }
 
     // Fetch invoice items
@@ -144,7 +149,7 @@ serve(async (req) => {
           event_type: 'SALES_OUT',
           quantity: quantityToDeduct,
           from_warehouse_category: fromWarehouseCategory,
-          notes: `Sales deduction for invoice ${invoice_id}`,
+          notes: `Sales deduction for invoice ${invoiceNumber}`, // Changed to invoiceNumber
           event_date: new Date().toISOString().split('T')[0],
         });
 
