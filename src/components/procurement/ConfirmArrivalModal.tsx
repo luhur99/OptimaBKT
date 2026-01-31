@@ -135,7 +135,7 @@ export const ConfirmArrivalModal: React.FC<ConfirmArrivalModalProps> = ({
   };
 
   return (
-    <div> {/* Changed from React.Fragment */}
+    <div>
       <DialogHeader>
         <DialogTitle className="text-neon-cyan">Confirm Arrival for PO: <span className="text-electric-violet">{poNumber}</span></DialogTitle>
         <DialogDescription className="text-gray-400">
