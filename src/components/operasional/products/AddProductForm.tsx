@@ -1,3 +1,5 @@
+"use client";
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -26,6 +28,8 @@ import { useAuthSession } from "@/hooks/use-auth-session";
 import { showSuccess, showError } from "@/utils/toast";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea"; // Added Textarea for notes
 
 interface Supplier {
   id: string;
@@ -46,6 +50,7 @@ const formSchema = z.object({
   safe_stock_limit: z.coerce.number().min(0, { message: "Safe Stock Limit cannot be negative." }),
   initial_stock: z.coerce.number().min(0, { message: "Initial Stock cannot be negative." }).optional(),
   supplier_id: z.string().optional(),
+  notes: z.string().optional(), // Added notes field
 });
 
 export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps) {
@@ -53,6 +58,7 @@ export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [openSupplierCombobox, setOpenSupplierCombobox] = useState(false);
+  const [activeTab, setActiveTab] = useState("product-details"); // State for active tab
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -65,6 +71,7 @@ export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps)
       safe_stock_limit: 0,
       initial_stock: 0,
       supplier_id: "",
+      notes: "", // Default for notes
     },
   });
 
@@ -100,6 +107,7 @@ export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps)
           safe_stock_limit: values.safe_stock_limit,
           supplier_id: values.supplier_id || null,
           stok_sekarang: values.initial_stock || 0, // Set initial stock directly
+          // notes: values.notes, // Add notes to product if schema supports it, otherwise omit
         })
         .select("id")
         .single();
@@ -163,166 +171,195 @@ export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps)
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 text-gray-300">
-        <FormField
-          control={form.control}
-          name="kode_barang"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Product Code</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., P001" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="nama_barang"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Product Name</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Laptop XYZ" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="satuan"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Unit</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
-                    <SelectValue placeholder="Select unit" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
-                  <SelectItem value="Pcs">Pcs</SelectItem>
-                  <SelectItem value="Dus">Dus</SelectItem>
-                  <SelectItem value="Kg">Kg</SelectItem>
-                  <SelectItem value="Liter">Liter</SelectItem>
-                  <SelectItem value="Meter">Meter</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="harga_beli"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Purchase Price</FormLabel>
-              <FormControl>
-                <Input type="number" {...field} step="0.01" className="glassmorphism border border-gray-700 text-gray-300" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="harga_jual"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Selling Price</FormLabel>
-              <FormControl>
-                <Input type="number" {...field} step="0.01" className="glassmorphism border border-gray-700 text-gray-300" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="safe_stock_limit"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Safe Stock Limit</FormLabel>
-              <FormControl>
-                <Input type="number" {...field} min="0" className="glassmorphism border border-gray-700 text-gray-300" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="initial_stock"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Initial Stock (Optional)</FormLabel>
-              <FormControl>
-                <Input type="number" {...field} min="0" className="glassmorphism border border-gray-700 text-gray-300" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="supplier_id"
-          render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel>Primary Supplier (Optional)</FormLabel>
-              <Popover open={openSupplierCombobox} onOpenChange={setOpenSupplierCombobox}>
-                <PopoverTrigger asChild>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 bg-midnight-blue border border-gray-700">
+            <TabsTrigger value="product-details" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Product Details</TabsTrigger>
+            <TabsTrigger value="pricing-stock" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Pricing & Stock</TabsTrigger>
+            <TabsTrigger value="supplier-notes" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Supplier & Notes</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="product-details" className="space-y-4 mt-4">
+            <FormField
+              control={form.control}
+              name="kode_barang"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Product Code</FormLabel>
                   <FormControl>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      className={cn(
-                        "w-full justify-between glassmorphism border border-gray-700 text-gray-300 hover:bg-gray-800",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {field.value
-                        ? suppliers.find((supplier) => supplier.id === field.value)?.name
-                        : "Select supplier"}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
+                    <Input placeholder="e.g., P001" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
                   </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0 glassmorphism border border-gray-700">
-                  <Command>
-                    <CommandInput placeholder="Search supplier..." className="text-gray-300" />
-                    <CommandList>
-                      <CommandEmpty>No supplier found.</CommandEmpty>
-                      <CommandGroup>
-                        {suppliers.map((supplier) => (
-                          <CommandItem
-                            value={supplier.name}
-                            key={supplier.id}
-                            onSelect={() => {
-                              form.setValue("supplier_id", supplier.id);
-                              setOpenSupplierCombobox(false);
-                            }}
-                            className="text-gray-300 hover:bg-gray-800/50"
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                supplier.id === field.value ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {supplier.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="nama_barang"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Product Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Laptop XYZ" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="satuan"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Unit</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
+                        <SelectValue placeholder="Select unit" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
+                      <SelectItem value="Pcs">Pcs</SelectItem>
+                      <SelectItem value="Dus">Dus</SelectItem>
+                      <SelectItem value="Kg">Kg</SelectItem>
+                      <SelectItem value="Liter">Liter</SelectItem>
+                      <SelectItem value="Meter">Meter</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </TabsContent>
+
+          <TabsContent value="pricing-stock" className="space-y-4 mt-4">
+            <FormField
+              control={form.control}
+              name="harga_beli"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Purchase Price</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} step="0.01" className="glassmorphism border border-gray-700 text-gray-300" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="harga_jual"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Selling Price</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} step="0.01" className="glassmorphism border border-gray-700 text-gray-300" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="safe_stock_limit"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Safe Stock Limit</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} min="0" className="glassmorphism border border-gray-700 text-gray-300" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="initial_stock"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Initial Stock (Optional)</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} min="0" className="glassmorphism border border-gray-700 text-gray-300" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </TabsContent>
+
+          <TabsContent value="supplier-notes" className="space-y-4 mt-4">
+            <FormField
+              control={form.control}
+              name="supplier_id"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Primary Supplier (Optional)</FormLabel>
+                  <Popover open={openSupplierCombobox} onOpenChange={setOpenSupplierCombobox}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={cn(
+                            "w-full justify-between glassmorphism border border-gray-700 text-gray-300 hover:bg-gray-800",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value
+                            ? suppliers.find((supplier) => supplier.id === field.value)?.name
+                            : "Select supplier"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0 glassmorphism border border-gray-700">
+                      <Command>
+                        <CommandInput placeholder="Search supplier..." className="text-gray-300" />
+                        <CommandList>
+                          <CommandEmpty>No supplier found.</CommandEmpty>
+                          <CommandGroup>
+                            {suppliers.map((supplier) => (
+                              <CommandItem
+                                value={supplier.name}
+                                key={supplier.id}
+                                onSelect={() => {
+                                  form.setValue("supplier_id", supplier.id);
+                                  setOpenSupplierCombobox(false);
+                                }}
+                                className="text-gray-300 hover:bg-gray-800/50"
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    supplier.id === field.value ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {supplier.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes (Optional)</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Any specific notes about the product" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </TabsContent>
+        </Tabs>
 
         <Button type="submit" className="w-full bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300" disabled={isSubmitting}>
           {isSubmitting ? "Adding Product..." : "Add Product"}
