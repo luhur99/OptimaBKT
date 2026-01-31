@@ -1,0 +1,1 @@
+SELECT id, do_number, status, request_id, updated_at FROM public.delivery_orders WHERE do_number = 'DO/2026/01/0027';
