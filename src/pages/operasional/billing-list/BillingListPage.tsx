@@ -23,6 +23,7 @@ const BillingListPage = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
   const fetchInvoices = async () => {
+    console.log("BillingListPage: fetchInvoices called."); // Added log
     setIsLoadingInvoices(true);
     const { data, error } = await supabase
       .from("invoices")
@@ -39,8 +40,7 @@ const BillingListPage = () => {
         user_id,
         do_number,
         notes,
-        document_url,
-        profiles!user_id (full_name)
+        document_url
       `)
       .eq("invoice_status", "issued") // Filter for issued invoices
       .order("invoice_date", { ascending: false });
@@ -49,9 +49,22 @@ const BillingListPage = () => {
       console.error("Error fetching invoices:", error);
       showError("Failed to load invoices: " + error.message);
     } else {
+      // Fetch profiles separately
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name");
+
+      if (profilesError) {
+        console.error("Error fetching profiles:", profilesError);
+        showError("Failed to load user profiles.");
+        // Proceed with invoices without full_name if profiles fail
+      }
+
+      const profileMap = new Map(profilesData?.map(p => [p.id, p.full_name]));
+
       const formattedData: Invoice[] = data.map((inv: any) => ({
         ...inv,
-        user_full_name: inv.profiles?.full_name || "System",
+        user_full_name: profileMap.get(inv.user_id) || "System", // Manually join
         payment_status: inv.payment_status as Invoice['payment_status'],
         invoice_status: inv.invoice_status as Invoice['invoice_status'],
       }));

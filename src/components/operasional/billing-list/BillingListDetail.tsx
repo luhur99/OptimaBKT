@@ -34,13 +34,25 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
   const [currentAction, setCurrentAction] = useState<'paid' | 'overdue' | null>(null);
 
   const fetchInvoiceDetails = useCallback(async () => {
+    console.log(`BillingListDetail: fetchInvoiceDetails called for invoice ID: ${initialInvoice.id}`); // Added log
     setIsLoadingDetails(true);
     try {
       const { data: updatedInvoice, error: invoiceError } = await supabase
         .from('invoices')
         .select(`
-          *,
-          profiles!user_id (full_name)
+          id,
+          invoice_number,
+          invoice_date,
+          due_date,
+          customer_name,
+          company_name,
+          total_amount,
+          payment_status,
+          invoice_status,
+          user_id,
+          do_number,
+          notes,
+          document_url
         `)
         .eq('id', initialInvoice.id)
         .single();
@@ -48,7 +60,7 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
       if (invoiceError) throw new Error(invoiceError.message);
       setInvoice({
         ...updatedInvoice,
-        user_full_name: updatedInvoice.profiles?.full_name || "System",
+        user_full_name: updatedInvoice.profiles?.full_name || "System", // Manually join
         payment_status: updatedInvoice.payment_status as Invoice['payment_status'],
         invoice_status: updatedInvoice.invoice_status as Invoice['invoice_status'],
       });
