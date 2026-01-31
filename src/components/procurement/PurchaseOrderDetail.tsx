@@ -36,6 +36,7 @@ type PoItem = {
   qty_request: number;
   qty_received: number;
   qty_return: number;
+  qty_balance: number; // Added qty_balance
   harga_beli_satuan: number;
   subtotal: number;
 };
@@ -117,6 +118,7 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
         qty_request,
         qty_received,
         qty_return,
+        qty_balance,
         harga_beli_satuan,
         subtotal,
         products (nama_barang)
@@ -234,6 +236,7 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
                   <th className="p-2 text-neon-cyan">Product</th>
                   <th className="p-2 text-neon-cyan">Requested</th>
                   <th className="p-2 text-neon-cyan">Received</th>
+                  <th className="p-2 text-neon-cyan">Balance</th> {/* New column header */}
                   <th className="p-2 text-neon-cyan">Returned</th>
                   <th className="p-2 text-neon-cyan">Unit Price</th>
                   <th className="p-2 text-neon-cyan">Subtotal</th>
@@ -245,6 +248,7 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
                     <td className="p-2">{item.product_name}</td>
                     <td className="p-2">{item.qty_request}</td>
                     <td className="p-2">{item.qty_received}</td>
+                    <td className="p-2 font-bold text-electric-violet">{item.qty_balance}</td> {/* Display qty_balance */}
                     <td className="p-2">{item.qty_return}</td>
                     <td className="p-2">Rp {item.harga_beli_satuan.toLocaleString("id-ID")}</td>
                     <td className="p-2">Rp {item.subtotal.toLocaleString("id-ID")}</td>

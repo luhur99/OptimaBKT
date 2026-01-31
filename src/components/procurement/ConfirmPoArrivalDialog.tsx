@@ -24,6 +24,7 @@ interface PoItem {
   qty_request: number;
   qty_received: number; // Already received quantity
   qty_return: number;
+  qty_balance: number; // Added qty_balance
   harga_beli_satuan: number;
   subtotal: number;
 }
@@ -141,6 +142,7 @@ export const ConfirmPoArrivalDialog: React.FC<ConfirmPoArrivalDialogProps> = ({
                 <TableHead className="text-neon-cyan">Product</TableHead>
                 <TableHead className="text-neon-cyan">Requested</TableHead>
                 <TableHead className="text-neon-cyan">Already Received</TableHead>
+                <TableHead className="text-neon-cyan">Balance</TableHead> {/* New column header */}
                 <TableHead className="text-neon-cyan">Qty to Receive</TableHead>
               </TableRow>
             </TableHeader>
@@ -150,16 +152,17 @@ export const ConfirmPoArrivalDialog: React.FC<ConfirmPoArrivalDialogProps> = ({
                   <TableCell className="font-medium">{item.product_name}</TableCell>
                   <TableCell>{item.qty_request}</TableCell>
                   <TableCell>{item.qty_received}</TableCell>
+                  <TableCell className="font-bold text-electric-violet">{item.qty_balance}</TableCell> {/* Display qty_balance */}
                   <TableCell>
                     <Input
                       type="number"
                       min="0"
-                      max={item.qty_request - item.qty_received}
+                      max={item.qty_balance} // Max input is the current balance
                       value={item.current_input_qty}
                       onChange={(e) => handleInputChange(item.id, parseInt(e.target.value) || 0)}
                       placeholder="0"
                       className="w-24 bg-midnight-blue border-gray-700 text-gray-200"
-                      disabled={isSubmitting || item.qty_received >= item.qty_request}
+                      disabled={isSubmitting || item.qty_balance <= 0} // Disable if balance is 0 or less
                     />
                   </TableCell>
                 </TableRow>
