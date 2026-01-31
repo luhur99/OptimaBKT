@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS set_pr_number_before_insert ON public.purchase_requests CASCADE;
