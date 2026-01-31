@@ -51,6 +51,8 @@ import {
 import DashboardLayout from "@/layouts/DashboardLayout"; // Import DashboardLayout
 
 // Define the type for a scheduling request based on your Supabase schema
+type InvoiceDocumentStatus = 'DRAFT' | 'PENDING' | 'PAID' | 'CANCELLED';
+
 interface SchedulingRequest {
   id: string;
   sr_number: string;
@@ -74,7 +76,7 @@ interface SchedulingRequest {
   technician_type?: "INTERNAL" | "EXTERNAL";
   external_technician_name?: string;
   invoice_id?: string;
-  invoice_status?: string;
+  invoice_status?: InvoiceDocumentStatus; // Use new enum type
   document_url?: string;
   delivery_order_id?: string;
 }

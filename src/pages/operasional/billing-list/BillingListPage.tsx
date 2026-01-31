@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { BillingListTable } from "@/components/operasional/billing-list/BillingListTable";
-import { createBillingListColumns, Invoice } from "@/components/operasional/billing-list/billing-list-columns";
+import { createBillingListColumns, Invoice, InvoiceDocumentStatus } from "@/components/operasional/billing-list/billing-list-columns";
 import BillingListDetail from "@/components/operasional/billing-list/BillingListDetail";
 
 const BillingListPage = () => {
@@ -42,7 +42,7 @@ const BillingListPage = () => {
         notes,
         document_url
       `)
-      .eq("invoice_status", "issued") // Filter for issued invoices
+      .eq("invoice_status", "PENDING") // Filter for PENDING invoices (new status after finalization)
       .order("invoice_date", { ascending: false });
 
     if (error) {
@@ -66,7 +66,7 @@ const BillingListPage = () => {
         ...inv,
         user_full_name: profileMap.get(inv.user_id) || "System", // Manually join
         payment_status: inv.payment_status as Invoice['payment_status'],
-        invoice_status: inv.invoice_status as Invoice['invoice_status'],
+        invoice_status: inv.invoice_status as InvoiceDocumentStatus, // Cast to new enum type
       }));
       setInvoices(formattedData);
     }

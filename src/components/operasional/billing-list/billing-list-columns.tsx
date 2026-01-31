@@ -4,6 +4,8 @@ import { ArrowUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 
+export type InvoiceDocumentStatus = 'DRAFT' | 'PENDING' | 'PAID' | 'CANCELLED';
+
 export type Invoice = {
   id: string;
   invoice_number: string;
@@ -11,7 +13,7 @@ export type Invoice = {
   customer_name: string;
   total_amount: number;
   payment_status: 'pending' | 'paid' | 'overdue';
-  invoice_status: 'DRAFT' | 'issued' | 'FINAL' | 'cancelled';
+  invoice_status: InvoiceDocumentStatus; // Use new enum type
   user_id: string;
   user_full_name: string; // From join
   do_number?: string;

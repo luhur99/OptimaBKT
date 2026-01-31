@@ -8,7 +8,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { showSuccess, showError } from "@/utils/toast";
-import { Invoice } from './billing-list-columns';
+import { Invoice, InvoiceDocumentStatus } from './billing-list-columns';
 import { BillingListActionDialog } from './BillingListActionDialog';
 
 interface InvoiceItem {
@@ -63,7 +63,7 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
         ...updatedInvoice,
         user_full_name: updatedInvoice.profiles?.full_name || "System", // Manually join
         payment_status: updatedInvoice.payment_status as Invoice['payment_status'],
-        invoice_status: updatedInvoice.invoice_status as Invoice['invoice_status'],
+        invoice_status: updatedInvoice.invoice_status as InvoiceDocumentStatus, // Cast to new enum type
       });
 
       console.log(`BillingListDetail: Fetching invoice_items for invoice_id: ${initialInvoice.id}`); // New log
@@ -103,9 +103,19 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
     const { payment_status: newPaymentStatus, notes } = actionData;
 
     try {
+      const updatePayload: { payment_status: Invoice['payment_status']; notes?: string; invoice_status?: InvoiceDocumentStatus } = {
+        payment_status: newPaymentStatus,
+        notes: notes,
+      };
+
+      // If payment status becomes 'paid', also update invoice_status to 'PAID'
+      if (newPaymentStatus === 'paid') {
+        updatePayload.invoice_status = 'PAID';
+      }
+
       const { error: updateError } = await supabase
         .from('invoices')
-        .update({ payment_status: newPaymentStatus, notes: notes })
+        .update(updatePayload)
         .eq('id', invoice.id);
 
       if (updateError) {
@@ -133,9 +143,18 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
     }
   };
 
-  const isPending = invoice.payment_status === 'pending';
-  const isPaid = invoice.payment_status === 'paid';
-  const isOverdue = invoice.payment_status === 'overdue';
+  const getInvoiceDocumentStatusColor = (status: InvoiceDocumentStatus) => {
+    switch (status) {
+      case 'DRAFT': return 'bg-gray-600/20 text-gray-300 border border-gray-500/30';
+      case 'PENDING': return 'bg-blue-600/20 text-blue-300 border border-blue-500/30';
+      case 'PAID': return 'bg-green-600/20 text-green-300 border border-green-500/30';
+      case 'CANCELLED': return 'bg-red-600/20 text-red-300 border border-red-500/30';
+      default: return 'bg-gray-700/20 text-gray-400 border border-gray-600/30';
+    }
+  };
+
+  const isPendingPayment = invoice.payment_status === 'pending';
+  const isInvoicePending = invoice.invoice_status === 'PENDING'; // Check if invoice is in PENDING document status
 
   if (isLoadingDetails) {
     return (
@@ -178,7 +197,7 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-4">
           <h1 className="text-2xl font-bold text-neon-cyan">Invoice Information</h1>
           <div className="flex flex-wrap gap-2">
-            {isPending && (
+            {isPendingPayment && isInvoicePending && ( // Only show buttons if payment is pending AND invoice is in PENDING document status
               <>
                 <Button
                   className="bg-green-600 text-white hover:bg-green-700 transition-all duration-300 text-sm py-2 px-3"
@@ -221,7 +240,7 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
               {invoice.company_name && <div className="flex items-center text-sm"><Building className="mr-2 h-4 w-4 text-indigo-400" /> Company Name: <span className="ml-2 font-medium">{invoice.company_name}</span></div>}
               <div className="flex items-center text-sm"><DollarSign className="mr-2 h-4 w-4 text-lime-400" /> Total Amount: <span className="ml-2 font-medium">Rp {invoice.total_amount.toLocaleString("id-ID")}</span></div>
               <div className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Payment Status: <Badge className={getPaymentStatusColor(invoice.payment_status)}>{invoice.payment_status.replace(/_/g, ' ').toUpperCase()}</Badge></div>
-              <div className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Invoice Status: <Badge className="bg-gray-700/20 text-gray-400 border border-gray-600/30">{invoice.invoice_status.replace(/_/g, ' ').toUpperCase()}</Badge></div>
+              <div className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Invoice Status: <Badge className={getInvoiceDocumentStatusColor(invoice.invoice_status)}>{invoice.invoice_status.replace(/_/g, ' ').toUpperCase()}</Badge></div>
               {invoice.notes && <div className="flex items-start text-sm"><FileText className="mr-2 h-4 w-4 text-orange-400 mt-1" /> Notes: <span className="ml-2 font-medium">{invoice.notes}</span></div>}
               {invoice.document_url && (
                 <div className="flex items-center text-sm">
