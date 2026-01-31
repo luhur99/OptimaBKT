@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogTrigger,
+  DialogContent, // Import DialogContent here
 } from "@/components/ui/dialog";
 import { ConfirmArrivalModal, PoItemForArrival } from "./ConfirmArrivalModal";
 import { PurchaseOrder } from "./PurchaseOrderTable";
@@ -250,13 +251,15 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
                   Confirm Arrival
                 </Button>
               </DialogTrigger>
-              <ConfirmArrivalModal
-                poId={po.id}
-                poNumber={po.po_number}
-                items={itemsForArrivalModal}
-                onConfirmSuccess={handleConfirmArrivalSuccess}
-                onClose={() => setIsConfirmArrivalDialogOpen(false)}
-              />
+              <DialogContent className="glassmorphism border border-electric-violet/30 text-foreground animate-in fade-in-50 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95">
+                <ConfirmArrivalModal
+                  poId={po.id}
+                  poNumber={po.po_number}
+                  items={itemsForArrivalModal}
+                  onConfirmSuccess={handleConfirmArrivalSuccess}
+                  onClose={() => setIsConfirmArrivalDialogOpen(false)}
+                />
+              </DialogContent>
             </Dialog>
           )}
         </div>
