@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { supabase } from "@/integrations/supabase/client";
 import { showError } from "@/utils/toast";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -11,7 +10,8 @@ import {
 } from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import DashboardLayout from "@/layouts/DashboardLayout";
-import { PurchaseRequestTable, createPurchaseRequestColumns, PurchaseRequest } from "@/components/procurement/PurchaseRequestTable";
+import { PurchaseRequestTable } from "@/components/procurement/PurchaseRequestTable";
+import { createPurchaseRequestColumns, PurchaseRequest } from "@/components/procurement/purchase-request-columns"; // Corrected import path
 import PurchaseRequestDetail from "@/components/procurement/PurchaseRequestDetail"; // Import new detail component
 
 const PurchaseRequestPage = () => {
