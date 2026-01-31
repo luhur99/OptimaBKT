@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS tr_update_sr_on_do_completion ON public.delivery_orders;
