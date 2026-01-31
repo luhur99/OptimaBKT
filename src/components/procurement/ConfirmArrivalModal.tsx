@@ -4,7 +4,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/ui/dialog"; // Removed DialogContent from here
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -135,7 +135,7 @@ export const ConfirmArrivalModal: React.FC<ConfirmArrivalModalProps> = ({
   };
 
   return (
-    <> {/* Fragment to return multiple elements */}
+    <div> {/* Changed from React.Fragment */}
       <DialogHeader>
         <DialogTitle className="text-neon-cyan">Confirm Arrival for PO: <span className="text-electric-violet">{poNumber}</span></DialogTitle>
         <DialogDescription className="text-gray-400">
@@ -172,6 +172,6 @@ export const ConfirmArrivalModal: React.FC<ConfirmArrivalModalProps> = ({
           {isSubmitting ? "Confirming..." : "Confirm Arrival"}
         </Button>
       </DialogFooter>
-    </>
+    </div>
   );
 };
