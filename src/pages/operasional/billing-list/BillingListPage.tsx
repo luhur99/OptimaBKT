@@ -42,7 +42,7 @@ const BillingListPage = () => {
         notes,
         document_url
       `)
-      .eq("invoice_status", "PENDING") // Filter for PENDING invoices (new status after finalization)
+      .in("invoice_status", ["PENDING", "PAID"]) // Filter for PENDING and PAID invoices
       .order("invoice_date", { ascending: false });
 
     if (error) {
