@@ -21,47 +21,66 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StockMovementForm } from "@/components/operasional/stock-movement/StockMovementForm";
-import { StockAdjustmentForm } from "@/components/operasional/stock-movement/StockAdjustmentForm"; // Import new form
+import { StockAdjustmentForm } from "@/components/operasional/stock-movement/StockAdjustmentForm";
 import DashboardLayout from "@/layouts/DashboardLayout";
+import { Badge } from "@/components/ui/badge"; // Import Badge for displaying categories
 
-type WarehouseInventoryItem = {
+// New type definition for product with its aggregated inventory
+type ProductWithInventory = {
   id: string;
-  product_id: string;
-  product_name: string;
-  product_code: string;
-  warehouse_category: string;
-  quantity: number;
+  kode_barang: string;
+  nama_barang: string;
+  satuan?: string;
+  harga_beli: number;
+  harga_jual: number;
+  safe_stock_limit: number;
+  stok_sekarang: number; // This is total stock, not per warehouse
   updated_at: string;
+  inventories: {
+    warehouse_category: string;
+    quantity: number;
+  }[];
 };
 
 const StockMovementPage = () => {
   const { session, profile, isLoading: isAuthLoading } = useAuthSession();
   const navigate = useNavigate();
-  const [inventory, setInventory] = useState<WarehouseInventoryItem[]>([]);
+  const [inventory, setInventory] = useState<ProductWithInventory[]>([]); // Changed state type
   const [isLoadingInventory, setIsLoadingInventory] = useState(true);
-  const [activeTab, setActiveTab] = useState<string>("transfer"); // New state for active tab
+  const [activeTab, setActiveTab] = useState<string>("transfer");
 
   const fetchInventory = async () => {
     setIsLoadingInventory(true);
-    const { data, error } = await supabase
-      .from("warehouse_inventories")
+    const { data: productsData, error: productsError } = await supabase
+      .from("products")
       .select(`
         id,
-        product_id,
-        warehouse_category,
-        quantity,
+        kode_barang,
+        nama_barang,
+        satuan,
+        harga_beli,
+        harga_jual,
+        safe_stock_limit,
+        stok_sekarang,
         updated_at,
-        products (nama_barang, kode_barang)
+        warehouse_inventories (warehouse_category, quantity)
       `);
 
-    if (error) {
-      console.error("Error fetching warehouse inventory:", error);
-      showError("Failed to load warehouse inventory.");
+    if (productsError) {
+      console.error("Error fetching products with inventory:", productsError);
+      showError("Failed to load product inventory.");
     } else {
-      const formattedData: WarehouseInventoryItem[] = data.map((item: any) => ({
-        ...item,
-        product_name: item.products?.nama_barang || "N/A",
-        product_code: item.products?.kode_barang || "N/A",
+      const formattedData: ProductWithInventory[] = productsData.map((product: any) => ({
+        id: product.id,
+        kode_barang: product.kode_barang,
+        nama_barang: product.nama_barang,
+        satuan: product.satuan,
+        harga_beli: product.harga_beli,
+        harga_jual: product.harga_jual,
+        safe_stock_limit: product.safe_stock_limit,
+        stok_sekarang: product.stok_sekarang,
+        updated_at: product.updated_at,
+        inventories: product.warehouse_inventories || [],
       }));
       setInventory(formattedData);
     }
@@ -137,20 +156,32 @@ const StockMovementPage = () => {
                 <TableHeader className="glassmorphism border-b border-gray-700">
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="text-neon-cyan">Product</TableHead>
-                    <TableHead className="text-neon-cyan">Warehouse</TableHead>
-                    <TableHead className="text-neon-cyan">Quantity</TableHead>
+                    <TableHead className="text-neon-cyan">Warehouse Inventories</TableHead> {/* Combined header */}
+                    <TableHead className="text-neon-cyan">Total Stock</TableHead> {/* New column for total stock */}
                     <TableHead className="text-neon-cyan">Last Updated</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {inventory.map((item) => (
-                    <TableRow key={item.id} className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors">
+                  {inventory.map((product) => (
+                    <TableRow key={product.id} className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors">
                       <TableCell>
-                        {item.product_name} (<span className="text-gray-500">{item.product_code}</span>)
+                        {product.nama_barang} (<span className="text-gray-500">{product.kode_barang}</span>)
                       </TableCell>
-                      <TableCell className="text-electric-violet">{item.warehouse_category}</TableCell>
-                      <TableCell className="font-bold text-neon-cyan">{item.quantity}</TableCell>
-                      <TableCell className="text-gray-500">{new Date(item.updated_at).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        {product.inventories.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {product.inventories.map((inv, idx) => (
+                              <Badge key={idx} variant="secondary" className="bg-electric-violet/20 text-electric-violet border border-electric-violet/30">
+                                {inv.warehouse_category.replace(/_/g, ' ').toUpperCase()}: {inv.quantity} units
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-500">No stock in any warehouse</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-bold text-neon-cyan">{product.stok_sekarang}</TableCell>
+                      <TableCell className="text-gray-500">{new Date(product.updated_at).toLocaleDateString()}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
