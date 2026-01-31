@@ -35,7 +35,6 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
 
   const fetchInvoiceDetails = useCallback(async () => {
     console.log(`BillingListDetail: fetchInvoiceDetails called for invoice ID: ${initialInvoice.id}`);
-    console.log("Current Invoice ID for item fetch:", initialInvoice.id); // Log the ID used for item fetch
     setIsLoadingDetails(true);
     try {
       const { data: updatedInvoice, error: invoiceError } = await supabase
@@ -66,6 +65,7 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
         invoice_status: updatedInvoice.invoice_status as Invoice['invoice_status'],
       });
 
+      console.log(`BillingListDetail: Fetching invoice_items for invoice_id: ${initialInvoice.id}`); // New log
       const { data: itemsData, error: itemsError } = await supabase
         .from('invoice_items')
         .select('*')
@@ -75,9 +75,9 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
         console.warn("Could not fetch associated invoice items:", itemsError.message);
         setInvoiceItems([]);
       } else {
-        console.log("Fetched itemsData from Supabase:", itemsData); // Log fetched data
+        console.log("BillingListDetail: Fetched itemsData from Supabase:", itemsData); // New log
         setInvoiceItems(itemsData || []);
-        console.log("Invoice items state after set:", itemsData || []); // Log state after set
+        console.log("BillingListDetail: Invoice items state after set:", itemsData || []); // New log
       }
 
     } catch (error: any) {
@@ -171,7 +171,7 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
             <ArrowLeft className="mr-2 h-4 w-4" /> Close Details
           </Button>
         </div>
-        <p className="text-sm text-gray-400 mt-1">Created By: {invoice.user_full_name}</p>
+        <div className="text-sm text-gray-400 mt-1">Created By: {invoice.user_full_name}</div>
       </CardHeader>
       <CardContent className="p-5 flex-1 overflow-y-auto space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-4">
@@ -213,22 +213,22 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
           <div>
             <h2 className="text-lg font-semibold text-neon-cyan mb-3">Invoice Details</h2>
             <div className="space-y-2">
-              <p className="flex items-center text-sm"><FileText className="mr-2 h-4 w-4 text-blue-400" /> Invoice Number: <span className="ml-2 font-medium">{invoice.invoice_number}</span></p>
-              <p className="flex items-center text-sm"><Calendar className="mr-2 h-4 w-4 text-purple-400" /> Invoice Date: <span className="ml-2 font-medium">{format(new Date(invoice.invoice_date), "PPP")}</span></p>
-              {invoice.due_date && <p className="flex items-center text-sm"><Clock className="mr-2 h-4 w-4 text-teal-400" /> Due Date: <span className="ml-2 font-medium">{format(new Date(invoice.due_date), "PPP")}</span></p>}
-              <p className="flex items-center text-sm"><User className="mr-2 h-4 w-4 text-yellow-400" /> Customer Name: <span className="ml-2 font-medium">{invoice.customer_name}</span></p>
-              {invoice.company_name && <p className="flex items-center text-sm"><Building className="mr-2 h-4 w-4 text-indigo-400" /> Company Name: <span className="ml-2 font-medium">{invoice.company_name}</span></p>}
-              <p className="flex items-center text-sm"><DollarSign className="mr-2 h-4 w-4 text-lime-400" /> Total Amount: <span className="ml-2 font-medium">Rp {invoice.total_amount.toLocaleString("id-ID")}</span></p>
+              <div className="flex items-center text-sm"><FileText className="mr-2 h-4 w-4 text-blue-400" /> Invoice Number: <span className="ml-2 font-medium">{invoice.invoice_number}</span></div>
+              <div className="flex items-center text-sm"><Calendar className="mr-2 h-4 w-4 text-purple-400" /> Invoice Date: <span className="ml-2 font-medium">{format(new Date(invoice.invoice_date), "PPP")}</span></div>
+              {invoice.due_date && <div className="flex items-center text-sm"><Clock className="mr-2 h-4 w-4 text-teal-400" /> Due Date: <span className="ml-2 font-medium">{format(new Date(invoice.due_date), "PPP")}</span></div>}
+              <div className="flex items-center text-sm"><User className="mr-2 h-4 w-4 text-yellow-400" /> Customer Name: <span className="ml-2 font-medium">{invoice.customer_name}</span></div>
+              {invoice.company_name && <div className="flex items-center text-sm"><Building className="mr-2 h-4 w-4 text-indigo-400" /> Company Name: <span className="ml-2 font-medium">{invoice.company_name}</span></div>}
+              <div className="flex items-center text-sm"><DollarSign className="mr-2 h-4 w-4 text-lime-400" /> Total Amount: <span className="ml-2 font-medium">Rp {invoice.total_amount.toLocaleString("id-ID")}</span></div>
               <div className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Payment Status: <Badge className={getPaymentStatusColor(invoice.payment_status)}>{invoice.payment_status.replace(/_/g, ' ').toUpperCase()}</Badge></div>
-              <p className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Invoice Status: <Badge className="bg-gray-700/20 text-gray-400 border border-gray-600/30">{invoice.invoice_status.replace(/_/g, ' ').toUpperCase()}</Badge></p>
-              {invoice.notes && <p className="flex items-start text-sm"><FileText className="mr-2 h-4 w-4 text-orange-400 mt-1" /> Notes: <span className="ml-2 font-medium">{invoice.notes}</span></p>}
+              <div className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Invoice Status: <Badge className="bg-gray-700/20 text-gray-400 border border-gray-600/30">{invoice.invoice_status.replace(/_/g, ' ').toUpperCase()}</Badge></div>
+              {invoice.notes && <div className="flex items-start text-sm"><FileText className="mr-2 h-4 w-4 text-orange-400 mt-1" /> Notes: <span className="ml-2 font-medium">{invoice.notes}</span></div>}
               {invoice.document_url && (
-                <p className="flex items-center text-sm">
+                <div className="flex items-center text-sm">
                   <FileText className="mr-2 h-4 w-4 text-emerald-400" /> Document:
                   <a href={invoice.document_url} target="_blank" rel="noopener noreferrer" className="ml-2 font-medium text-blue-400 hover:underline">
                     View Document
                   </a>
-                </p>
+                </div>
               )}
             </div>
           </div>
