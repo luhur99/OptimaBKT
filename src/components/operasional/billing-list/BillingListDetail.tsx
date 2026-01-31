@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, DollarSign, User, Calendar, FileText, Building, Clock, Loader2, CheckCircle, XCircle, Info } from 'lucide-react';
+import { ArrowLeft, DollarSign, User, Calendar, FileText, Building, Clock, Loader2, CheckCircle, XCircle, Info, Truck, Tag } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -31,6 +31,7 @@ interface BillingListDetailProps {
 const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialInvoice, onUpdate, onClose }) => {
   const [invoice, setInvoice] = useState<Invoice>(initialInvoice);
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
+  const [srNumber, setSrNumber] = useState<string | null>(null); // New state for SR Number
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
   const [currentAction, setCurrentAction] = useState<'paid' | 'overdue' | null>(null);
 
@@ -66,6 +67,20 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
         payment_status: updatedInvoice.payment_status as Invoice['payment_status'],
         invoice_status: updatedInvoice.invoice_status as InvoiceDocumentStatus, // Cast to new enum type
       });
+
+      // Fetch SR Number from scheduling_requests table
+      const { data: srData, error: srError } = await supabase
+        .from('scheduling_requests')
+        .select('sr_number')
+        .eq('invoice_id', initialInvoice.id)
+        .single();
+
+      if (srError && srError.code !== 'PGRST116') { // PGRST116 means "no rows found"
+        console.warn("Could not fetch associated scheduling request SR number:", srError.message);
+        setSrNumber(null);
+      } else {
+        setSrNumber(srData?.sr_number || null);
+      }
 
       console.log(`BillingListDetail: Fetching invoice_items for invoice_id: ${initialInvoice.id}`); // New log
       const { data: itemsData, error: itemsError } = await supabase
@@ -267,6 +282,8 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
             <h2 className="text-lg font-semibold text-neon-cyan mb-3">Invoice Details</h2>
             <div className="space-y-2">
               <div className="flex items-center text-sm"><FileText className="mr-2 h-4 w-4 text-blue-400" /> Invoice Number: <span className="ml-2 font-medium">{invoice.invoice_number}</span></div>
+              {srNumber && <div className="flex items-center text-sm"><Tag className="mr-2 h-4 w-4 text-purple-400" /> SR Number: <span className="ml-2 font-medium">{srNumber}</span></div>}
+              {invoice.do_number && <div className="flex items-center text-sm"><Truck className="mr-2 h-4 w-4 text-teal-400" /> DO Number: <span className="ml-2 font-medium">{invoice.do_number}</span></div>}
               <div className="flex items-center text-sm"><Calendar className="mr-2 h-4 w-4 text-purple-400" /> Invoice Date: <span className="ml-2 font-medium">{format(new Date(invoice.invoice_date), "PPP")}</span></div>
               {invoice.due_date && <div className="flex items-center text-sm"><Clock className="mr-2 h-4 w-4 text-teal-400" /> Due Date: <span className="ml-2 font-medium">{format(new Date(invoice.due_date), "PPP")}</span></div>}
               <div className="flex items-center text-sm"><User className="mr-2 h-4 w-4 text-yellow-400" /> Customer Name: <span className="ml-2 font-medium">{invoice.customer_name}</span></div>
