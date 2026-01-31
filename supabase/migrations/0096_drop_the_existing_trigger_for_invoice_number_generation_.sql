@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS set_invoice_number_before_insert ON public.invoices;
