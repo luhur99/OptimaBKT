@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.generate_invoice_number() CASCADE;
