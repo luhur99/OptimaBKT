@@ -155,18 +155,18 @@ const BillingReviewPage = () => {
         user_id,
         invoice_id,
         status,
-        profiles!assigned_technician_id (full_name)
+        technician_name
       `)
       .eq("status", "completed")
       .eq("invoice_status", "DRAFT");
 
     if (error) {
       console.error("Error fetching billing review queue:", error);
-      showError("Failed to load billing review queue.");
+      showError("Failed to load billing review queue: " + error.message);
     } else {
       const formattedData: SchedulingRequestQueueItem[] = data.map((req: any) => ({
         ...req,
-        technician_name: req.profiles?.full_name || null,
+        technician_name: req.technician_name || null, // technician_name is now directly from req
         progress_status: Math.floor(Math.random() * 100) + 1, // Placeholder progress
       }));
       setQueue(formattedData);
