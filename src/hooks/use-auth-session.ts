@@ -26,37 +26,63 @@ export function useAuthSession(): AuthSession {
   useEffect(() => {
     let mounted = true;
 
-    // Get initial session
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
+    const fetchSessionAndProfile = async () => {
+      try {
+        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
         if (!mounted) return;
-        setSession(session);
-        
-        // Fetch profile if session exists
-        if (session?.user) {
-          return supabase
+
+        if (sessionError) {
+          if (sessionError.name === 'AbortError') {
+            // console.warn('Initial session fetch aborted.'); // Log as warning, not error
+          } else {
+            console.error('Error fetching initial session:', sessionError);
+          }
+          setSession(null);
+          setProfile(null);
+          return;
+        }
+
+        setSession(initialSession);
+
+        if (initialSession?.user) {
+          const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', session.user.id)
+            .eq('id', initialSession.user.id)
             .maybeSingle();
+          
+          if (!mounted) return;
+
+          if (profileError) {
+            if (profileError.name === 'AbortError') {
+              // console.warn('Initial profile fetch aborted.'); // Log as warning, not error
+            } else {
+              console.error('Error fetching initial profile:', profileError);
+            }
+            setProfile(null);
+            return;
+          }
+          setProfile(profileData);
+        } else {
+          setProfile(null);
         }
-        return { data: null };
-      })
-      .then(({ data }) => {
-        if (mounted && data) {
-          setProfile(data);
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          // console.warn('An operation in initial fetch was aborted.'); // Log as warning, not error
+        } else {
+          console.error('Unexpected error during initial fetch:', error);
         }
-      })
-      .catch(() => {
-        // Silently ignore all errors
-      })
-      .finally(() => {
+        setSession(null);
+        setProfile(null);
+      } finally {
         if (mounted) {
           setIsLoading(false);
         }
-      });
+      }
+    };
 
-    // Listen to auth changes
+    fetchSessionAndProfile();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
         if (!mounted) return;
@@ -64,19 +90,33 @@ export function useAuthSession(): AuthSession {
         setSession(newSession);
 
         if (newSession?.user) {
-          supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', newSession.user.id)
-            .maybeSingle()
-            .then(({ data }) => {
-              if (mounted && data) {
-                setProfile(data);
+          try {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', newSession.user.id)
+              .maybeSingle();
+            
+            if (!mounted) return;
+
+            if (profileError) {
+              if (profileError.name === 'AbortError') {
+                // console.warn('Auth state change profile fetch aborted.'); // Log as warning, not error
+              } else {
+                console.error('Error fetching profile on auth state change:', profileError);
               }
-            })
-            .catch(() => {
-              // Silently ignore
-            });
+              setProfile(null);
+              return;
+            }
+            setProfile(profileData);
+          } catch (error: any) {
+            if (error.name === 'AbortError') {
+              // console.warn('An operation in auth state change fetch was aborted.'); // Log as warning, not error
+            } else {
+              console.error('Unexpected error during auth state change profile fetch:', error);
+            }
+            setProfile(null);
+          }
         } else {
           setProfile(null);
         }
