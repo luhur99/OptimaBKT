@@ -26,72 +26,79 @@ export function useAuthSession(): AuthSession {
 
   useEffect(() => {
     mounted.current = true; // Komponen terpasang
+    const abortController = new AbortController(); // Inisialisasi AbortController
 
-    const getInitialSessionAndProfile = async () => {
+    const getInitialSessionAndProfile = async (signal: AbortSignal) => {
       try {
+        // Fetch session (tidak secara langsung mendukung AbortSignal, tapi kita tangani AbortError)
         const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
-        if (!mounted.current) return; // Mencegah pembaruan status jika komponen sudah di-unmount
+        if (signal.aborted) {
+          console.warn('Initial session fetch aborted.');
+          return;
+        }
 
         if (sessionError) {
-          console.error('Error fetching initial session:', sessionError);
           if (sessionError.name === 'AbortError') {
             console.warn('Initial session fetch aborted.');
-            return; // Abaikan AbortError
+            return;
           }
+          console.error('Error fetching initial session:', sessionError);
           setSession(null);
           setProfile(null);
         } else {
           setSession(initialSession);
           if (initialSession) {
             try {
+              // Fetch profile (mendukung AbortSignal)
               const { data: profileData, error: profileError } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', initialSession.user.id)
-                .single();
+                .single({ signal }); // Meneruskan signal di sini
 
-              if (!mounted.current) return; // Mencegah pembaruan status jika komponen sudah di-unmount
+              if (signal.aborted) {
+                console.warn('Initial profile fetch aborted.');
+                return;
+              }
 
               if (profileError) {
-                console.error('Error fetching initial profile:', profileError);
                 if (profileError.name === 'AbortError') {
                   console.warn('Initial profile fetch aborted.');
-                  return; // Abaikan AbortError
+                  return;
                 }
+                console.error('Error fetching initial profile:', profileError);
                 setProfile(null);
               } else {
                 setProfile(profileData);
               }
-            } catch (e: any) { // Catch untuk pengambilan profil
+            } catch (e: any) {
               if (e.name === 'AbortError') {
                 console.warn('Initial profile fetch aborted due to component unmount.');
               } else {
                 console.error('Unexpected error during initial profile fetch:', e);
               }
-              if (!mounted.current) return;
               setProfile(null);
             }
           } else {
             setProfile(null);
           }
         }
-      } catch (e: any) { // Catch untuk pengambilan sesi awal
+      } catch (e: any) {
         if (e.name === 'AbortError') {
           console.warn('Initial session/profile fetch aborted due to component unmount.');
         } else {
           console.error('Unexpected error during initial session/profile fetch:', e);
         }
-        if (!mounted.current) return;
         setSession(null);
         setProfile(null);
       } finally {
-        if (mounted.current) {
-          setIsLoading(false); // Pastikan isLoading diatur ke false setelah upaya pemuatan awal
+        if (!signal.aborted) { // Hanya set isLoading ke false jika tidak dibatalkan
+          setIsLoading(false);
         }
       }
     };
 
-    getInitialSessionAndProfile();
+    getInitialSessionAndProfile(abortController.signal);
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
@@ -100,11 +107,15 @@ export function useAuthSession(): AuthSession {
         setSession(newSession);
         if (newSession) {
           try {
+            // Gunakan AbortController baru untuk setiap fetch di dalam listener jika diperlukan,
+            // atau pastikan operasi ini cepat dan tidak rentan AbortError.
+            // Untuk kesederhanaan, kita tidak membuat AbortController baru di sini
+            // karena onAuthStateChange adalah langganan, bukan fetch tunggal.
             const { data: profileData, error: profileError } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', newSession.user.id)
-              .single();
+              .single(); // Tidak meneruskan signal di sini karena ini adalah bagian dari callback listener
 
             if (!mounted.current) return; // Mencegah pembaruan status jika komponen sudah di-unmount
 
@@ -112,13 +123,13 @@ export function useAuthSession(): AuthSession {
               console.error('Error fetching profile on auth state change:', profileError);
               if (profileError.name === 'AbortError') {
                 console.warn('Profile fetch on auth state change aborted.');
-                return; // Abaikan AbortError
+                return;
               }
               setProfile(null);
             } else {
               setProfile(profileData);
             }
-          } catch (e: any) { // Catch untuk pengambilan profil di listener
+          } catch (e: any) {
             if (e.name === 'AbortError') {
               console.warn('Profile fetch on auth state change aborted due to component unmount.');
             } else {
@@ -130,13 +141,12 @@ export function useAuthSession(): AuthSession {
         } else {
           setProfile(null);
         }
-        // Penting: JANGAN atur isLoading di sini. isLoading adalah untuk pemuatan *awal*.
-        // Perubahan status otentikasi berikutnya tidak boleh mengatur ulang indikator pemuatan untuk seluruh aplikasi.
       }
     );
 
     return () => {
       mounted.current = false; // Komponen di-unmount
+      abortController.abort(); // Batalkan permintaan yang sedang berjalan
       authListener.subscription.unsubscribe(); // Cleanup untuk langganan
     };
   }, []); // Dependency array kosong
