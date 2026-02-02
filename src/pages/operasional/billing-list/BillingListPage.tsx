@@ -77,7 +77,7 @@ const BillingListPage = () => {
     },
     enabled: !isAuthLoading && !!session && ["SUPER_ADMIN", "OPERASIONAL_DIV", "ACCOUNTING"].includes(profile?.role || ""), // Only run query if authenticated and authorized
     staleTime: 1000 * 60 * 5, // Data is considered fresh for 5 minutes
-    refetchOnWindowFocus: false, // Prevent refetching on window focus for this page
+    refetchOnWindowFocus: true, // Changed to true to refetch on window focus
   });
 
   useEffect(() => {
