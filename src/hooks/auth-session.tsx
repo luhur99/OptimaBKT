@@ -27,7 +27,6 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     const fetchProfile = useCallback(async (userId: string, mounted: boolean) => {
         try {
-            console.log(`AuthSessionProvider: Fetching profile for user ${userId}...`);
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
@@ -37,19 +36,20 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             if (!mounted) return null;
 
             if (error) {
-                if (error.name === 'AbortError' || (error as any).message?.includes('AbortError')) {
-                    console.log('AuthSessionProvider: Profile fetch aborted.');
+                // Silently ignore AbortError (common in React StrictMode)
+                if (error.name === 'AbortError' || (error as any).message?.includes('AbortError') || (error as any).message?.includes('aborted')) {
                     return null;
                 }
                 console.error('AuthSessionProvider: Error fetching profile:', error);
                 return null;
             }
-            console.log('AuthSessionProvider: Profile fetched successfully.');
             return data as Profile;
         } catch (err: any) {
-            if (err.name !== 'AbortError') {
-                console.error('AuthSessionProvider: Profile fetch exception:', err);
+            // Silently ignore AbortError
+            if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+                return null;
             }
+            console.error('AuthSessionProvider: Profile fetch exception:', err);
             return null;
         }
     }, []);
@@ -63,7 +63,7 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 // Set a timeout for getSession as it can sometimes hang
                 const sessionPromise = supabase.auth.getSession();
                 const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Session fetch timed out')), 5000)
+                    setTimeout(() => reject(new Error('Session fetch timed out')), 12000)
                 );
 
                 const { data: { session: initialSession }, error: sessionError } = await Promise.race([
@@ -90,11 +90,14 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     }
                 }
             } catch (error: any) {
-                console.warn('AuthSessionProvider: Initialization warning/error:', error.message || error);
-                // Continue with null session if getSession fails/times out
+                // Only log non-AbortError warnings
+                if (error.name !== 'AbortError' && !error.message?.includes('aborted')) {
+                    console.warn('AuthSessionProvider: Initialization warning/error:', error.message || error);
+                }
+                // Only clear if NOT already set by a listener (to avoid race conditions)
                 if (mounted) {
-                    setSession(null);
-                    setProfile(null);
+                    setSession(prev => prev || null);
+                    setProfile(prev => prev || null);
                 }
             } finally {
                 if (mounted) {
