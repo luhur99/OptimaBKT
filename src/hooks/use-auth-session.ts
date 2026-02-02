@@ -20,7 +20,7 @@ interface AuthSessionContextType {
 
 const AuthSessionContext = createContext<AuthSessionContextType | undefined>(undefined);
 
-export function AuthSessionProvider({ children }: { children: React.ReactNode }) {
+export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,7 +34,9 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
         if (!mounted) return;
 
         if (sessionError) {
-          if (sessionError.name !== 'AbortError') { // Only log if not an AbortError
+          if (sessionError.name !== 'AbortError') {
+            // console.warn('Initial session fetch aborted.'); // Log as warning, not error
+          } else {
             console.error('Error fetching initial session:', sessionError);
           }
           setSession(null);
@@ -54,7 +56,9 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
           if (!mounted) return;
 
           if (profileError) {
-            if (profileError.name !== 'AbortError') { // Only log if not an AbortError
+            if (profileError.name !== 'AbortError') {
+              // console.warn('Initial profile fetch aborted.'); // Log as warning, not error
+            } else {
               console.error('Error fetching initial profile:', profileError);
             }
             setProfile(null);
@@ -65,7 +69,9 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
           setProfile(null);
         }
       } catch (error: any) {
-        if (error.name !== 'AbortError') { // Only log if not an AbortError
+        if (error.name !== 'AbortError') {
+          // console.warn('An operation in initial fetch was aborted.'); // Log as warning, not error
+        } else {
           console.error('Unexpected error during initial fetch:', error);
         }
         setSession(null);
@@ -96,7 +102,9 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
             if (!mounted) return;
 
             if (profileError) {
-              if (profileError.name !== 'AbortError') { // Only log if not an AbortError
+              if (profileError.name !== 'AbortError') {
+                // console.warn('Auth state change profile fetch aborted.'); // Log as warning, not error
+              } else {
                 console.error('Error fetching profile on auth state change:', profileError);
               }
               setProfile(null);
@@ -104,7 +112,9 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
             }
             setProfile(profileData);
           } catch (error: any) {
-            if (error.name !== 'AbortError') { // Only log if not an AbortError
+            if (error.name !== 'AbortError') {
+              // console.warn('An operation in auth state change fetch was aborted.'); // Log as warning, not error
+            } else {
               console.error('Unexpected error during auth state change profile fetch:', error);
             }
             setProfile(null);
@@ -126,7 +136,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
       {children}
     </AuthSessionContext.Provider>
   );
-}
+};
 
 export function useAuthSession(): AuthSessionContextType {
   const context = useContext(AuthSessionContext);
