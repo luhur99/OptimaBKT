@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext, createContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 
@@ -12,13 +12,15 @@ interface Profile {
   updated_at: string;
 }
 
-interface AuthSession {
+interface AuthSessionContextType {
   session: Session | null;
   profile: Profile | null;
   isLoading: boolean;
 }
 
-export function useAuthSession(): AuthSession {
+const AuthSessionContext = createContext<AuthSessionContextType | undefined>(undefined);
+
+export function AuthSessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,9 +34,7 @@ export function useAuthSession(): AuthSession {
         if (!mounted) return;
 
         if (sessionError) {
-          if (sessionError.name === 'AbortError') {
-            // console.warn('Initial session fetch aborted.'); // Log as warning, not error
-          } else {
+          if (sessionError.name !== 'AbortError') { // Only log if not an AbortError
             console.error('Error fetching initial session:', sessionError);
           }
           setSession(null);
@@ -54,9 +54,7 @@ export function useAuthSession(): AuthSession {
           if (!mounted) return;
 
           if (profileError) {
-            if (profileError.name === 'AbortError') {
-              // console.warn('Initial profile fetch aborted.'); // Log as warning, not error
-            } else {
+            if (profileError.name !== 'AbortError') { // Only log if not an AbortError
               console.error('Error fetching initial profile:', profileError);
             }
             setProfile(null);
@@ -67,9 +65,7 @@ export function useAuthSession(): AuthSession {
           setProfile(null);
         }
       } catch (error: any) {
-        if (error.name === 'AbortError') {
-          // console.warn('An operation in initial fetch was aborted.'); // Log as warning, not error
-        } else {
+        if (error.name !== 'AbortError') { // Only log if not an AbortError
           console.error('Unexpected error during initial fetch:', error);
         }
         setSession(null);
@@ -100,9 +96,7 @@ export function useAuthSession(): AuthSession {
             if (!mounted) return;
 
             if (profileError) {
-              if (profileError.name === 'AbortError') {
-                // console.warn('Auth state change profile fetch aborted.'); // Log as warning, not error
-              } else {
+              if (profileError.name !== 'AbortError') { // Only log if not an AbortError
                 console.error('Error fetching profile on auth state change:', profileError);
               }
               setProfile(null);
@@ -110,9 +104,7 @@ export function useAuthSession(): AuthSession {
             }
             setProfile(profileData);
           } catch (error: any) {
-            if (error.name === 'AbortError') {
-              // console.warn('An operation in auth state change fetch was aborted.'); // Log as warning, not error
-            } else {
+            if (error.name !== 'AbortError') { // Only log if not an AbortError
               console.error('Unexpected error during auth state change profile fetch:', error);
             }
             setProfile(null);
@@ -129,5 +121,17 @@ export function useAuthSession(): AuthSession {
     };
   }, []);
 
-  return { session, profile, isLoading };
+  return (
+    <AuthSessionContext.Provider value={{ session, profile, isLoading }}>
+      {children}
+    </AuthSessionContext.Provider>
+  );
+}
+
+export function useAuthSession(): AuthSessionContextType {
+  const context = useContext(AuthSessionContext);
+  if (context === undefined) {
+    throw new Error('useAuthSession must be used within an AuthSessionProvider');
+  }
+  return context;
 }
