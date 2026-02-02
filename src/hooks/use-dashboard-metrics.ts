@@ -60,16 +60,10 @@ export const useDashboardMetrics = () => {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from("products")
-                .select("id, kode_barang, nama_barang, stok_sekarang, safe_stock_limit")
-                .lt("stok_sekarang", supabase.rpc('safe_stock_limit_ref', {})); // This might need adjustment if safe_stock_limit is a column
-
-            // Fallback: fetch all and filter client-side if RPC or complex query fails
-            const { data: allProducts, error: allErr } = await supabase
-                .from("products")
                 .select("id, kode_barang, nama_barang, stok_sekarang, safe_stock_limit");
 
-            if (allErr) throw allErr;
-            return allProducts.filter(p => p.stok_sekarang < (p.safe_stock_limit || 0));
+            if (error) throw error;
+            return data.filter(p => p.stok_sekarang < (p.safe_stock_limit || 0));
         },
     });
 

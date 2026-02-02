@@ -96,7 +96,7 @@ export const ConfirmPoArrivalDialog: React.FC<ConfirmPoArrivalDialogProps> = ({
       }
 
       const response = await fetch(
-        `https://hhhzugqimtypijkdxxsm.supabase.co/functions/v1/confirm-po-arrival`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/confirm-po-arrival`,
         {
           method: "POST",
           headers: {

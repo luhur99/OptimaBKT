@@ -27,6 +27,7 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     const fetchProfile = useCallback(async (userId: string, mounted: boolean) => {
         try {
+            console.log(`AuthSessionProvider: Fetching profile for user ${userId}...`);
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
@@ -36,13 +37,14 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             if (!mounted) return null;
 
             if (error) {
-                // Ignore AbortError for profile fetch too
                 if (error.name === 'AbortError' || (error as any).message?.includes('AbortError')) {
+                    console.log('AuthSessionProvider: Profile fetch aborted.');
                     return null;
                 }
                 console.error('AuthSessionProvider: Error fetching profile:', error);
                 return null;
             }
+            console.log('AuthSessionProvider: Profile fetched successfully.');
             return data as Profile;
         } catch (err: any) {
             if (err.name !== 'AbortError') {
@@ -56,9 +58,18 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         let mounted = true;
 
         const initializeAuth = async () => {
+            console.log('AuthSessionProvider: Starting initialization...');
             try {
-                // 1. Get initial session
-                const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
+                // Set a timeout for getSession as it can sometimes hang
+                const sessionPromise = supabase.auth.getSession();
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Session fetch timed out')), 5000)
+                );
+
+                const { data: { session: initialSession }, error: sessionError } = await Promise.race([
+                    sessionPromise,
+                    timeoutPromise
+                ]) as any;
 
                 if (!mounted) return;
 
@@ -69,6 +80,7 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     setSession(null);
                     setProfile(null);
                 } else {
+                    console.log('AuthSessionProvider: Initial session retrieved:', initialSession?.user?.id || 'No session');
                     setSession(initialSession);
                     if (initialSession?.user) {
                         const profileData = await fetchProfile(initialSession.user.id, mounted);
@@ -78,11 +90,15 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     }
                 }
             } catch (error: any) {
-                if (error.name !== 'AbortError') {
-                    console.error('AuthSessionProvider: Initialization error:', error);
+                console.warn('AuthSessionProvider: Initialization warning/error:', error.message || error);
+                // Continue with null session if getSession fails/times out
+                if (mounted) {
+                    setSession(null);
+                    setProfile(null);
                 }
             } finally {
                 if (mounted) {
+                    console.log('AuthSessionProvider: Initialization complete, setting isLoading to false.');
                     setIsLoading(false);
                 }
             }
@@ -90,48 +106,50 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
         initializeAuth();
 
-        // 2. Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event: AuthChangeEvent, newSession: Session | null) => {
                 if (!mounted) return;
+                console.log(`AuthSessionProvider: Auth state change: ${event}`);
 
-                // Handle sign out immediately
                 if (event === 'SIGNED_OUT') {
                     setSession(null);
                     setProfile(null);
+                    setIsLoading(false); // Ensure loading is off on sign out
                     return;
                 }
 
                 setSession(newSession);
 
                 if (newSession?.user) {
-                    // Only fetch profile if it's a significant event or if we don't have it yet
-                    // SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED are good times to refresh
                     const profileData = await fetchProfile(newSession.user.id, mounted);
-                    if (mounted) setProfile(profileData);
+                    if (mounted) {
+                        setProfile(profileData);
+                        setIsLoading(false);
+                    }
                 } else {
                     setProfile(null);
+                    setIsLoading(false);
                 }
             }
         );
 
-        // Safety timeout (10 seconds)
-        const safetyTimeout = setTimeout(() => {
+        // Ultimate safety timeout (15 seconds)
+        const ultimateTimeout = setTimeout(() => {
             if (mounted) {
                 setIsLoading(current => {
                     if (current) {
-                        console.warn('AuthSessionProvider: Forced loading to false after timeout.');
+                        console.warn('AuthSessionProvider: Ultimate safety timeout reached. Forcing loading to false.');
                         return false;
                     }
                     return current;
                 });
             }
-        }, 10000);
+        }, 15000);
 
         return () => {
             mounted = false;
             subscription.unsubscribe();
-            clearTimeout(safetyTimeout);
+            clearTimeout(ultimateTimeout);
         };
     }, [fetchProfile]);
 

@@ -45,7 +45,7 @@ function LoginPage() {
                   inputPlaceholder: 'hsl(var(--gray-500))',
                   inputText: 'hsl(var(--gray-300))',
                   defaultButtonBackground: 'hsl(var(--electric-violet))',
-                  defaultButtonHoverBackground: 'hsl(var(--electric-violet)/80)',
+                  defaultButtonBackgroundHover: 'hsl(var(--electric-violet)/80)',
                   defaultButtonBorder: 'hsl(var(--electric-violet)/50)',
                   defaultButtonText: 'hsl(var(--white))',
                 },
