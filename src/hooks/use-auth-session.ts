@@ -32,21 +32,22 @@ export function useAuthSession(): AuthSession {
       try {
         // Fetch session (tidak secara langsung mendukung AbortSignal, tapi kita tangani AbortError)
         const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
-        if (signal.aborted) {
-          console.warn('Initial session fetch aborted.');
-          return;
-        }
+        if (!mounted.current) return; // Cek mounted setelah operasi async
 
         if (sessionError) {
           if (sessionError.name === 'AbortError') {
             console.warn('Initial session fetch aborted.');
-            return;
+            return; // Abaikan AbortError
           }
           console.error('Error fetching initial session:', sessionError);
-          setSession(null);
-          setProfile(null);
+          if (mounted.current) {
+            setSession(null);
+            setProfile(null);
+          }
         } else {
-          setSession(initialSession);
+          if (mounted.current) {
+            setSession(initialSession);
+          }
           if (initialSession) {
             try {
               // Fetch profile (mendukung AbortSignal)
@@ -56,43 +57,52 @@ export function useAuthSession(): AuthSession {
                 .eq('id', initialSession.user.id)
                 .single({ signal }); // Meneruskan signal di sini
 
-              if (signal.aborted) {
-                console.warn('Initial profile fetch aborted.');
-                return;
-              }
+              if (!mounted.current) return; // Cek mounted setelah operasi async
 
               if (profileError) {
                 if (profileError.name === 'AbortError') {
                   console.warn('Initial profile fetch aborted.');
-                  return;
+                  return; // Abaikan AbortError
                 }
                 console.error('Error fetching initial profile:', profileError);
-                setProfile(null);
+                if (mounted.current) {
+                  setProfile(null);
+                }
               } else {
-                setProfile(profileData);
+                if (mounted.current) {
+                  setProfile(profileData);
+                }
               }
-            } catch (e: any) {
+            } catch (e: any) { // Catch untuk pengambilan profil
               if (e.name === 'AbortError') {
                 console.warn('Initial profile fetch aborted due to component unmount.');
               } else {
                 console.error('Unexpected error during initial profile fetch:', e);
               }
-              setProfile(null);
+              if (mounted.current) {
+                setProfile(null);
+              }
             }
           } else {
-            setProfile(null);
+            if (mounted.current) {
+              setProfile(null);
+            }
           }
         }
-      } catch (e: any) {
+      } catch (e: any) { // Catch untuk pengambilan sesi awal
         if (e.name === 'AbortError') {
           console.warn('Initial session/profile fetch aborted due to component unmount.');
         } else {
           console.error('Unexpected error during initial session/profile fetch:', e);
         }
-        setSession(null);
-        setProfile(null);
+        if (mounted.current) {
+          setSession(null);
+          setProfile(null);
+        }
       } finally {
-        if (!signal.aborted) { // Hanya set isLoading ke false jika tidak dibatalkan
+        // Selalu set isLoading ke false jika komponen masih terpasang
+        // Ini memastikan status loading selesai, terlepas dari apakah fetch berhasil atau dibatalkan.
+        if (mounted.current) {
           setIsLoading(false);
         }
       }
@@ -104,30 +114,36 @@ export function useAuthSession(): AuthSession {
       async (_event, newSession) => {
         if (!mounted.current) return; // Mencegah pembaruan status jika komponen sudah di-unmount
 
-        setSession(newSession);
+        if (mounted.current) {
+          setSession(newSession);
+        }
         if (newSession) {
           try {
-            // Gunakan AbortController baru untuk setiap fetch di dalam listener jika diperlukan,
-            // atau pastikan operasi ini cepat dan tidak rentan AbortError.
-            // Untuk kesederhanaan, kita tidak membuat AbortController baru di sini
-            // karena onAuthStateChange adalah langganan, bukan fetch tunggal.
+            // Untuk fetch di dalam listener, kita tidak menggunakan AbortController yang sama
+            // karena ini adalah bagian dari callback langganan.
+            // Namun, kita tetap menangani AbortError jika terjadi dari operasi fetch internal Supabase.
             const { data: profileData, error: profileError } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', newSession.user.id)
-              .single(); // Tidak meneruskan signal di sini karena ini adalah bagian dari callback listener
+              .single();
 
             if (!mounted.current) return; // Mencegah pembaruan status jika komponen sudah di-unmount
 
             if (profileError) {
               console.error('Error fetching profile on auth state change:', profileError);
-              if (profileError.name === 'AbortError') {
+              // Periksa apakah profileError adalah objek dan memiliki properti 'name'
+              if (profileError && typeof profileError === 'object' && 'name' in profileError && profileError.name === 'AbortError') {
                 console.warn('Profile fetch on auth state change aborted.');
-                return;
+                return; // Abaikan AbortError
               }
-              setProfile(null);
+              if (mounted.current) {
+                setProfile(null);
+              }
             } else {
-              setProfile(profileData);
+              if (mounted.current) {
+                setProfile(profileData);
+              }
             }
           } catch (e: any) {
             if (e.name === 'AbortError') {
@@ -135,11 +151,14 @@ export function useAuthSession(): AuthSession {
             } else {
               console.error('Unexpected error during profile fetch on auth state change:', e);
             }
-            if (!mounted.current) return;
-            setProfile(null);
+            if (mounted.current) {
+              setProfile(null);
+            }
           }
         } else {
-          setProfile(null);
+          if (mounted.current) {
+            setProfile(null);
+          }
         }
       }
     );
