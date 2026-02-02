@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, DollarSign, User, Calendar, FileText, Building, Clock, Loader2, CheckCircle, XCircle, Info, Truck, Tag } from 'lucide-react';
+import { ArrowLeft, DollarSign, User, Calendar, FileText, Building, Clock, Loader2, CheckCircle, XCircle, Info, Truck, Tag, Receipt } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -55,17 +55,50 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
           do_number,
           notes,
           document_url,
-          stock_deducted
+          stock_deducted,
+          subtotal_amount,
+          tax_amount,
+          with_tax
         `)
         .eq('id', initialInvoice.id)
         .single();
 
-      if (invoiceError) throw new Error(invoiceError.message);
+      let finalInvoice = updatedInvoice;
+
+      if (invoiceError) {
+        if (invoiceError.message.includes("column") && invoiceError.message.includes("does not exist")) {
+          const { data: fallback, error: fallbackError } = await supabase
+            .from('invoices')
+            .select(`
+              id,
+              invoice_number,
+              invoice_date,
+              due_date,
+              customer_name,
+              company_name,
+              total_amount,
+              payment_status,
+              invoice_status,
+              user_id,
+              do_number,
+              notes,
+              document_url,
+              stock_deducted
+            `)
+            .eq('id', initialInvoice.id)
+            .single();
+          if (fallbackError) throw fallbackError;
+          finalInvoice = fallback;
+        } else {
+          throw invoiceError;
+        }
+      }
+
       setInvoice({
-        ...updatedInvoice,
-        user_full_name: updatedInvoice.profiles?.full_name || "System", // Manually join
-        payment_status: updatedInvoice.payment_status as Invoice['payment_status'],
-        invoice_status: updatedInvoice.invoice_status as InvoiceDocumentStatus, // Cast to new enum type
+        ...finalInvoice,
+        user_full_name: finalInvoice.profiles?.full_name || "System", // Manually join
+        payment_status: finalInvoice.payment_status as Invoice['payment_status'],
+        invoice_status: finalInvoice.invoice_status as InvoiceDocumentStatus, // Cast to new enum type
       });
 
       // Fetch SR Number from scheduling_requests table
@@ -288,7 +321,17 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
               {invoice.due_date && <div className="flex items-center text-sm"><Clock className="mr-2 h-4 w-4 text-teal-400" /> Due Date: <span className="ml-2 font-medium">{format(new Date(invoice.due_date), "PPP")}</span></div>}
               <div className="flex items-center text-sm"><User className="mr-2 h-4 w-4 text-yellow-400" /> Customer Name: <span className="ml-2 font-medium">{invoice.customer_name}</span></div>
               {invoice.company_name && <div className="flex items-center text-sm"><Building className="mr-2 h-4 w-4 text-indigo-400" /> Company Name: <span className="ml-2 font-medium">{invoice.company_name}</span></div>}
-              <div className="flex items-center text-sm"><DollarSign className="mr-2 h-4 w-4 text-lime-400" /> Total Amount: <span className="ml-2 font-medium">Rp {invoice.total_amount.toLocaleString("id-ID")}</span></div>
+
+              <Separator className="bg-gray-800 my-2" />
+
+              <div className="flex items-center text-sm"><DollarSign className="mr-2 h-4 w-4 text-gray-400" /> Subtotal: <span className="ml-2 font-medium text-gray-400">Rp {invoice.subtotal_amount?.toLocaleString("id-ID") || invoice.total_amount.toLocaleString("id-ID")}</span></div>
+              {invoice.with_tax && (
+                <div className="flex items-center text-sm"><Receipt className="mr-2 h-4 w-4 text-neon-cyan" /> Pajak (11%): <span className="ml-2 font-medium text-neon-cyan">Rp {invoice.tax_amount?.toLocaleString("id-ID")}</span></div>
+              )}
+              <div className="flex items-center text-sm"><DollarSign className="mr-2 h-4 w-4 text-lime-400" /> Total Tagihan: <span className="ml-2 font-bold text-lg text-neon-cyan">Rp {invoice.total_amount.toLocaleString("id-ID")}</span></div>
+
+              <Separator className="bg-gray-800 my-2" />
+
               <div className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Payment Status: <Badge className={getPaymentStatusColor(invoice.payment_status)}>{invoice.payment_status.replace(/_/g, ' ').toUpperCase()}</Badge></div>
               <div className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Invoice Status: <Badge className={getInvoiceDocumentStatusColor(invoice.invoice_status)}>{invoice.invoice_status.replace(/_/g, ' ').toUpperCase()}</Badge></div>
               {invoice.notes && <div className="flex items-start text-sm"><FileText className="mr-2 h-4 w-4 text-orange-400 mt-1" /> Notes: <span className="ml-2 font-medium">{invoice.notes}</span></div>}

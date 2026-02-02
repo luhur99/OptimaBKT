@@ -30,11 +30,6 @@ const SalesSchedulingPage = () => {
         navigate("/"); // Redirect to home if not logged in
         return;
       }
-      if (profile?.role !== "SALES_DIV" && profile?.role !== "SUPER_ADMIN") {
-        navigate("/dashboard"); // Redirect if not Sales Div or Super Admin
-        showError("You do not have permission to access this page.");
-        return;
-      }
     }
   }, [isAuthLoading, session, profile, navigate]);
 
@@ -63,7 +58,7 @@ const SalesSchedulingPage = () => {
     );
   }
 
-  if (!session || (profile?.role !== "SALES_DIV" && profile?.role !== "SUPER_ADMIN")) {
+  if (!session) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">

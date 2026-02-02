@@ -75,7 +75,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       name: "Sales Scheduling",
       href: "/sales/scheduling",
       icon: ShoppingCart,
-      roles: ["SUPER_ADMIN", "SALES_DIV"],
+      roles: ["SUPER_ADMIN", "SALES_DIV", "OPERASIONAL_DIV"],
     },
     {
       name: "Procurement",

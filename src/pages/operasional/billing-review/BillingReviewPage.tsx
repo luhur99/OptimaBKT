@@ -38,6 +38,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { Progress } from "@/components/ui/progress"; // Assuming shadcn Progress component
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Switch } from "@/components/ui/switch";
+import { Receipt } from "lucide-react";
 
 // Type definitions
 type InvoiceDocumentStatus = 'DRAFT' | 'PENDING' | 'PAID' | 'CANCELLED';
@@ -124,10 +126,11 @@ const BillingReviewPage = () => {
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [invoiceDate, setInvoiceDate] = useState<Date>(new Date());
   const [activeRowId, setActiveRowId] = useState<string | null>(null); // State for active row in table
+  const [withTax, setWithTax] = useState<boolean>(false);
 
   const hasUnsavedChanges = useMemo(() => {
-    return selectedRequest !== null && invoiceItems.length > 0;
-  }, [selectedRequest, invoiceItems]);
+    return selectedRequest !== null && (invoiceItems.length > 0 || withTax);
+  }, [selectedRequest, invoiceItems, withTax]);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -164,7 +167,8 @@ const BillingReviewPage = () => {
         invoices (invoice_number)
       `)
       .eq("status", "completed")
-      .eq("invoice_status", "DRAFT"); // Filter by new DRAFT enum
+      .eq("invoice_status", "DRAFT") // Filter by new DRAFT enum
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error fetching billing review queue:", error);
@@ -203,11 +207,6 @@ const BillingReviewPage = () => {
         navigate("/");
         return;
       }
-      if (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN" && profile?.role !== "ACCOUNTING") {
-        navigate("/dashboard");
-        showError("You do not have permission to access this page.");
-        return;
-      }
       fetchQueue();
       fetchProducts();
     }
@@ -217,6 +216,7 @@ const BillingReviewPage = () => {
     setSelectedRequest(request);
     setInvoiceItems([]);
     setActiveRowId(null);
+    setWithTax(false);
   };
 
   const handleAddInvoiceItem = () => {
@@ -295,9 +295,17 @@ const BillingReviewPage = () => {
     }
   };
 
-  const grandTotal = useMemo(() => {
+  const subtotalAmount = useMemo(() => {
     return invoiceItems.reduce((sum, item) => sum + item.subtotal, 0);
   }, [invoiceItems]);
+
+  const taxAmount = useMemo(() => {
+    return withTax ? subtotalAmount * 0.11 : 0;
+  }, [subtotalAmount, withTax]);
+
+  const grandTotal = useMemo(() => {
+    return subtotalAmount + taxAmount;
+  }, [subtotalAmount, taxAmount]);
 
   const handleFinalizeInvoice = async () => {
     if (!selectedRequest) {
@@ -320,7 +328,10 @@ const BillingReviewPage = () => {
         .from("invoices")
         .update({
           invoice_date: format(invoiceDate, "yyyy-MM-dd"),
+          subtotal_amount: subtotalAmount,
+          tax_amount: taxAmount,
           total_amount: grandTotal,
+          with_tax: withTax,
           invoice_status: "PENDING", // Set to PENDING after finalization
           payment_status: "pending", // Payment status is pending by default
         })
@@ -405,7 +416,7 @@ const BillingReviewPage = () => {
     );
   }
 
-  if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN" && profile?.role !== "ACCOUNTING")) {
+  if (!session) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">
@@ -465,7 +476,23 @@ const BillingReviewPage = () => {
           <ScrollArea className="h-full p-6">
             {selectedRequest ? (
               <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-neon-cyan">Detail Invoice: <span className="text-electric-violet">{selectedRequest.sr_number}</span></h2>
+                <div className="flex justify-between items-center bg-gray-900/40 p-4 rounded-xl border border-gray-800/50 mb-6">
+                  <h2 className="text-2xl font-bold text-neon-cyan flex items-center">
+                    <Receipt className="mr-3 h-6 w-6 text-electric-violet" />
+                    Detail Invoice: <span className="text-electric-violet ml-2">{selectedRequest.sr_number}</span>
+                  </h2>
+                  <div className="flex items-center space-x-4 bg-neon-cyan/5 px-4 py-2 rounded-full border border-neon-cyan/20">
+                    <Label htmlFor="tax-toggle" className="text-sm font-bold text-gray-300 cursor-pointer uppercase tracking-tighter">
+                      Gunakan PPN (11%)
+                    </Label>
+                    <Switch
+                      id="tax-toggle"
+                      checked={withTax}
+                      onCheckedChange={setWithTax}
+                      className="data-[state=checked]:bg-neon-cyan"
+                    />
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-4 text-gray-300">
                   <div>
                     <p className="text-sm font-medium text-gray-400">SR Number:</p>
@@ -693,19 +720,33 @@ const BillingReviewPage = () => {
       </ResizablePanelGroup>
 
       {/* Sticky Footer for Grand Total */}
-      <div className="fixed bottom-0 left-0 right-0 md:ml-72 p-4 bg-deep-charcoal/80 glassmorphism border-t border-neon-cyan/30 flex justify-end items-center z-40">
+      <div className="fixed bottom-0 left-0 right-0 md:ml-72 p-4 bg-deep-charcoal/90 backdrop-blur-md border-t border-neon-cyan/30 flex justify-between items-center z-40 px-8 shadow-lg">
+        <div className="flex items-center space-x-4 bg-neon-cyan/10 px-6 py-3 rounded-full border border-neon-cyan/30">
+          <Label htmlFor="footer-tax-toggle" className="text-sm font-black text-neon-cyan cursor-pointer uppercase tracking-widest">
+            AKTIFKAN PAJAK (11%)
+          </Label>
+          <Switch
+            id="footer-tax-toggle"
+            checked={withTax}
+            onCheckedChange={setWithTax}
+            className="data-[state=checked]:bg-neon-cyan scale-110"
+          />
+        </div>
+
         <div className="flex items-center space-x-8">
           <div className="text-right">
             <Label className="text-sm text-gray-400">Subtotal</Label>
-            <p className="text-lg font-semibold text-gray-300">Rp <CountUp value={grandTotal} /></p>
+            <p className="text-lg font-semibold text-gray-300">Rp <CountUp value={subtotalAmount} /></p>
           </div>
           <div className="text-right">
-            <Label className="text-sm text-gray-400">Calculated Tax</Label>
-            <p className="text-lg font-semibold text-gray-300">Rp <CountUp value={grandTotal * 0.1} /></p> {/* Placeholder tax */}
+            <Label className="text-sm text-gray-400">Pajak (11%)</Label>
+            <p className={cn("text-lg font-semibold transition-colors", withTax ? "text-neon-cyan" : "text-gray-500")}>
+              Rp <CountUp value={taxAmount} />
+            </p>
           </div>
           <div className="text-right">
-            <Label className="text-lg font-semibold text-gray-200">LIVE TOTAL</Label>
-            <p className="text-4xl font-extrabold neon-cyan-text">Rp <CountUp value={grandTotal * 1.1} /></p> {/* Placeholder total with tax */}
+            <Label className="text-lg font-semibold text-gray-200">TOTAL AKHIR</Label>
+            <p className="text-4xl font-extrabold neon-cyan-text">Rp <CountUp value={grandTotal} /></p>
           </div>
         </div>
       </div>

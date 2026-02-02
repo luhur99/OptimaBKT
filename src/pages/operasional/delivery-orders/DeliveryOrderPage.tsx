@@ -60,11 +60,6 @@ const DeliveryOrderPage = () => {
         navigate("/");
         return;
       }
-      if (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN") {
-        navigate("/dashboard");
-        showError("You do not have permission to access this page.");
-        return;
-      }
       fetchDeliveryOrders();
     }
   }, [isAuthLoading, session, profile, navigate]);
@@ -87,7 +82,7 @@ const DeliveryOrderPage = () => {
     );
   }
 
-  if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN")) {
+  if (!session) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">

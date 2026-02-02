@@ -65,7 +65,11 @@ const formSchema = z.object({
   externalTechnicianName: z.string().optional(),
 });
 
-export const CreateSchedulingRequestForm = () => {
+interface CreateSchedulingRequestFormProps {
+  onFormSubmit?: () => void;
+}
+
+export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRequestFormProps) => {
   const [activeTab, setActiveTab] = useState("customer-contact");
   const [openCustomerCombobox, setOpenCustomerCombobox] = useState(false);
 
@@ -164,6 +168,7 @@ export const CreateSchedulingRequestForm = () => {
       toast.success("Scheduling request created successfully!");
       form.reset();
       setActiveTab("customer-contact");
+      if (onFormSubmit) onFormSubmit();
     }
   };
 

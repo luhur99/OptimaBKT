@@ -10,13 +10,21 @@ export type Invoice = {
   id: string;
   invoice_number: string;
   invoice_date: string;
+  due_date?: string;
   customer_name: string;
+  company_name?: string;
   total_amount: number;
+  subtotal_amount?: number;
+  tax_amount?: number;
+  with_tax?: boolean;
   payment_status: 'pending' | 'paid' | 'overdue';
   invoice_status: InvoiceDocumentStatus; // Use new enum type
   user_id: string;
   user_full_name: string; // From join
   do_number?: string;
+  notes?: string;
+  document_url?: string;
+  stock_deducted?: boolean;
 };
 
 interface CreateBillingListColumnsOptions {

@@ -23,54 +23,85 @@ const BillingListPage = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
   const fetchInvoices = async () => {
-    console.log("BillingListPage: fetchInvoices called."); // Added log
+    console.log("BillingListPage: fetchInvoices called.");
     setIsLoadingInvoices(true);
-    const { data, error } = await supabase
-      .from("invoices")
-      .select(`
-        id,
-        invoice_number,
-        invoice_date,
-        due_date,
-        customer_name,
-        company_name,
-        total_amount,
-        payment_status,
-        invoice_status,
-        user_id,
-        do_number,
-        notes,
-        document_url
-      `)
-      .in("invoice_status", ["PENDING", "PAID"]) // Filter for PENDING and PAID invoices
-      .order("invoice_date", { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from("invoices")
+        .select(`
+          id,
+          invoice_number,
+          invoice_date,
+          due_date,
+          customer_name,
+          company_name,
+          total_amount,
+          payment_status,
+          invoice_status,
+          user_id,
+          do_number,
+          notes,
+          document_url,
+          subtotal_amount,
+          tax_amount,
+          with_tax
+        `)
+        .in("invoice_status", ["PENDING", "PAID"])
+        .order("invoice_date", { ascending: false });
 
-    if (error) {
+      if (error) {
+        if (error.message.includes("column") && error.message.includes("does not exist")) {
+          console.warn("Tax columns missing, falling back to basic query.");
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from("invoices")
+            .select(`
+              id,
+              invoice_number,
+              invoice_date,
+              due_date,
+              customer_name,
+              company_name,
+              total_amount,
+              payment_status,
+              invoice_status,
+              user_id,
+              do_number,
+              notes,
+              document_url
+            `)
+            .in("invoice_status", ["PENDING", "PAID"])
+            .order("invoice_date", { ascending: false });
+
+          if (fallbackError) throw fallbackError;
+          await processInvoicesData(fallbackData || []);
+        } else {
+          throw error;
+        }
+      } else {
+        await processInvoicesData(data || []);
+      }
+    } catch (error: any) {
       console.error("Error fetching invoices:", error);
       showError("Failed to load invoices: " + error.message);
-    } else {
-      // Fetch profiles separately
-      const { data: profilesData, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, full_name");
-
-      if (profilesError) {
-        console.error("Error fetching profiles:", profilesError);
-        showError("Failed to load user profiles.");
-        // Proceed with invoices without full_name if profiles fail
-      }
-
-      const profileMap = new Map(profilesData?.map(p => [p.id, p.full_name]));
-
-      const formattedData: Invoice[] = data.map((inv: any) => ({
-        ...inv,
-        user_full_name: profileMap.get(inv.user_id) || "System", // Manually join
-        payment_status: inv.payment_status as Invoice['payment_status'],
-        invoice_status: inv.invoice_status as InvoiceDocumentStatus, // Cast to new enum type
-      }));
-      setInvoices(formattedData);
+    } finally {
+      setIsLoadingInvoices(false);
     }
-    setIsLoadingInvoices(false);
+  };
+
+  const processInvoicesData = async (data: any[]) => {
+    const { data: profilesData, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, full_name");
+
+    const profileMap = new Map((profilesData || []).map(p => [p.id, p.full_name]));
+
+    const formattedData: Invoice[] = data.map((inv: any) => ({
+      ...inv,
+      user_full_name: profileMap.get(inv.user_id) || "System",
+      payment_status: inv.payment_status as Invoice['payment_status'],
+      invoice_status: inv.invoice_status as InvoiceDocumentStatus,
+    }));
+    setInvoices(formattedData);
   };
 
   useEffect(() => {

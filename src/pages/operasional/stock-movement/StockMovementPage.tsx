@@ -93,11 +93,6 @@ const StockMovementPage = () => {
         navigate("/");
         return;
       }
-      if (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN") {
-        navigate("/dashboard");
-        showError("You do not have permission to access this page.");
-        return;
-      }
       fetchInventory();
     }
   }, [isAuthLoading, session, profile, navigate]);
@@ -129,7 +124,7 @@ const StockMovementPage = () => {
     );
   }
 
-  if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN")) {
+  if (!session) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">

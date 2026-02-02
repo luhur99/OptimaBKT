@@ -89,12 +89,6 @@ const ProductCatalogPage = () => {
         navigate("/");
         return;
       }
-      if (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN") {
-        console.log("Unauthorized role, redirecting to /dashboard. Role:", profile?.role);
-        navigate("/dashboard");
-        showError("You do not have permission to access this page.");
-        return;
-      }
       console.log("User authorized, initiating product fetch.");
       fetchProducts();
     }
@@ -111,7 +105,7 @@ const ProductCatalogPage = () => {
     );
   }
 
-  if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN")) {
+  if (!session) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">

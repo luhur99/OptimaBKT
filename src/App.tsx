@@ -18,7 +18,8 @@ import DeliveryOrderPage from "./pages/operasional/delivery-orders/DeliveryOrder
 import PurchaseRequestPage from "./pages/operasional/procurement/PurchaseRequestPage";
 import BillingListPage from "./pages/operasional/billing-list/BillingListPage";
 import LoginPage from "./pages/LoginPage";
-import { AuthSessionProvider } from "./components/AuthSessionProvider"; // Import AuthSessionProvider dari lokasi baru
+import { AuthSessionProvider } from "./components/AuthSessionProvider";
+import ProtectedRoute from "./components/shared/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -28,29 +29,115 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <AuthSessionProvider> {/* Wrap the entire application with AuthSessionProvider */}
+        <AuthSessionProvider>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/admin/users" element={<UserManagementPage />} />
-            <Route path="/operasional/scheduling" element={<OperasionalSchedulingPage />} />
-            <Route path="/sales/scheduling" element={<SalesSchedulingPage />} />
-            <Route path="/operasional/procurement" element={<ProcurementPage />} />
-            <Route path="/operasional/purchase-requests" element={<PurchaseRequestPage />} />
-            <Route path="/operasional/billing-review" element={<BillingReviewPage />} />
-            <Route path="/operasional/billing-list" element={<BillingListPage />} />
-            <Route path="/operasional/stock-movement" element={<StockMovementPage />} />
-            <Route path="/operasional/products" element={<ProductCatalogPage />} />
-            <Route path="/operasional/inventory-dashboard" element={<InventoryDashboardPage />} />
-            <Route path="/operasional/delivery-orders" element={<DeliveryOrderPage />} />
+
+            {/* Protected Routes */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <DashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute allowedRoles={["SUPER_ADMIN"]}>
+                  <UserManagementPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/operasional/scheduling"
+              element={
+                <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV"]}>
+                  <OperasionalSchedulingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/sales/scheduling"
+              element={
+                <ProtectedRoute allowedRoles={["SUPER_ADMIN", "SALES_DIV", "OPERASIONAL_DIV"]}>
+                  <SalesSchedulingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/operasional/procurement"
+              element={
+                <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV"]}>
+                  <ProcurementPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/operasional/purchase-requests"
+              element={
+                <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV"]}>
+                  <PurchaseRequestPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/operasional/billing-review"
+              element={
+                <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "ACCOUNTING"]}>
+                  <BillingReviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/operasional/billing-list"
+              element={
+                <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "ACCOUNTING"]}>
+                  <BillingListPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/operasional/stock-movement"
+              element={
+                <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV"]}>
+                  <StockMovementPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/operasional/products"
+              element={
+                <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV"]}>
+                  <ProductCatalogPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/operasional/inventory-dashboard"
+              element={
+                <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV"]}>
+                  <InventoryDashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/operasional/delivery-orders"
+              element={
+                <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "TECHNICIAN"]}>
+                  <DeliveryOrderPage />
+                </ProtectedRoute>
+              }
+            />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthSessionProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+      </BrowserRouter >
+    </TooltipProvider >
+  </QueryClientProvider >
 );
 
 export default App;

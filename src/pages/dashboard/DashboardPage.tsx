@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React from "react";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SuperAdminDashboard } from "@/components/dashboard/SuperAdminDashboard";
@@ -10,16 +9,9 @@ import { AccountingDashboard } from "@/components/dashboard/AccountingDashboard"
 import DashboardLayout from "@/layouts/DashboardLayout";
 
 const DashboardPage = () => {
-  const { session, profile, isLoading } = useAuthSession();
-  const navigate = useNavigate();
+  const { profile } = useAuthSession();
 
-  useEffect(() => {
-    if (!isLoading && !session) {
-      navigate("/"); // Redirect to home if not logged in
-    }
-  }, [isLoading, session, navigate]);
-
-  if (isLoading) {
+  if (!profile) {
     return (
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
@@ -30,16 +22,6 @@ const DashboardPage = () => {
             <Skeleton className="h-[120px] w-full bg-gray-700" />
           </div>
           <Skeleton className="h-[150px] w-full bg-gray-700" />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (!session || !profile) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-screen text-gray-400">
-          Redirecting...
         </div>
       </DashboardLayout>
     );

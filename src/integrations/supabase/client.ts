@@ -1,7 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Menggunakan import.meta.env untuk mengakses variabel lingkungan di Vite
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hhhzugqimtypijkdxxsm.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoaHp1Z3FpbXR5cGlqa2R4eHNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMDMzNDcsImV4cCI6MjA4MzY3OTM0N30.n9-aAw15Obt5hRc2fOcXbz9M39P9e2cpb3stIxct7nc';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Supabase URL and Anon Key must be provided in environment variables');
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

@@ -1,8 +1,6 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuthSession } from "@/hooks/use-auth-session";
-import { supabase } from "@/integrations/supabase/client";
+import React, { useEffect, useState } from "react";
 import { StaffUser, columns } from "@/components/admin/users/user-columns";
+import { supabase } from "@/integrations/supabase/client";
 import { UserTable } from "@/components/admin/users/user-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,12 +12,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { AddStaffForm } from "@/components/admin/users/add-staff-form";
-import { showSuccess, showError } from "@/utils/toast";
-import DashboardLayout from "@/layouts/DashboardLayout"; // Import DashboardLayout
+import { showError } from "@/utils/toast";
+import DashboardLayout from "@/layouts/DashboardLayout";
 
 const UserManagementPage = () => {
-  const { session, profile, isLoading } = useAuthSession();
-  const navigate = useNavigate();
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
   const [isAddStaffDialogOpen, setIsAddStaffDialogOpen] = useState(false);
 
@@ -37,29 +33,8 @@ const UserManagementPage = () => {
   };
 
   useEffect(() => {
-    if (!isLoading) {
-      if (!session) {
-        navigate("/"); // Redirect to home if not logged in
-        return;
-      }
-      if (profile?.role !== "SUPER_ADMIN") {
-        navigate("/dashboard"); // Redirect to dashboard if not SUPER_ADMIN
-        showError("You do not have permission to access this page.");
-        return;
-      }
-      fetchStaffUsers();
-    }
-  }, [isLoading, session, profile, navigate]);
-
-  if (isLoading || !session || profile?.role !== "SUPER_ADMIN") {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-screen text-gray-400">
-          Loading or unauthorized...
-        </div>
-      </DashboardLayout>
-    );
-  }
+    fetchStaffUsers();
+  }, []);
 
   return (
     <DashboardLayout>
