@@ -18,8 +18,8 @@ import DeliveryOrderPage from "./pages/operasional/delivery-orders/DeliveryOrder
 import PurchaseRequestPage from "./pages/operasional/procurement/PurchaseRequestPage";
 import BillingListPage from "./pages/operasional/billing-list/BillingListPage";
 import LoginPage from "./pages/LoginPage";
-import { AuthSessionProvider } from "./components/AuthSessionProvider";
-import ProtectedRoute from "./components/shared/ProtectedRoute";
+import { AuthSessionProvider } from "@/hooks/use-auth-session";
+import ProtectedRoute from "@/components/shared/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -28,8 +28,8 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <AuthSessionProvider>
+      <AuthSessionProvider>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginPage />} />
@@ -134,8 +134,8 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </AuthSessionProvider>
-      </BrowserRouter >
+        </BrowserRouter >
+      </AuthSessionProvider>
     </TooltipProvider >
   </QueryClientProvider >
 );
