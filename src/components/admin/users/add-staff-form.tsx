@@ -21,7 +21,6 @@ import {
 import { showSuccess, showError } from "@/utils/toast";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client"; // Ensure supabase is imported
-import { useAuthSession } from "@/hooks/use-auth-session"; // Import useAuthSession
 
 const formSchema = z.object({
   full_name: z.string().min(2, {
@@ -50,7 +49,6 @@ interface AddStaffFormProps {
 
 export function AddStaffForm({ onStaffAdded, onClose }: AddStaffFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { session } = useAuthSession(); // Use the simplified useAuthSession
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -64,16 +62,13 @@ export function AddStaffForm({ onStaffAdded, onClose }: AddStaffFormProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
-      if (!session?.access_token) {
-        throw new Error("User not authenticated.");
-      }
       const response = await fetch(
         `https://hhhzugqimtypijkdxxsm.supabase.co/functions/v1/create-staff-user`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`, // Use session.access_token directly
+            Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
           },
           body: JSON.stringify(values),
         }

@@ -21,7 +21,7 @@ import {
 import { showSuccess, showError } from "@/utils/toast";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuthSession } from "@/hooks/use-auth-session"; // Import useAuthSession
+import { useAuthSession } from "@/hooks/use-auth-session";
 
 type Product = {
   id: string;
@@ -46,7 +46,7 @@ const formSchema = z.object({
 });
 
 export function StockMovementForm({ onMoveSuccess }: StockMovementFormProps) {
-  const { session } = useAuthSession(); // Use the simplified useAuthSession
+  const { session } = useAuthSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [warehouseCategories, setWarehouseCategories] = useState<WarehouseCategory[]>([]);
@@ -91,16 +91,13 @@ export function StockMovementForm({ onMoveSuccess }: StockMovementFormProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
-      if (!session?.access_token) {
-        throw new Error("User not authenticated.");
-      }
       const response = await fetch(
         `https://hhhzugqimtypijkdxxsm.supabase.co/functions/v1/move-stock`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`, // Use session.access_token directly
+            Authorization: `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify(values),
         }

@@ -19,19 +19,7 @@ import PurchaseRequestPage from "./pages/operasional/procurement/PurchaseRequest
 import BillingListPage from "./pages/operasional/billing-list/BillingListPage"; // Import new page
 import LoginPage from "./pages/LoginPage";
 
-// Configure QueryClient globally
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 0, // Data is always considered stale, forcing a refetch on mount/focus
-      cacheTime: 1000 * 60 * 60, // Keep inactive queries in cache for 1 hour
-      refetchOnWindowFocus: true, // Refetch when window regains focus
-      refetchOnMount: true, // Refetch when component mounts
-      refetchOnReconnect: true, // Refetch when network connection is restored
-      retry: 1, // Retry failed queries once
-    },
-  },
-});
+const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

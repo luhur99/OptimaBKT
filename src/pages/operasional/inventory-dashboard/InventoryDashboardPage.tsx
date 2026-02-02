@@ -25,7 +25,6 @@ import {
 import { cn } from "@/lib/utils";
 import { Package, History } from "lucide-react";
 import { format } from "date-fns";
-import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 // Type definitions
 type WarehouseInventorySummary = {
@@ -55,8 +54,7 @@ const COLORS = {
 };
 
 const InventoryDashboardPage = () => {
-  const { session, isLoading: isAuthLoading } = useAuthSession();
-  const { data: profile, isLoading: isProfileLoading, error: profileError } = useProfile(); // Use useProfile
+  const { session, profile, isLoading: isAuthLoading } = useAuthSession();
   const navigate = useNavigate();
   const [inventorySummary, setInventorySummary] = useState<WarehouseInventorySummary[]>([]);
   const [stockLedger, setStockLedger] = useState<StockLedgerEntry[]>([]);
@@ -139,28 +137,21 @@ const InventoryDashboardPage = () => {
   };
 
   useEffect(() => {
-    if (!isAuthLoading && !isProfileLoading) { // Wait for both auth and profile to load
+    if (!isAuthLoading) {
       if (!session) {
         navigate("/");
         return;
       }
-      if (!["OPERASIONAL_DIV", "SUPER_ADMIN"].includes(profile?.role || "")) {
+      if (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN") {
         navigate("/dashboard");
         showError("You do not have permission to access this page.");
         return;
       }
       fetchInventoryData();
     }
-  }, [isAuthLoading, isProfileLoading, session, profile, navigate]); // Add isProfileLoading and profile to dependencies
+  }, [isAuthLoading, session, profile, navigate]);
 
-  useEffect(() => {
-    if (profileError) {
-      showError(`Failed to load user profile: ${profileError.message}`);
-      navigate('/login', { replace: true });
-    }
-  }, [profileError, navigate]);
-
-  if (isAuthLoading || isLoadingData || isProfileLoading) { // Added isProfileLoading
+  if (isAuthLoading || isLoadingData) {
     return (
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
@@ -175,7 +166,7 @@ const InventoryDashboardPage = () => {
     );
   }
 
-  if (!session || !profile || !["OPERASIONAL_DIV", "SUPER_ADMIN"].includes(profile?.role || "")) {
+  if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN")) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">

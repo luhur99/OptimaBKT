@@ -49,8 +49,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import DashboardLayout from "@/layouts/DashboardLayout"; // Import DashboardLayout
-import { useAuthSession } from "@/hooks/use-auth-session"; // Import useAuthSession
-import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 // Define the type for a scheduling request based on your Supabase schema
 type InvoiceDocumentStatus = 'DRAFT' | 'PENDING' | 'PAID' | 'CANCELLED';
@@ -91,8 +89,6 @@ interface Technician {
 
 const OperasionalSchedulingPage = () => {
   const queryClient = useQueryClient();
-  const { session, isLoading: isAuthLoading } = useAuthSession();
-  const { data: profile, isLoading: isProfileLoading, error: profileError } = useProfile(); // Use useProfile
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRequestForAction, setSelectedRequestForAction] = useState<SchedulingRequest | null>(null);
   const [currentActionType, setCurrentActionType] = useState<"rejected" | "rescheduled" | "cancelled" | "in_progress" | "completed" | "delete" | "edit" | "view_invoice" | "create_delivery_order" | null>(null);
@@ -113,7 +109,6 @@ const OperasionalSchedulingPage = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !isAuthLoading && !isProfileLoading && !!session && (profile?.role === "OPERASIONAL_DIV" || profile?.role === "SUPER_ADMIN"),
   });
 
   const { data: technicians, isLoading: isLoadingTechnicians } = useQuery<Technician[]>({
@@ -123,7 +118,6 @@ const OperasionalSchedulingPage = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !isAuthLoading && !isProfileLoading && !!session && (profile?.role === "OPERASIONAL_DIV" || profile?.role === "SUPER_ADMIN"),
   });
 
   const getStatusBadgeVariant = (status: SchedulingRequest['status']) => {
@@ -362,32 +356,16 @@ const OperasionalSchedulingPage = () => {
     setIsModalOpen(true);
   };
 
-  if (isAuthLoading || isProfileLoading || isLoading) return (
+  if (isLoading) return (
     <DashboardLayout>
       <div className="text-center text-gray-300">Loading scheduling requests...</div>
     </DashboardLayout>
   );
-  if (profileError) {
-    toast.error(`Failed to load user profile: ${profileError.message}`);
-    // navigate('/login', { replace: true }); // This redirect should be handled by the parent component (e.g., DashboardLayout or a wrapper)
-    return null; // Or a minimal error display
-  }
   if (error) return (
     <DashboardLayout>
       <div className="text-center text-red-500">Error: {error.message}</div>
     </DashboardLayout>
   );
-
-  if (!session || !profile || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN")) {
-    // This case should ideally be handled by the parent route/layout for redirection
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-screen text-gray-400">
-          Unauthorized access.
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   return (
     <DashboardLayout>

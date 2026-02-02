@@ -21,7 +21,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
-import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 interface SchedulingRequest {
   id: string;
@@ -60,7 +59,6 @@ export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
   request,
   actionType,
 }) => {
-  const { data: profile, isLoading: isProfileLoading } = useProfile(); // Use useProfile
   const [notes, setNotes] = useState(request.notes || "");
   const [assignedTechnicianId, setAssignedTechnicianId] = useState<string | null>(request.assigned_technician_id);
   const [externalTechnicianName, setExternalTechnicianName] = useState<string | null>(request.external_technician_name);
@@ -75,7 +73,6 @@ export const SchedulingActionDialog: React.FC<SchedulingActionDialogProps> = ({
       if (error) throw error;
       return data;
     },
-    enabled: !isProfileLoading && (profile?.role === "OPERASIONAL_DIV" || profile?.role === "SUPER_ADMIN"), // Only fetch if profile is loaded and authorized
   });
 
   useEffect(() => {

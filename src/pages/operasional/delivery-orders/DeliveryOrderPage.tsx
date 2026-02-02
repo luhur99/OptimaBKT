@@ -14,11 +14,9 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 import DeliveryOrderDetail from "@/components/operasional/delivery-orders/DeliveryOrderDetail"; // Import new detail component
-import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 const DeliveryOrderPage = () => {
-  const { session, isLoading: isAuthLoading } = useAuthSession();
-  const { data: profile, isLoading: isProfileLoading, error: profileError } = useProfile(); // Use useProfile
+  const { session, profile, isLoading: isAuthLoading } = useAuthSession();
   const navigate = useNavigate();
   const [deliveryOrders, setDeliveryOrders] = useState<DeliveryOrder[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
@@ -57,7 +55,7 @@ const DeliveryOrderPage = () => {
   };
 
   useEffect(() => {
-    if (!isAuthLoading && !isProfileLoading) { // Wait for both auth and profile to load
+    if (!isAuthLoading) {
       if (!session) {
         navigate("/");
         return;
@@ -69,14 +67,7 @@ const DeliveryOrderPage = () => {
       }
       fetchDeliveryOrders();
     }
-  }, [isAuthLoading, isProfileLoading, session, profile, navigate]); // Add isProfileLoading and profile to dependencies
-
-  useEffect(() => {
-    if (profileError) {
-      showError(`Failed to load user profile: ${profileError.message}`);
-      navigate('/login', { replace: true });
-    }
-  }, [profileError, navigate]);
+  }, [isAuthLoading, session, profile, navigate]);
 
   const handleDOUpdate = () => {
     fetchDeliveryOrders(); // Re-fetch all DOs to update the list
@@ -85,7 +76,7 @@ const DeliveryOrderPage = () => {
 
   const columns = useMemo(() => createDeliveryOrderColumns(), []);
 
-  if (isAuthLoading || isLoadingOrders || isProfileLoading) { // Added isProfileLoading
+  if (isAuthLoading || isLoadingOrders) {
     return (
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
@@ -96,7 +87,7 @@ const DeliveryOrderPage = () => {
     );
   }
 
-  if (!session || !profile || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN")) {
+  if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN")) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">

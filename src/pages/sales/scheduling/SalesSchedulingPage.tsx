@@ -17,17 +17,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { QuickAddCustomerSupplierForm } from "@/components/shared/QuickAddCustomerSupplierForm"; // Import new form
-import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 const SalesSchedulingPage = () => {
-  const { session, isLoading: isAuthLoading } = useAuthSession();
-  const { data: profile, isLoading: isProfileLoading, error: profileError } = useProfile(); // Use useProfile
+  const { session, profile, isLoading: isAuthLoading } = useAuthSession();
   const navigate = useNavigate();
   const [isFormSubmitted, setIsFormSubmitted] = useState(false);
   const [isQuickAddCustomerDialogOpen, setIsQuickAddCustomerDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (!isAuthLoading && !isProfileLoading) { // Wait for both auth and profile to load
+    if (!isAuthLoading) {
       if (!session) {
         navigate("/"); // Redirect to home if not logged in
         return;
@@ -38,14 +36,7 @@ const SalesSchedulingPage = () => {
         return;
       }
     }
-  }, [isAuthLoading, isProfileLoading, session, profile, navigate]); // Add isProfileLoading and profile to dependencies
-
-  useEffect(() => {
-    if (profileError) {
-      showError(`Failed to load user profile: ${profileError.message}`);
-      navigate('/login', { replace: true });
-    }
-  }, [profileError, navigate]);
+  }, [isAuthLoading, session, profile, navigate]);
 
   const handleRequestCreated = () => {
     showSuccess("Scheduling request created successfully!");
@@ -61,7 +52,7 @@ const SalesSchedulingPage = () => {
     setIsQuickAddCustomerDialogOpen(false);
   };
 
-  if (isAuthLoading || isProfileLoading) { // Added isProfileLoading
+  if (isAuthLoading) {
     return (
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
@@ -72,7 +63,7 @@ const SalesSchedulingPage = () => {
     );
   }
 
-  if (!session || !profile || (profile?.role !== "SALES_DIV" && profile?.role !== "SUPER_ADMIN")) { // Added !profile check
+  if (!session || (profile?.role !== "SALES_DIV" && profile?.role !== "SUPER_ADMIN")) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">

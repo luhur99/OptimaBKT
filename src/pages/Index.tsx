@@ -3,24 +3,22 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 const Index = () => {
   const navigate = useNavigate();
-  const { session, isLoading: isAuthLoading } = useAuthSession();
-  const { data: profile, isLoading: isProfileLoading, error: profileError } = useProfile(); // Use useProfile
+  const { session, isLoading } = useAuthSession();
 
   useEffect(() => {
-    if (!isAuthLoading && !isProfileLoading) { // Wait for both auth and profile to load
-      if (session && profile) {
-        navigate('/dashboard', { replace: true }); // Redirect to dashboard if logged in and profile loaded
+    if (!isLoading) {
+      if (session) {
+        navigate('/dashboard', { replace: true }); // Redirect to dashboard if logged in
       } else {
-        navigate('/login', { replace: true }); // Redirect to login if not logged in or profile failed to load
+        navigate('/login', { replace: true }); // Redirect to login if not logged in
       }
     }
-  }, [session, profile, isAuthLoading, isProfileLoading, navigate]); // Add profile and isProfileLoading to dependencies
+  }, [session, isLoading, navigate]);
 
-  if (isAuthLoading || isProfileLoading) { // Show loading state if either auth or profile is loading
+  if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-deep-charcoal text-foreground">
         <div className="text-center p-8 rounded-lg glassmorphism border border-neon-cyan/30 neon-glow">

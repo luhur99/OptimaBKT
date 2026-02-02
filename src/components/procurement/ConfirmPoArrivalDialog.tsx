@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { CheckCircle, Loader2 } from "lucide-react";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuthSession } from "@/hooks/use-auth-session"; // Import useAuthSession
+import { useAuthSession } from "@/hooks/use-auth-session";
 import { cn } from "@/lib/utils";
 
 interface PoItem {
@@ -48,7 +48,7 @@ export const ConfirmPoArrivalDialog: React.FC<ConfirmPoArrivalDialogProps> = ({
   initialPoItems,
   onArrivalConfirmed,
 }) => {
-  const { session } = useAuthSession(); // Use the simplified useAuthSession
+  const { session } = useAuthSession();
   const [itemsForArrivalInput, setItemsForArrivalInput] = useState<PoItemForArrivalInput[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 

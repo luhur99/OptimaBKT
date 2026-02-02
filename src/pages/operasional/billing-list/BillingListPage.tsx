@@ -14,49 +14,41 @@ import DashboardLayout from "@/layouts/DashboardLayout";
 import { BillingListTable } from "@/components/operasional/billing-list/BillingListTable";
 import { createBillingListColumns, Invoice, InvoiceDocumentStatus } from "@/components/operasional/billing-list/billing-list-columns";
 import BillingListDetail from "@/components/operasional/billing-list/BillingListDetail";
-import { useQuery } from "@tanstack/react-query"; // Import useQuery
-import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 const BillingListPage = () => {
-  const { session, isLoading: isAuthLoading } = useAuthSession();
-  const { data: profile, isLoading: isProfileLoading, error: profileError } = useProfile(); // Use useProfile
+  const { session, profile, isLoading: isAuthLoading } = useAuthSession();
   const navigate = useNavigate();
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
-  // Refactor fetchInvoices to use useQuery
-  const { data: invoices, isLoading: isLoadingInvoices, error: invoicesError, refetch: refetchInvoices } = useQuery<Invoice[]>({
-    queryKey: ["invoices", session?.user?.id, profile?.role], // Query key includes user ID and role
-    queryFn: async () => {
-      if (!session?.user?.id || !profile?.role) {
-        return []; // Return empty array if not authenticated or role is missing
-      }
+  const fetchInvoices = async () => {
+    console.log("BillingListPage: fetchInvoices called."); // Added log
+    setIsLoadingInvoices(true);
+    const { data, error } = await supabase
+      .from("invoices")
+      .select(`
+        id,
+        invoice_number,
+        invoice_date,
+        due_date,
+        customer_name,
+        company_name,
+        total_amount,
+        payment_status,
+        invoice_status,
+        user_id,
+        do_number,
+        notes,
+        document_url
+      `)
+      .in("invoice_status", ["PENDING", "PAID"]) // Filter for PENDING and PAID invoices
+      .order("invoice_date", { ascending: false });
 
-      console.log("BillingListPage: fetchInvoices called via useQuery.");
-      const { data, error } = await supabase
-        .from("invoices")
-        .select(`
-          id,
-          invoice_number,
-          invoice_date,
-          due_date,
-          customer_name,
-          company_name,
-          total_amount,
-          payment_status,
-          invoice_status,
-          user_id,
-          do_number,
-          notes,
-          document_url
-        `)
-        .in("invoice_status", ["PENDING", "PAID"])
-        .order("invoice_date", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching invoices:", error);
-        throw new Error("Failed to load invoices: " + error.message); // Throw error for react-query to catch
-      }
-
+    if (error) {
+      console.error("Error fetching invoices:", error);
+      showError("Failed to load invoices: " + error.message);
+    } else {
       // Fetch profiles separately
       const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
@@ -64,25 +56,25 @@ const BillingListPage = () => {
 
       if (profilesError) {
         console.error("Error fetching profiles:", profilesError);
-        // Don't throw, just log and proceed without full_name if profiles fail
+        showError("Failed to load user profiles.");
+        // Proceed with invoices without full_name if profiles fail
       }
 
       const profileMap = new Map(profilesData?.map(p => [p.id, p.full_name]));
 
       const formattedData: Invoice[] = data.map((inv: any) => ({
         ...inv,
-        user_full_name: profileMap.get(inv.user_id) || "System",
+        user_full_name: profileMap.get(inv.user_id) || "System", // Manually join
         payment_status: inv.payment_status as Invoice['payment_status'],
-        invoice_status: inv.invoice_status as InvoiceDocumentStatus,
+        invoice_status: inv.invoice_status as InvoiceDocumentStatus, // Cast to new enum type
       }));
-      return formattedData;
-    },
-    enabled: !isAuthLoading && !isProfileLoading && !!session && ["SUPER_ADMIN", "OPERASIONAL_DIV", "ACCOUNTING"].includes(profile?.role || ""), // Only run query if authenticated and authorized
-    // Removed staleTime and refetchOnWindowFocus to rely on global defaults
-  });
+      setInvoices(formattedData);
+    }
+    setIsLoadingInvoices(false);
+  };
 
   useEffect(() => {
-    if (!isAuthLoading && !isProfileLoading) { // Wait for both auth and profile to load
+    if (!isAuthLoading) {
       if (!session) {
         navigate("/");
         return;
@@ -92,25 +84,18 @@ const BillingListPage = () => {
         showError("You do not have permission to access this page.");
         return;
       }
-      // No need to call fetchInvoices here, useQuery handles it based on 'enabled'
+      fetchInvoices();
     }
-  }, [isAuthLoading, isProfileLoading, session, profile, navigate]); // Add isProfileLoading and profile to dependencies
-
-  useEffect(() => {
-    if (profileError) {
-      showError(`Failed to load user profile: ${profileError.message}`);
-      navigate('/login', { replace: true });
-    }
-  }, [profileError, navigate]);
+  }, [isAuthLoading, session, profile, navigate]);
 
   const handleInvoiceUpdate = () => {
-    refetchInvoices(); // Use refetch from useQuery
-    // No need to clear selectedInvoice, as refetch will update the object if it's still in the list
+    fetchInvoices(); // Re-fetch all invoices to update the list
+    // If selectedInvoice is still in the list, its details will be updated by fetchInvoiceDetails in BillingListDetail
   };
 
   const columns = useMemo(() => createBillingListColumns({ onSelectInvoice: setSelectedInvoice }), []);
 
-  if (isAuthLoading || isLoadingInvoices || isProfileLoading) { // Added isProfileLoading
+  if (isAuthLoading || isLoadingInvoices) {
     return (
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
@@ -121,7 +106,7 @@ const BillingListPage = () => {
     );
   }
 
-  if (!session || !profile || !["SUPER_ADMIN", "OPERASIONAL_DIV", "ACCOUNTING"].includes(profile?.role || "")) {
+  if (!session || !["SUPER_ADMIN", "OPERASIONAL_DIV", "ACCOUNTING"].includes(profile?.role || "")) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">
@@ -142,12 +127,12 @@ const BillingListPage = () => {
         <ResizablePanel defaultSize={50} minSize={30}>
           <ScrollArea className="h-full p-4">
             <h2 className="text-xl font-semibold mb-4 text-neon-cyan">Issued Invoices</h2>
-            {(invoices?.length || 0) === 0 ? ( // Use invoices?.length
+            {invoices.length === 0 ? (
               <div className="h-full flex items-center justify-center text-gray-500 border border-dashed border-gray-700 rounded-md p-4 radar-grid-background">
                 <p>No issued invoices found. Scanning...</p>
               </div>
             ) : (
-              <BillingListTable columns={columns} data={invoices || []} onRowClick={setSelectedInvoice} />
+              <BillingListTable columns={columns} data={invoices} onRowClick={setSelectedInvoice} />
             )}
           </ScrollArea>
         </ResizablePanel>

@@ -2,28 +2,69 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 
+interface Profile {
+  id: string;
+  full_name: string;
+  role: 'SUPER_ADMIN' | 'OPERASIONAL_DIV' | 'SALES_DIV' | 'TECHNICIAN' | 'ACCOUNTING' | 'USER';
+  email: string;
+  phone_number?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface AuthSession {
   session: Session | null;
+  profile: Profile | null;
   isLoading: boolean;
 }
 
 export function useAuthSession(): AuthSession {
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const getInitialSession = async () => {
-      const { data: { session: initialSession } } = await supabase.auth.getSession();
-      setSession(initialSession);
-      setIsLoading(false); // This should always run
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+
+      if (session) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching profile:', error);
+        } else {
+          setProfile(data);
+        }
+      }
+      setIsLoading(false);
     };
 
-    getInitialSession();
+    getSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
+      async (_event, newSession) => {
         setSession(newSession);
-        setIsLoading(false); // This should also always run
+        if (newSession) {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', newSession.user.id)
+            .single();
+
+          if (error) {
+            console.error('Error fetching profile on auth state change:', error);
+          } else {
+            setProfile(data);
+          }
+        } else {
+          setProfile(null);
+        }
+        setIsLoading(false);
       }
     );
 
@@ -32,5 +73,5 @@ export function useAuthSession(): AuthSession {
     };
   }, []);
 
-  return { session, isLoading };
+  return { session, profile, isLoading };
 }
