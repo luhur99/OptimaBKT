@@ -4,7 +4,7 @@ import { Home, Users, CalendarDays, Package, Receipt, Settings, Box, ShoppingCar
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useAuthSession } from "@/hooks/use-auth-session";
+import { useAuthSession } from "@/hooks/auth-session";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";

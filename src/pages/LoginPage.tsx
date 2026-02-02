@@ -3,7 +3,7 @@ import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthSession } from '@/hooks/use-auth-session';
+import { useAuthSession } from '@/hooks/auth-session';
 import DashboardLayout from '@/layouts/DashboardLayout'; // Import DashboardLayout
 
 function LoginPage() {

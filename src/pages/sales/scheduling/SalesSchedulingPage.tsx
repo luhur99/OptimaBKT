@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuthSession } from "@/hooks/use-auth-session";
+import { useAuthSession } from "@/hooks/auth-session";
 import { Skeleton } from "@/components/ui/skeleton";
 import { showSuccess, showError } from "@/utils/toast";
 import DashboardLayout from "@/layouts/DashboardLayout";

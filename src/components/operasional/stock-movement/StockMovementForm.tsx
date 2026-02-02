@@ -21,7 +21,7 @@ import {
 import { showSuccess, showError } from "@/utils/toast";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuthSession } from "@/hooks/use-auth-session";
+import { useAuthSession } from "@/hooks/auth-session";
 
 type Product = {
   id: string;

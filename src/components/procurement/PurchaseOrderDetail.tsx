@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { Package, CheckCircle, XCircle, Clock, Truck, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
-import { useAuthSession } from "@/hooks/use-auth-session";
+import { useAuthSession } from "@/hooks/auth-session";
 import { ConfirmPoArrivalDialog } from "./ConfirmPoArrivalDialog"; // Import the new dialog
 
 interface PurchaseOrderDetailProps {

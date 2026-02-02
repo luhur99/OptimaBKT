@@ -4,7 +4,7 @@ import { MetricAlertList } from "./shared/MetricAlertList";
 import { Wrench, CheckCircle, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { useAuthSession } from "@/hooks/use-auth-session";
+import { useAuthSession } from "@/hooks/auth-session";
 
 export function TechnicianDashboard() {
   const { profile } = useAuthSession();

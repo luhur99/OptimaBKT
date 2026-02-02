@@ -1,5 +1,5 @@
 import React from "react";
-import { useAuthSession } from "@/hooks/use-auth-session";
+import { useAuthSession } from "@/hooks/auth-session";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SuperAdminDashboard } from "@/components/dashboard/SuperAdminDashboard";
 import { SalesDivDashboard } from "@/components/dashboard/SalesDivDashboard";

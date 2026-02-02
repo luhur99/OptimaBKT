@@ -1,7 +1,7 @@
 import { MadeWithDyad } from "@/components/made-with-elmony";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuthSession } from "@/hooks/use-auth-session";
+import { useAuthSession } from "@/hooks/auth-session";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const Index = () => {

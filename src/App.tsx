@@ -18,7 +18,7 @@ import DeliveryOrderPage from "./pages/operasional/delivery-orders/DeliveryOrder
 import PurchaseRequestPage from "./pages/operasional/procurement/PurchaseRequestPage";
 import BillingListPage from "./pages/operasional/billing-list/BillingListPage";
 import LoginPage from "./pages/LoginPage";
-import { AuthSessionProvider } from "@/hooks/use-auth-session";
+import { AuthSessionProvider } from "@/hooks/auth-session";
 import ProtectedRoute from "@/components/shared/ProtectedRoute";
 
 const queryClient = new QueryClient();
