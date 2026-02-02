@@ -11,9 +11,9 @@ const Index = () => {
   useEffect(() => {
     if (!isLoading) {
       if (session) {
-        navigate('/dashboard'); // Redirect to dashboard if logged in
+        navigate('/dashboard', { replace: true }); // Redirect to dashboard if logged in
       } else {
-        navigate('/login'); // Redirect to login if not logged in
+        navigate('/login', { replace: true }); // Redirect to login if not logged in
       }
     }
   }, [session, isLoading, navigate]);

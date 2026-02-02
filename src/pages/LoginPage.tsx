@@ -12,7 +12,7 @@ function LoginPage() {
 
   useEffect(() => {
     if (!isLoading && session) {
-      navigate('/dashboard'); // Redirect to dashboard if already logged in
+      navigate('/dashboard', { replace: true }); // Redirect to dashboard if already logged in
     }
   }, [session, isLoading, navigate]);
 
