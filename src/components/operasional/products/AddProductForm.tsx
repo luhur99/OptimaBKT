@@ -24,7 +24,7 @@ import {
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuthSession } from "@/hooks/use-auth-session";
+import { useAuthSession } from "@/hooks/use-auth-session"; // Import useAuthSession
 import { showSuccess, showError } from "@/utils/toast";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -54,7 +54,7 @@ const formSchema = z.object({
 });
 
 export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps) {
-  const { session } = useAuthSession();
+  const { session } = useAuthSession(); // Use the simplified useAuthSession
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [openSupplierCombobox, setOpenSupplierCombobox] = useState(false);
@@ -94,11 +94,14 @@ export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps)
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
+      if (!session?.user?.id) {
+        throw new Error("User not authenticated.");
+      }
       // 1. Insert into products table
       const { data: newProduct, error: productError } = await supabase
         .from("products")
         .insert({
-          user_id: session?.user?.id,
+          user_id: session.user.id, // Use session.user.id directly
           kode_barang: values.kode_barang,
           nama_barang: values.nama_barang,
           satuan: values.satuan,
@@ -126,7 +129,7 @@ export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps)
               product_id: newProduct.id,
               warehouse_category: "siap_jual",
               quantity: values.initial_stock,
-              user_id: session?.user?.id,
+              user_id: session.user.id, // Use session.user.id directly
             },
             { onConflict: "product_id, warehouse_category", ignoreDuplicates: false }
           );
@@ -141,7 +144,7 @@ export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps)
         const { error: ledgerError } = await supabase
           .from("stock_ledger")
           .insert({
-            user_id: session?.user?.id,
+            user_id: session.user.id, // Use session.user.id directly
             product_id: newProduct.id,
             event_type: "INITIAL_STOCK",
             quantity: values.initial_stock,

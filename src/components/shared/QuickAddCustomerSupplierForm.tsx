@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuthSession } from "@/hooks/use-auth-session";
+import { useAuthSession } from "@/hooks/use-auth-session"; // Import useAuthSession
 import { showSuccess, showError } from "@/utils/toast";
 
 interface QuickAddCustomerSupplierFormProps {
@@ -69,7 +69,7 @@ export function QuickAddCustomerSupplierForm({
   onClose,
   defaultType = "customer",
 }: QuickAddCustomerSupplierFormProps) {
-  const { session } = useAuthSession();
+  const { session } = useAuthSession(); // Use the simplified useAuthSession
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -92,9 +92,12 @@ export function QuickAddCustomerSupplierForm({
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
+      if (!session?.user?.id) {
+        throw new Error("User not authenticated.");
+      }
       if (values.entry_type === "customer") {
         const { error } = await supabase.from("customers").insert({
-          user_id: session?.user?.id,
+          user_id: session.user.id, // Use session.user.id directly
           customer_name: values.name,
           company_name: values.company_name,
           address: values.address,
@@ -105,7 +108,7 @@ export function QuickAddCustomerSupplierForm({
         showSuccess(`Customer '${values.name}' added successfully!`);
       } else { // supplier
         const { error } = await supabase.from("suppliers").insert({
-          user_id: session?.user?.id,
+          user_id: session.user.id, // Use session.user.id directly
           name: values.name,
           contact_person: values.contact_person,
           phone_number: values.phone_number,

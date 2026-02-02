@@ -20,7 +20,8 @@ import { cn } from "@/lib/utils";
 import { Package, CheckCircle, XCircle, Clock, Truck, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
-import { useAuthSession } from "@/hooks/use-auth-session";
+import { useAuthSession } from "@/hooks/use-auth-session"; // Import useAuthSession
+import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 import { ConfirmPoArrivalDialog } from "./ConfirmPoArrivalDialog"; // Import the new dialog
 
 interface PurchaseOrderDetailProps {
@@ -103,7 +104,8 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
   onUpdate,
   onClose,
 }) => {
-  const { profile, isLoading: isAuthLoading } = useAuthSession();
+  const { isLoading: isAuthLoading } = useAuthSession(); // Use simplified useAuthSession
+  const { data: profile, isLoading: isProfileLoading } = useProfile(); // Use useProfile
   const [poItems, setPoItems] = useState<PoItem[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(true);
   const [isConfirmArrivalDialogOpen, setIsConfirmArrivalDialogOpen] = useState(false); // State for the new dialog
@@ -156,7 +158,7 @@ export const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({
                             (po.status === "WAITING_RECEIVED" || po.status === "RECEIVED") &&
                             hasItemsToReceive;
 
-  if (isLoadingItems || isAuthLoading) {
+  if (isLoadingItems || isAuthLoading || isProfileLoading) { // Added isProfileLoading
     return (
       <Card className="glassmorphism border border-electric-violet/30 h-full flex flex-col animate-pulse">
         <CardHeader className="pb-4">

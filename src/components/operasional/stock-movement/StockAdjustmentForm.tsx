@@ -24,7 +24,7 @@ import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuthSession } from "@/hooks/use-auth-session";
+import { useAuthSession } from "@/hooks/use-auth-session"; // Import useAuthSession
 import { showSuccess, showError } from "@/utils/toast";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -55,7 +55,7 @@ const formSchema = z.object({
 });
 
 export function StockAdjustmentForm({ onAdjustmentSuccess }: StockAdjustmentFormProps) {
-  const { session } = useAuthSession();
+  const { session } = useAuthSession(); // Use the simplified useAuthSession
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [warehouseCategories, setWarehouseCategories] = useState<WarehouseCategory[]>([]);
@@ -102,13 +102,16 @@ export function StockAdjustmentForm({ onAdjustmentSuccess }: StockAdjustmentForm
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
+      if (!session?.access_token) {
+        throw new Error("User not authenticated.");
+      }
       const response = await fetch(
         `https://hhhzugqimtypijkdxxsm.supabase.co/functions/v1/adjust-stock`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.access_token}`,
+            Authorization: `Bearer ${session.access_token}`, // Use session.access_token directly
           },
           body: JSON.stringify(values),
         }

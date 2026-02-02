@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuthSession } from "@/hooks/use-auth-session";
+import { useAuthSession } from "@/hooks/use-auth-session"; // Import useAuthSession
 import { showSuccess, showError } from "@/utils/toast";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -63,7 +63,7 @@ const formSchema = z.object({
 });
 
 export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequestFormProps) {
-  const { session } = useAuthSession();
+  const { session } = useAuthSession(); // Use the simplified useAuthSession
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -135,6 +135,9 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
+      if (!session?.user?.id) {
+        throw new Error("User not authenticated.");
+      }
       const product = products.find(p => p.id === values.product_id);
       if (!product) {
         showError("Selected product not found.");
@@ -148,7 +151,7 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
       const { data: newPR, error: prError } = await supabase
         .from("purchase_requests")
         .insert({
-          user_id: session?.user?.id,
+          user_id: session.user.id, // Use session.user.id directly
           product_id: values.product_id,
           supplier_id: values.supplier_id,
           item_name: product.nama_barang,

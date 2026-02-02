@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { useAuthSession } from "@/hooks/use-auth-session"; // Import useAuthSession
 
 interface Customer {
   id: string;
@@ -68,6 +69,7 @@ const formSchema = z.object({
 export const CreateSchedulingRequestForm = () => {
   const [activeTab, setActiveTab] = useState("customer-contact");
   const [openCustomerCombobox, setOpenCustomerCombobox] = useState(false);
+  const { session } = useAuthSession(); // Use the simplified useAuthSession
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -130,6 +132,13 @@ export const CreateSchedulingRequestForm = () => {
   }, [selectedCustomerId, customers, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!session?.user?.id) {
+      toast.error("Authentication required.", {
+        description: "Please log in to create a scheduling request.",
+      });
+      return;
+    }
+
     const payload = {
       customer_id: values.customer_id || null, // Include customer_id if selected
       customer_name: values.customerName,
@@ -150,7 +159,7 @@ export const CreateSchedulingRequestForm = () => {
       technician_name: values.technicianType === "INTERNAL" ? values.technicianName : values.externalTechnicianName,
       technician_type: values.technicianType,
       external_technician_name: values.technicianType === "EXTERNAL" ? values.externalTechnicianName : null,
-      user_id: (await supabase.auth.getUser()).data.user?.id,
+      user_id: session.user.id, // Use session.user.id directly
     };
 
     const { error } = await supabase.from("scheduling_requests").insert([payload]);
