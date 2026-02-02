@@ -112,7 +112,6 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event: AuthChangeEvent, newSession: Session | null) => {
                 if (!mounted) return;
-                console.log(`AuthSessionProvider: Auth state change: ${event}`);
 
                 if (event === 'SIGNED_OUT') {
                     setSession(null);
@@ -124,7 +123,20 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 setSession(newSession);
 
                 if (newSession?.user) {
-                    const profileData = await fetchProfile(newSession.user.id, mounted);
+                    // Retry profile fetch up to 3 times if aborted
+                    let retries = 3;
+                    let profileData = null;
+
+                    while (retries > 0 && mounted) {
+                        profileData = await fetchProfile(newSession.user.id, mounted);
+                        if (profileData !== null || !mounted) break;
+                        retries--;
+                        if (retries > 0) {
+                            // Wait a bit before retrying
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                        }
+                    }
+
                     if (mounted) {
                         setProfile(profileData);
                         setIsLoading(false);
