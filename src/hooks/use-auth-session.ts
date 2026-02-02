@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 
@@ -22,56 +22,124 @@ export function useAuthSession(): AuthSession {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const mounted = useRef(false); // Ref untuk melacak apakah komponen terpasang
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
+    mounted.current = true; // Komponen terpasang
 
-      if (session) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
+    const getInitialSessionAndProfile = async () => {
+      try {
+        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
+        if (!mounted.current) return; // Mencegah pembaruan status jika komponen sudah di-unmount
 
-        if (error) {
-          console.error('Error fetching profile:', error);
+        if (sessionError) {
+          console.error('Error fetching initial session:', sessionError);
+          if (sessionError.name === 'AbortError') {
+            console.warn('Initial session fetch aborted.');
+            return; // Abaikan AbortError
+          }
+          setSession(null);
+          setProfile(null);
         } else {
-          setProfile(data);
+          setSession(initialSession);
+          if (initialSession) {
+            try {
+              const { data: profileData, error: profileError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', initialSession.user.id)
+                .single();
+
+              if (!mounted.current) return; // Mencegah pembaruan status jika komponen sudah di-unmount
+
+              if (profileError) {
+                console.error('Error fetching initial profile:', profileError);
+                if (profileError.name === 'AbortError') {
+                  console.warn('Initial profile fetch aborted.');
+                  return; // Abaikan AbortError
+                }
+                setProfile(null);
+              } else {
+                setProfile(profileData);
+              }
+            } catch (e: any) { // Catch untuk pengambilan profil
+              if (e.name === 'AbortError') {
+                console.warn('Initial profile fetch aborted due to component unmount.');
+              } else {
+                console.error('Unexpected error during initial profile fetch:', e);
+              }
+              if (!mounted.current) return;
+              setProfile(null);
+            }
+          } else {
+            setProfile(null);
+          }
+        }
+      } catch (e: any) { // Catch untuk pengambilan sesi awal
+        if (e.name === 'AbortError') {
+          console.warn('Initial session/profile fetch aborted due to component unmount.');
+        } else {
+          console.error('Unexpected error during initial session/profile fetch:', e);
+        }
+        if (!mounted.current) return;
+        setSession(null);
+        setProfile(null);
+      } finally {
+        if (mounted.current) {
+          setIsLoading(false); // Pastikan isLoading diatur ke false setelah upaya pemuatan awal
         }
       }
-      setIsLoading(false);
     };
 
-    getSession();
+    getInitialSessionAndProfile();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
+        if (!mounted.current) return; // Mencegah pembaruan status jika komponen sudah di-unmount
+
         setSession(newSession);
         if (newSession) {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', newSession.user.id)
-            .single();
+          try {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', newSession.user.id)
+              .single();
 
-          if (error) {
-            console.error('Error fetching profile on auth state change:', error);
-          } else {
-            setProfile(data);
+            if (!mounted.current) return; // Mencegah pembaruan status jika komponen sudah di-unmount
+
+            if (profileError) {
+              console.error('Error fetching profile on auth state change:', profileError);
+              if (profileError.name === 'AbortError') {
+                console.warn('Profile fetch on auth state change aborted.');
+                return; // Abaikan AbortError
+              }
+              setProfile(null);
+            } else {
+              setProfile(profileData);
+            }
+          } catch (e: any) { // Catch untuk pengambilan profil di listener
+            if (e.name === 'AbortError') {
+              console.warn('Profile fetch on auth state change aborted due to component unmount.');
+            } else {
+              console.error('Unexpected error during profile fetch on auth state change:', e);
+            }
+            if (!mounted.current) return;
+            setProfile(null);
           }
         } else {
           setProfile(null);
         }
-        setIsLoading(false);
+        // Penting: JANGAN atur isLoading di sini. isLoading adalah untuk pemuatan *awal*.
+        // Perubahan status otentikasi berikutnya tidak boleh mengatur ulang indikator pemuatan untuk seluruh aplikasi.
       }
     );
 
     return () => {
-      authListener.subscription.unsubscribe();
+      mounted.current = false; // Komponen di-unmount
+      authListener.subscription.unsubscribe(); // Cleanup untuk langganan
     };
-  }, []);
+  }, []); // Dependency array kosong
 
   return { session, profile, isLoading };
 }
