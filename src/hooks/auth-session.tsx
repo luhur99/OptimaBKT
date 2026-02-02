@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, createContext } from 'react';
+import React, { useState, useEffect, useContext, createContext, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, AuthChangeEvent } from '@supabase/supabase-js';
 
@@ -25,47 +25,61 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const [profile, setProfile] = useState<Profile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
+    const fetchProfile = useCallback(async (userId: string, mounted: boolean) => {
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .maybeSingle();
+
+            if (!mounted) return null;
+
+            if (error) {
+                // Ignore AbortError for profile fetch too
+                if (error.name === 'AbortError' || (error as any).message?.includes('AbortError')) {
+                    return null;
+                }
+                console.error('AuthSessionProvider: Error fetching profile:', error);
+                return null;
+            }
+            return data as Profile;
+        } catch (err: any) {
+            if (err.name !== 'AbortError') {
+                console.error('AuthSessionProvider: Profile fetch exception:', err);
+            }
+            return null;
+        }
+    }, []);
+
     useEffect(() => {
         let mounted = true;
 
-        const fetchSessionAndProfile = async () => {
+        const initializeAuth = async () => {
             try {
+                // 1. Get initial session
                 const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
 
                 if (!mounted) return;
 
                 if (sessionError) {
-                    console.error('AuthSessionProvider: Error fetching session:', sessionError);
+                    if (sessionError.name !== 'AbortError') {
+                        console.error('AuthSessionProvider: Initial session error:', sessionError);
+                    }
                     setSession(null);
                     setProfile(null);
-                    return;
-                }
-
-                setSession(initialSession);
-
-                if (initialSession?.user) {
-                    const { data: profileData, error: profileError } = await supabase
-                        .from('profiles')
-                        .select('*')
-                        .eq('id', initialSession.user.id)
-                        .maybeSingle();
-
-                    if (!mounted) return;
-
-                    if (profileError) {
-                        console.error('AuthSessionProvider: Error fetching profile:', profileError);
-                        setProfile(null);
-                        return;
-                    }
-                    setProfile(profileData);
                 } else {
-                    setProfile(null);
+                    setSession(initialSession);
+                    if (initialSession?.user) {
+                        const profileData = await fetchProfile(initialSession.user.id, mounted);
+                        if (mounted) setProfile(profileData);
+                    } else {
+                        setProfile(null);
+                    }
                 }
             } catch (error: any) {
-                console.error('AuthSessionProvider: Unexpected error:', error);
-                if (mounted) {
-                    setSession(null);
-                    setProfile(null);
+                if (error.name !== 'AbortError') {
+                    console.error('AuthSessionProvider: Initialization error:', error);
                 }
             } finally {
                 if (mounted) {
@@ -74,34 +88,27 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             }
         };
 
-        fetchSessionAndProfile();
+        initializeAuth();
 
+        // 2. Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event: AuthChangeEvent, newSession: Session | null) => {
                 if (!mounted) return;
 
+                // Handle sign out immediately
+                if (event === 'SIGNED_OUT') {
+                    setSession(null);
+                    setProfile(null);
+                    return;
+                }
+
                 setSession(newSession);
 
                 if (newSession?.user) {
-                    try {
-                        const { data: profileData, error: profileError } = await supabase
-                            .from('profiles')
-                            .select('*')
-                            .eq('id', newSession.user.id)
-                            .maybeSingle();
-
-                        if (!mounted) return;
-
-                        if (profileError) {
-                            console.error('AuthSessionProvider: Error fetching profile on change:', profileError);
-                            setProfile(null);
-                            return;
-                        }
-                        setProfile(profileData);
-                    } catch (error: any) {
-                        console.error('AuthSessionProvider: Profile refresh error:', error);
-                        if (mounted) setProfile(null);
-                    }
+                    // Only fetch profile if it's a significant event or if we don't have it yet
+                    // SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED are good times to refresh
+                    const profileData = await fetchProfile(newSession.user.id, mounted);
+                    if (mounted) setProfile(profileData);
                 } else {
                     setProfile(null);
                 }
@@ -113,7 +120,7 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             if (mounted) {
                 setIsLoading(current => {
                     if (current) {
-                        console.warn('AuthSessionProvider: Safety timeout reached. Forcing loading to false.');
+                        console.warn('AuthSessionProvider: Forced loading to false after timeout.');
                         return false;
                     }
                     return current;
@@ -126,7 +133,7 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             subscription.unsubscribe();
             clearTimeout(safetyTimeout);
         };
-    }, []);
+    }, [fetchProfile]);
 
     return (
         <AuthSessionContext.Provider value={{ session, profile, isLoading }}>
