@@ -28,7 +28,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       showError("Failed to log out: " + error.message);
     } else {
       showSuccess("Logged out successfully!");
-      navigate("/");
+      navigate("/login", { replace: true });
     }
   };
 
