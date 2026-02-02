@@ -18,7 +18,7 @@ import DeliveryOrderPage from "./pages/operasional/delivery-orders/DeliveryOrder
 import PurchaseRequestPage from "./pages/operasional/procurement/PurchaseRequestPage";
 import BillingListPage from "./pages/operasional/billing-list/BillingListPage";
 import LoginPage from "./pages/LoginPage";
-import { AuthSessionProvider } from "./hooks/use-auth-session"; // Import AuthSessionProvider
+import { AuthSessionProvider } from "./components/AuthSessionProvider"; // Import AuthSessionProvider dari lokasi baru
 
 const queryClient = new QueryClient();
 
