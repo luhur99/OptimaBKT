@@ -19,6 +19,7 @@ import {
 import { AddProductForm } from "@/components/operasional/products/AddProductForm";
 import { ProductTable } from "@/components/operasional/products/ProductTable";
 import { columns } from "@/components/operasional/products/product-columns";
+import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 // Re-define Product interface to ensure it matches the select query and table columns
 interface Product {
@@ -35,7 +36,8 @@ interface Product {
 }
 
 const ProductCatalogPage = () => {
-  const { session, profile, isLoading: isAuthLoading } = useAuthSession();
+  const { session, isLoading: isAuthLoading } = useAuthSession();
+  const { data: profile, isLoading: isProfileLoading, error: profileError } = useProfile(); // Use useProfile
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
@@ -83,7 +85,7 @@ const ProductCatalogPage = () => {
   };
 
   useEffect(() => {
-    if (!isAuthLoading) {
+    if (!isAuthLoading && !isProfileLoading) { // Wait for both auth and profile to load
       if (!session) {
         console.log("Not authenticated, redirecting to /");
         navigate("/");
@@ -98,9 +100,16 @@ const ProductCatalogPage = () => {
       console.log("User authorized, initiating product fetch.");
       fetchProducts();
     }
-  }, [isAuthLoading, session, profile, navigate]);
+  }, [isAuthLoading, isProfileLoading, session, profile, navigate]); // Add isProfileLoading and profile to dependencies
 
-  if (isAuthLoading || isLoadingProducts) {
+  useEffect(() => {
+    if (profileError) {
+      showError(`Failed to load user profile: ${profileError.message}`);
+      navigate('/login', { replace: true });
+    }
+  }, [profileError, navigate]);
+
+  if (isAuthLoading || isLoadingProducts || isProfileLoading) { // Added isProfileLoading
     return (
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
@@ -111,7 +120,7 @@ const ProductCatalogPage = () => {
     );
   }
 
-  if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN")) {
+  if (!session || !profile || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN")) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">

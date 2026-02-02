@@ -214,7 +214,7 @@ export function QuickAddCustomerSupplierForm({
           name="phone_number"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Phone Number (Optional)</FormLabel>
+              <FormLabel>Phone Number (Optional)</Label>
               <FormControl>
                 <Input type="tel" placeholder="e.g., +628123456789" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
               </FormControl>
@@ -283,7 +283,7 @@ export function QuickAddCustomerSupplierForm({
             name="notes"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Notes (Optional)</FormLabel>
+                <FormLabel>Notes (Optional)</Label>
                 <FormControl>
                   <Textarea placeholder="Any specific notes about the supplier" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
                 </FormControl>

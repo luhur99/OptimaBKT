@@ -38,6 +38,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { Progress } from "@/components/ui/progress"; // Assuming shadcn Progress component
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 // Type definitions
 type InvoiceDocumentStatus = 'DRAFT' | 'PENDING' | 'PAID' | 'CANCELLED';
@@ -113,7 +114,8 @@ const CountUp: React.FC<{ value: number }> = ({ value }) => {
 
 
 const BillingReviewPage = () => {
-  const { session, profile, isLoading: isAuthLoading } = useAuthSession();
+  const { session, isLoading: isAuthLoading } = useAuthSession();
+  const { data: profile, isLoading: isProfileLoading, error: profileError } = useProfile(); // Use useProfile
   const navigate = useNavigate();
   const [queue, setQueue] = useState<SchedulingRequestQueueItem[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<SchedulingRequestQueueItem | null>(null);
@@ -198,12 +200,12 @@ const BillingReviewPage = () => {
   };
 
   useEffect(() => {
-    if (!isAuthLoading) {
+    if (!isAuthLoading && !isProfileLoading) { // Wait for both auth and profile to load
       if (!session) {
         navigate("/");
         return;
       }
-      if (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN" && profile?.role !== "ACCOUNTING") {
+      if (!["OPERASIONAL_DIV", "SUPER_ADMIN", "ACCOUNTING"].includes(profile?.role || "")) {
         navigate("/dashboard");
         showError("You do not have permission to access this page.");
         return;
@@ -211,7 +213,14 @@ const BillingReviewPage = () => {
       fetchQueue();
       fetchProducts();
     }
-  }, [isAuthLoading, session, profile, navigate]);
+  }, [isAuthLoading, isProfileLoading, session, profile, navigate]); // Add isProfileLoading and profile to dependencies
+
+  useEffect(() => {
+    if (profileError) {
+      showError(`Failed to load user profile: ${profileError.message}`);
+      navigate('/login', { replace: true });
+    }
+  }, [profileError, navigate]);
 
   const handleSelectRequest = (request: SchedulingRequestQueueItem) => {
     setSelectedRequest(request);
@@ -382,7 +391,7 @@ const BillingReviewPage = () => {
     }
   };
 
-  if (isAuthLoading || isLoadingQueue || isLoadingProducts) {
+  if (isAuthLoading || isLoadingQueue || isLoadingProducts || isProfileLoading) { // Added isProfileLoading
     return (
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
@@ -405,7 +414,7 @@ const BillingReviewPage = () => {
     );
   }
 
-  if (!session || (profile?.role !== "OPERASIONAL_DIV" && profile?.role !== "SUPER_ADMIN" && profile?.role !== "ACCOUNTING")) {
+  if (!session || !profile || !["OPERASIONAL_DIV", "SUPER_ADMIN", "ACCOUNTING"].includes(profile?.role || "")) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">

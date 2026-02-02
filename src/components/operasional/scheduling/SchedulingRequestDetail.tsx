@@ -9,6 +9,7 @@ import { SchedulingActionDialog } from './SchedulingActionDialog';
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge'; // Import Badge
+import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 interface SchedulingRequest {
   id: string;
@@ -48,6 +49,7 @@ interface SchedulingRequestDetailProps {
 
 const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }: SchedulingRequestDetailProps) => {
   const navigate = useNavigate();
+  const { data: profile, isLoading: isProfileLoading } = useProfile(); // Use useProfile
   const [request, setRequest] = useState<SchedulingRequest>(initialRequest);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,7 +148,10 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
     setCurrentAction(null); // Close dialog
   };
 
-  if (loading) {
+  // Check if the current user has permission to perform actions
+  const canPerformAction = profile?.role === "SUPER_ADMIN" || profile?.role === "OPERASIONAL_DIV";
+
+  if (loading || isProfileLoading) { // Added isProfileLoading
     return <div className="flex justify-center items-center h-full text-neon-cyan">Updating request...</div>;
   }
 
@@ -191,7 +196,7 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-4">
           <h1 className="text-2xl font-bold text-neon-cyan">Scheduling Request Details</h1>
           <div className="flex flex-wrap gap-2">
-            {isPending && (
+            {canPerformAction && isPending && ( // Only show buttons if pending AND user has permission
               <>
                 <Button
                   className="bg-green-600 text-white hover:bg-green-700 transition-all duration-300 text-sm py-2 px-3"
@@ -219,7 +224,7 @@ const SchedulingRequestDetail = ({ request: initialRequest, onUpdate, onClose }:
                 </Button>
               </>
             )}
-            {isApprovedOrInProgressOrRescheduled && !isFinalStatus && (
+            {canPerformAction && isApprovedOrInProgressOrRescheduled && !isFinalStatus && ( // Only show buttons if approved/in_progress/rescheduled AND not final AND user has permission
               <>
                 <Button
                   className="bg-orange-600 text-white hover:bg-orange-700 transition-all duration-300 text-sm py-2 px-3"

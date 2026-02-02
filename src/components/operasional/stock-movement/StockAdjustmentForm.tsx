@@ -274,7 +274,7 @@ export function StockAdjustmentForm({ onAdjustmentSuccess }: StockAdjustmentForm
           name="notes"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Notes (Reason for adjustment)</FormLabel>
+              <FormLabel>Notes (Reason for adjustment)</Label>
               <FormControl>
                 <Textarea placeholder="e.g., Annual inventory count, damaged goods, lost items" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
               </FormControl>

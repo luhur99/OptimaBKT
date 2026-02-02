@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { showSuccess, showError } from "@/utils/toast";
 import { Invoice, InvoiceDocumentStatus } from './billing-list-columns';
 import { BillingListActionDialog } from './BillingListActionDialog';
+import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 interface InvoiceItem {
   id: string;
@@ -29,6 +30,7 @@ interface BillingListDetailProps {
 }
 
 const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialInvoice, onUpdate, onClose }) => {
+  const { data: profile, isLoading: isProfileLoading } = useProfile(); // Use useProfile
   const [invoice, setInvoice] = useState<Invoice>(initialInvoice);
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
   const [srNumber, setSrNumber] = useState<string | null>(null); // New state for SR Number
@@ -204,7 +206,10 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
   const isPendingPayment = invoice.payment_status === 'pending';
   const isInvoicePending = invoice.invoice_status === 'PENDING'; // Check if invoice is in PENDING document status
 
-  if (isLoadingDetails) {
+  // Check if the current user has permission to perform actions
+  const canPerformAction = profile?.role === "SUPER_ADMIN" || profile?.role === "ACCOUNTING";
+
+  if (isLoadingDetails || isProfileLoading) { // Added isProfileLoading
     return (
       <Card className="glassmorphism border border-electric-violet/30 h-full flex flex-col animate-pulse">
         <CardHeader className="pb-4">
@@ -245,7 +250,7 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-4">
           <h1 className="text-2xl font-bold text-neon-cyan">Invoice Information</h1>
           <div className="flex flex-wrap gap-2">
-            {isPendingPayment && isInvoicePending && ( // Only show buttons if payment is pending AND invoice is in PENDING document status
+            {canPerformAction && isPendingPayment && isInvoicePending && ( // Only show buttons if payment is pending AND invoice is in PENDING document status AND user has permission
               <>
                 <Button
                   className="bg-green-600 text-white hover:bg-green-700 transition-all duration-300 text-sm py-2 px-3"

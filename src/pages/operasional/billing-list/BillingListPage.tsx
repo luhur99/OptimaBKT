@@ -15,9 +15,11 @@ import { BillingListTable } from "@/components/operasional/billing-list/BillingL
 import { createBillingListColumns, Invoice, InvoiceDocumentStatus } from "@/components/operasional/billing-list/billing-list-columns";
 import BillingListDetail from "@/components/operasional/billing-list/BillingListDetail";
 import { useQuery } from "@tanstack/react-query"; // Import useQuery
+import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 const BillingListPage = () => {
-  const { session, profile, isLoading: isAuthLoading } = useAuthSession();
+  const { session, isLoading: isAuthLoading } = useAuthSession();
+  const { data: profile, isLoading: isProfileLoading, error: profileError } = useProfile(); // Use useProfile
   const navigate = useNavigate();
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
@@ -75,12 +77,12 @@ const BillingListPage = () => {
       }));
       return formattedData;
     },
-    enabled: !isAuthLoading && !!session && ["SUPER_ADMIN", "OPERASIONAL_DIV", "ACCOUNTING"].includes(profile?.role || ""), // Only run query if authenticated and authorized
+    enabled: !isAuthLoading && !isProfileLoading && !!session && ["SUPER_ADMIN", "OPERASIONAL_DIV", "ACCOUNTING"].includes(profile?.role || ""), // Only run query if authenticated and authorized
     // Removed staleTime and refetchOnWindowFocus to rely on global defaults
   });
 
   useEffect(() => {
-    if (!isAuthLoading) {
+    if (!isAuthLoading && !isProfileLoading) { // Wait for both auth and profile to load
       if (!session) {
         navigate("/");
         return;
@@ -92,13 +94,14 @@ const BillingListPage = () => {
       }
       // No need to call fetchInvoices here, useQuery handles it based on 'enabled'
     }
-  }, [isAuthLoading, session, profile, navigate]);
+  }, [isAuthLoading, isProfileLoading, session, profile, navigate]); // Add isProfileLoading and profile to dependencies
 
   useEffect(() => {
-    if (invoicesError) {
-      showError(invoicesError.message);
+    if (profileError) {
+      showError(`Failed to load user profile: ${profileError.message}`);
+      navigate('/login', { replace: true });
     }
-  }, [invoicesError]);
+  }, [profileError, navigate]);
 
   const handleInvoiceUpdate = () => {
     refetchInvoices(); // Use refetch from useQuery
@@ -107,7 +110,7 @@ const BillingListPage = () => {
 
   const columns = useMemo(() => createBillingListColumns({ onSelectInvoice: setSelectedInvoice }), []);
 
-  if (isAuthLoading || isLoadingInvoices) {
+  if (isAuthLoading || isLoadingInvoices || isProfileLoading) { // Added isProfileLoading
     return (
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
@@ -118,7 +121,7 @@ const BillingListPage = () => {
     );
   }
 
-  if (!session || !["SUPER_ADMIN", "OPERASIONAL_DIV", "ACCOUNTING"].includes(profile?.role || "")) {
+  if (!session || !profile || !["SUPER_ADMIN", "OPERASIONAL_DIV", "ACCOUNTING"].includes(profile?.role || "")) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">

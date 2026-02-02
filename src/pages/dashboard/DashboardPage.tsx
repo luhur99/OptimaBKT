@@ -8,18 +8,30 @@ import { OperasionalDivDashboard } from "@/components/dashboard/OperasionalDivDa
 import { TechnicianDashboard } from "@/components/dashboard/TechnicianDashboard";
 import { AccountingDashboard } from "@/components/dashboard/AccountingDashboard";
 import DashboardLayout from "@/layouts/DashboardLayout";
+import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 const DashboardPage = () => {
-  const { session, profile, isLoading } = useAuthSession();
+  const { session, isLoading: isAuthLoading } = useAuthSession();
+  const { data: profile, isLoading: isProfileLoading, error: profileError } = useProfile(); // Use useProfile
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isLoading && !session) {
-      navigate("/"); // Redirect to home if not logged in
+    if (!isAuthLoading && !isProfileLoading) { // Wait for both auth and profile to load
+      if (!session) {
+        navigate("/"); // Redirect to home if not logged in
+      }
     }
-  }, [isLoading, session, navigate]);
+  }, [isAuthLoading, isProfileLoading, session, navigate]); // Add isProfileLoading to dependencies
 
-  if (isLoading) {
+  useEffect(() => {
+    if (profileError) {
+      console.error("DashboardPage: Profile fetch error:", profileError);
+      // Optionally show a toast here, but the layout might already handle it
+      navigate('/login', { replace: true }); // Redirect to login on profile error
+    }
+  }, [profileError, navigate]);
+
+  if (isAuthLoading || isProfileLoading) { // Check both auth and profile loading
     return (
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
@@ -35,7 +47,7 @@ const DashboardPage = () => {
     );
   }
 
-  if (!session || !profile) {
+  if (!session || !profile) { // Ensure both session and profile are available
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">

@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { showSuccess, showError } from "@/utils/toast";
 import { PurchaseRequest } from './purchase-request-columns';
 import { PurchaseRequestActionDialog } from './PurchaseRequestActionDialog'; // New dialog for actions
+import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 interface PurchaseRequestDetailProps {
   request: PurchaseRequest;
@@ -18,6 +19,7 @@ interface PurchaseRequestDetailProps {
 }
 
 const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: initialRequest, onUpdate, onClose }) => {
+  const { data: profile, isLoading: isProfileLoading } = useProfile(); // Use useProfile
   const [request, setRequest] = useState<PurchaseRequest>(initialRequest);
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
   const [currentAction, setCurrentAction] = useState<'approved' | 'rejected' | null>(null); // Now 'approved' also uses the dialog
@@ -102,7 +104,10 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
   // const isApproved = request.status === 'approved'; // No longer needed for button logic
   // const isFinalStatus = request.status === 'rejected' || request.status === 'closed'; // No longer needed for button logic
 
-  if (isLoadingDetails) {
+  // Check if the current user has permission to approve/reject
+  const canPerformAction = profile?.role === "SUPER_ADMIN" || profile?.role === "OPERASIONAL_DIV";
+
+  if (isLoadingDetails || isProfileLoading) { // Added isProfileLoading
     return (
       <Card className="glassmorphism border border-electric-violet/30 h-full flex flex-col animate-pulse">
         <CardHeader className="pb-4">
@@ -143,7 +148,7 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-4">
           <h1 className="text-2xl font-bold text-neon-cyan">Purchase Request Information</h1>
           <div className="flex flex-wrap gap-2">
-            {isPending && (
+            {isPending && canPerformAction && ( // Only show buttons if pending AND user has permission
               <>
                 <Button
                   className="bg-green-600 text-white hover:bg-green-700 transition-all duration-300 text-sm py-2 px-3"

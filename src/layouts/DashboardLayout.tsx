@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuthSession } from "@/hooks/use-auth-session";
-import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -17,7 +17,8 @@ interface DashboardLayoutProps {
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const isMobile = useIsMobile();
-  const { profile, isLoading } = useAuthSession();
+  const { session, isLoading: isAuthLoading } = useAuthSession();
+  const { data: profile, isLoading: isProfileLoading, error: profileError } = useProfile(); // Use useProfile
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Default open for desktop
@@ -32,7 +33,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     }
   };
 
-  if (isLoading) {
+  // Handle redirection if not authenticated or profile loading fails
+  useEffect(() => {
+    if (!isAuthLoading && !isProfileLoading) {
+      if (!session) {
+        navigate('/login', { replace: true });
+      } else if (profileError) {
+        showError(`Failed to load user profile: ${profileError.message}`);
+        navigate('/login', { replace: true });
+      }
+    }
+  }, [isAuthLoading, isProfileLoading, session, profileError, navigate]);
+
+
+  if (isAuthLoading || isProfileLoading) {
     return (
       <div className="flex h-screen bg-deep-charcoal">
         <aside className="w-64 bg-midnight-blue p-4 border-r border-gray-800 hidden md:block">
@@ -50,6 +64,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         </main>
       </div>
     );
+  }
+
+  // If not authenticated or profile failed to load, and not in loading state,
+  // the useEffect above will handle redirection. We can return null here to prevent rendering.
+  if (!session || !profile) {
+    return null;
   }
 
   const navigationItems = [

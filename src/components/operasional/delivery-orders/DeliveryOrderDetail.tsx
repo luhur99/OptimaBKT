@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { showSuccess, showError } from "@/utils/toast";
 import { DeliveryOrderActionDialog } from './DeliveryOrderActionDialog';
 import { DeliveryOrder } from './delivery-order-columns';
+import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 
 interface SchedulingRequestDetails {
@@ -38,6 +39,7 @@ interface DeliveryOrderDetailProps {
 }
 
 const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initialOrder, onUpdate, onClose }) => {
+  const { data: profile, isLoading: isProfileLoading } = useProfile(); // Use useProfile
   const [order, setOrder] = useState<DeliveryOrder>(initialOrder);
   const [schedulingRequest, setSchedulingRequest] = useState<SchedulingRequestDetails | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
@@ -163,7 +165,10 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
   const isInProgress = order.status === 'in progress';
   const isFinalStatus = order.status === 'completed' || order.status === 'cancelled';
 
-  if (isLoadingDetails) {
+  // Check if the current user has permission to perform actions
+  const canPerformAction = profile?.role === "SUPER_ADMIN" || profile?.role === "OPERASIONAL_DIV";
+
+  if (isLoadingDetails || isProfileLoading) { // Added isProfileLoading
     return (
       <Card className="glassmorphism border border-electric-violet/30 h-full flex flex-col animate-pulse">
         <CardHeader className="pb-4">
@@ -204,7 +209,7 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-4">
           <h1 className="text-2xl font-bold text-neon-cyan">Delivery Order Information</h1>
           <div className="flex flex-wrap gap-2">
-            {isPending && (
+            {canPerformAction && isPending && ( // Only show buttons if payment is pending AND user has permission
               <Button
                 className="bg-blue-600 text-white hover:bg-blue-700 transition-all duration-300 text-sm py-2 px-3"
                 onClick={() => setCurrentAction('in progress')}
@@ -213,7 +218,7 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
                 {isLoadingDetails ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Truck className="mr-2 h-4 w-4" />} Set In Progress
               </Button>
             )}
-            {isInProgress && (
+            {canPerformAction && isInProgress && ( // Only show buttons if in progress AND user has permission
               <Button
                 className="bg-green-600 text-white hover:bg-green-700 transition-all duration-300 text-sm py-2 px-3"
                 onClick={() => setCurrentAction('completed')}
@@ -222,7 +227,7 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
                 {isLoadingDetails ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />} Mark Completed
               </Button>
             )}
-            {!isFinalStatus && (
+            {canPerformAction && !isFinalStatus && ( // Only show buttons if not in final status AND user has permission
               <Button
                 className="bg-red-600 text-white hover:bg-red-700 transition-all duration-300 text-sm py-2 px-3"
                 onClick={() => setCurrentAction('cancelled')}

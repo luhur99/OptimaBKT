@@ -16,9 +16,11 @@ import {
 import { AddStaffForm } from "@/components/admin/users/add-staff-form";
 import { showSuccess, showError } from "@/utils/toast";
 import DashboardLayout from "@/layouts/DashboardLayout"; // Import DashboardLayout
+import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 const UserManagementPage = () => {
-  const { session, profile, isLoading } = useAuthSession();
+  const { session, isLoading: isAuthLoading } = useAuthSession();
+  const { data: profile, isLoading: isProfileLoading, error: profileError } = useProfile(); // Use useProfile
   const navigate = useNavigate();
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
   const [isAddStaffDialogOpen, setIsAddStaffDialogOpen] = useState(false);
@@ -37,7 +39,7 @@ const UserManagementPage = () => {
   };
 
   useEffect(() => {
-    if (!isLoading) {
+    if (!isAuthLoading && !isProfileLoading) { // Wait for both auth and profile to load
       if (!session) {
         navigate("/"); // Redirect to home if not logged in
         return;
@@ -49,13 +51,30 @@ const UserManagementPage = () => {
       }
       fetchStaffUsers();
     }
-  }, [isLoading, session, profile, navigate]);
+  }, [isAuthLoading, isProfileLoading, session, profile, navigate]); // Add isProfileLoading and profile to dependencies
 
-  if (isLoading || !session || profile?.role !== "SUPER_ADMIN") {
+  useEffect(() => {
+    if (profileError) {
+      showError(`Failed to load user profile: ${profileError.message}`);
+      navigate('/login', { replace: true });
+    }
+  }, [profileError, navigate]);
+
+  if (isAuthLoading || isProfileLoading) { // Added isProfileLoading
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">
           Loading or unauthorized...
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!session || !profile || profile?.role !== "SUPER_ADMIN") { // Added !profile check
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen text-gray-400">
+          Unauthorized access.
         </div>
       </DashboardLayout>
     );

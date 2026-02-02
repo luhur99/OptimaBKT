@@ -14,9 +14,11 @@ import { PurchaseRequestTable } from "@/components/procurement/PurchaseRequestTa
 import { createPurchaseRequestColumns, PurchaseRequest } from "@/components/procurement/purchase-request-columns";
 import PurchaseRequestDetail from "@/components/procurement/PurchaseRequestDetail";
 import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton component
+import { useProfile } from "@/hooks/use-profile"; // Import useProfile
 
 const PurchaseRequestPage = () => {
-  const { session, profile, isLoading: isAuthLoading } = useAuthSession();
+  const { session, isLoading: isAuthLoading } = useAuthSession();
+  const { data: profile, isLoading: isProfileLoading, error: profileError } = useProfile(); // Use useProfile
   const navigate = useNavigate();
   const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[]>([]);
   const [isLoadingPRs, setIsLoadingPRs] = useState(true);
@@ -58,7 +60,7 @@ const PurchaseRequestPage = () => {
   };
 
   useEffect(() => {
-    if (!isAuthLoading) {
+    if (!isAuthLoading && !isProfileLoading) { // Wait for both auth and profile to load
       if (!session) {
         navigate("/");
         return;
@@ -71,7 +73,14 @@ const PurchaseRequestPage = () => {
       }
       fetchPurchaseRequests();
     }
-  }, [isAuthLoading, session, profile, navigate]);
+  }, [isAuthLoading, isProfileLoading, session, profile, navigate]); // Add isProfileLoading and profile to dependencies
+
+  useEffect(() => {
+    if (profileError) {
+      showError(`Failed to load user profile: ${profileError.message}`);
+      navigate('/login', { replace: true });
+    }
+  }, [profileError, navigate]);
 
   const handlePRUpdate = () => {
     fetchPurchaseRequests(); // Re-fetch all PRs to update the list
@@ -80,7 +89,7 @@ const PurchaseRequestPage = () => {
 
   const columns = useMemo(() => createPurchaseRequestColumns({ onSelectRequest: setSelectedPR }), []);
 
-  if (isAuthLoading || isLoadingPRs) {
+  if (isAuthLoading || isLoadingPRs || isProfileLoading) { // Added isProfileLoading
     return (
       <DashboardLayout>
         <div className="container mx-auto py-10 space-y-6">
@@ -91,7 +100,7 @@ const PurchaseRequestPage = () => {
     );
   }
 
-  if (!session || !["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"].includes(profile?.role || "")) {
+  if (!session || !profile || !["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"].includes(profile?.role || "")) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">

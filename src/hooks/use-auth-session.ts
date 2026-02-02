@@ -15,7 +15,7 @@ export function useAuthSession(): AuthSession {
     const getInitialSession = async () => {
       const { data: { session: initialSession } } = await supabase.auth.getSession();
       setSession(initialSession);
-      setIsLoading(false);
+      setIsLoading(false); // This should always run
     };
 
     getInitialSession();
@@ -23,7 +23,7 @@ export function useAuthSession(): AuthSession {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
         setSession(newSession);
-        setIsLoading(false); // Ensure loading is false after any auth state change
+        setIsLoading(false); // This should also always run
       }
     );
 
