@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/auth-session";
 import { supabase } from "@/integrations/supabase/client";
-import { showError } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import DashboardLayout from "@/layouts/DashboardLayout";
@@ -18,21 +18,9 @@ import {
 } from "@/components/ui/dialog";
 import { AddProductForm } from "@/components/operasional/products/AddProductForm";
 import { ProductTable } from "@/components/operasional/products/ProductTable";
-import { columns } from "@/components/operasional/products/product-columns";
+import { getColumns, Product } from "@/components/operasional/products/product-columns";
 
-// Re-define Product interface to ensure it matches the select query and table columns
-interface Product {
-  id: string;
-  kode_barang: string;
-  nama_barang: string;
-  satuan?: string;
-  harga_beli: number;
-  harga_jual: number;
-  safe_stock_limit: number;
-  stok_sekarang: number;
-  updated_at: string;
-  user_id: string; // Ensure this is included as per RLS policy
-}
+// Product interface imported from product-columns
 
 const ProductCatalogPage = () => {
   const { session, profile, isLoading: isAuthLoading } = useAuthSession();
@@ -40,6 +28,38 @@ const ProductCatalogPage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  const handleEdit = (product: Product) => {
+    setEditingProduct(product);
+    setIsAddProductDialogOpen(true);
+  };
+
+  const handleDelete = async (product: Product) => {
+    if (product.stok_sekarang > 0) {
+      showError(`Cannot delete product '${product.nama_barang}' because it still has stock (${product.stok_sekarang}). Please adjust stock to 0 first.`);
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete '${product.nama_barang}'? This action cannot be undone.`)) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", product.id);
+
+    if (error) {
+      console.error("Error deleting product:", error);
+      showError("Failed to delete product.");
+    } else {
+      showSuccess(`Product '${product.nama_barang}' deleted successfully.`);
+      fetchProducts();
+    }
+  };
+
+  const tableColumns = getColumns(handleEdit, handleDelete);
 
   const fetchProducts = async () => {
     setIsLoadingProducts(true);
@@ -119,7 +139,10 @@ const ProductCatalogPage = () => {
     <DashboardLayout>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-neon-cyan">Product Catalog</h1>
-        <Dialog open={isAddProductDialogOpen} onOpenChange={setIsAddProductDialogOpen}>
+        <Dialog open={isAddProductDialogOpen} onOpenChange={(open) => {
+          setIsAddProductDialogOpen(open);
+          if (!open) setEditingProduct(null);
+        }}>
           <DialogTrigger asChild>
             <Button className="bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300">
               <PlusCircle className="mr-2 h-4 w-4" /> Add New Product
@@ -127,17 +150,22 @@ const ProductCatalogPage = () => {
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px] glassmorphism border border-electric-violet/30">
             <DialogHeader>
-              <DialogTitle className="text-neon-cyan">Add New Product</DialogTitle>
+              <DialogTitle className="text-neon-cyan">{editingProduct ? "Edit Product" : "Add New Product"}</DialogTitle>
               <DialogDescription className="text-gray-400">
-                Fill in the details to add a new product to the catalog.
+                {editingProduct ? "Update existing product details." : "Fill in the details to add a new product to the catalog."}
               </DialogDescription>
             </DialogHeader>
             <AddProductForm
+              initialData={editingProduct || undefined}
               onProductAdded={() => {
                 fetchProducts();
                 setIsAddProductDialogOpen(false);
+                setEditingProduct(null);
               }}
-              onClose={() => setIsAddProductDialogOpen(false)}
+              onClose={() => {
+                setIsAddProductDialogOpen(false);
+                setEditingProduct(null);
+              }}
             />
           </DialogContent>
         </Dialog>
@@ -149,7 +177,7 @@ const ProductCatalogPage = () => {
             <p>No products found in the catalog. Initiating scan...</p>
           </div>
         ) : (
-          <ProductTable columns={columns} data={products} />
+          <ProductTable columns={tableColumns} data={products} />
         )}
       </ScrollArea>
     </DashboardLayout>

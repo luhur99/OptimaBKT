@@ -72,11 +72,9 @@ serve(async (req) => {
 
     const availableQuantity = currentInventory?.quantity || 0;
     let newQuantity = availableQuantity;
-    let eventType: 'STOCK_ADJUSTMENT_IN' | 'STOCK_ADJUSTMENT_OUT';
 
     if (adjustment_type === 'add') {
       newQuantity += quantity;
-      eventType = 'STOCK_ADJUSTMENT_IN';
     } else if (adjustment_type === 'deduct') {
       if (availableQuantity < quantity) {
         return new Response(JSON.stringify({ error: `Insufficient stock in ${warehouse_category}. Available: ${availableQuantity}, Attempted to deduct: ${quantity}` }), {
@@ -85,7 +83,6 @@ serve(async (req) => {
         });
       }
       newQuantity -= quantity;
-      eventType = 'STOCK_ADJUSTMENT_OUT';
     } else {
       return new Response(JSON.stringify({ error: 'Invalid adjustment_type. Must be "add" or "deduct".' }), {
         status: 400,
@@ -121,7 +118,7 @@ serve(async (req) => {
       .insert({
         user_id: user.id,
         product_id: product_id,
-        event_type: eventType,
+        event_type: 'ADJUSTMENT',
         quantity: quantity,
         from_warehouse_category: adjustment_type === 'deduct' ? warehouse_category : null,
         to_warehouse_category: adjustment_type === 'add' ? warehouse_category : null,

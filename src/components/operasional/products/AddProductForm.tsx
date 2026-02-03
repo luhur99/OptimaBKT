@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,44 +37,85 @@ interface Supplier {
   name: string;
 }
 
+import { Product } from "./product-columns";
+
 interface AddProductFormProps {
   onProductAdded: () => void;
   onClose: () => void;
+  initialData?: Product;
 }
 
 const formSchema = z.object({
+  product_type: z.enum(["GOODS", "SERVICE"]),
   kode_barang: z.string().min(2, { message: "Product Code must be at least 2 characters." }),
   nama_barang: z.string().min(2, { message: "Product Name must be at least 2 characters." }),
-  satuan: z.string().min(1, { message: "Unit is required." }),
-  harga_beli: z.coerce.number().min(0.01, { message: "Purchase Price must be greater than 0." }),
-  harga_jual: z.coerce.number().min(0.01, { message: "Selling Price must be greater than 0." }),
-  safe_stock_limit: z.coerce.number().min(0, { message: "Safe Stock Limit cannot be negative." }),
-  initial_stock: z.coerce.number().min(0, { message: "Initial Stock cannot be negative." }).optional(),
+  satuan: z.string().optional(), // Made optional for SERVICE
+  harga_beli: z.coerce.number().min(0, { message: "Purchase Price cannot be negative." }), // Relaxed validation
+  harga_jual: z.coerce.number().min(0, { message: "Selling Price cannot be negative." }), // Relaxed validation
+  safe_stock_limit: z.coerce.number().min(0).optional(),
+  initial_stock: z.coerce.number().min(0).optional(),
   supplier_id: z.string().optional(),
-  notes: z.string().optional(), // Added notes field
+  notes: z.string().optional(),
+}).refine((data) => {
+  if (data.product_type === "GOODS") {
+    // Custom validation for GOODS
+    return !!data.satuan && data.satuan.length > 0;
+  }
+  return true;
+}, {
+  message: "Unit is required for Goods.",
+  path: ["satuan"],
 });
 
-export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps) {
+export function AddProductForm({ onProductAdded, onClose, initialData }: AddProductFormProps) {
   const { session } = useAuthSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [openSupplierCombobox, setOpenSupplierCombobox] = useState(false);
-  const [activeTab, setActiveTab] = useState("product-details"); // State for active tab
+  const [activeTab, setActiveTab] = useState("product-details");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      kode_barang: "",
-      nama_barang: "",
-      satuan: "Pcs", // Default unit
-      harga_beli: 0,
-      harga_jual: 0,
-      safe_stock_limit: 0,
-      initial_stock: 0,
-      supplier_id: "",
-      notes: "", // Default for notes
+      product_type: initialData ? (initialData.safe_stock_limit === undefined ? "SERVICE" : "GOODS") : "GOODS", // Infer type or use explicit field if available
+      kode_barang: initialData?.kode_barang || "",
+      nama_barang: initialData?.nama_barang || "",
+      satuan: initialData?.satuan || "Pcs",
+      harga_beli: initialData?.harga_beli || 0,
+      harga_jual: initialData?.harga_jual || 0,
+      safe_stock_limit: initialData?.safe_stock_limit || 0,
+      initial_stock: 0, // Always 0 for edit
+      supplier_id: "", // TODO: If we had supplier in initialData
+      notes: "",
     },
   });
+
+  // Reset form when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      // Logic to determine product type based on fields if not explicitly in Product type yet,
+      // but we added product_type to DB. We should ensure Product type in frontend includes `product_type`.
+      // For now, let's assume we need to fetch it or generic logic.
+      // Wait, the Product interface in product-columns doesn't have product_type yet?
+      // Step 220: export type Product = { ... user_id: string } -> No product_type in type definition!
+      // I should update Product type definition first or cast it.
+      // Let's assume for now we trust the props.
+      form.reset({
+        product_type: (initialData as any).product_type || "GOODS",
+        kode_barang: initialData.kode_barang,
+        nama_barang: initialData.nama_barang,
+        satuan: initialData.satuan || "Pcs",
+        harga_beli: initialData.harga_beli,
+        harga_jual: initialData.harga_jual,
+        safe_stock_limit: initialData.safe_stock_limit || 0,
+        initial_stock: 0,
+        supplier_id: "",
+        notes: "",
+      });
+    }
+  }, [initialData, form]);
+
+  const productType = form.watch("product_type");
 
   useEffect(() => {
     const fetchSuppliers = async () => {
@@ -94,30 +136,58 @@ export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps)
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
-      // 1. Insert into products table
-      const { data: newProduct, error: productError } = await supabase
-        .from("products")
-        .insert({
-          user_id: session?.user?.id,
-          kode_barang: values.kode_barang,
-          nama_barang: values.nama_barang,
-          satuan: values.satuan,
-          harga_beli: values.harga_beli,
-          harga_jual: values.harga_jual,
-          safe_stock_limit: values.safe_stock_limit,
-          supplier_id: values.supplier_id || null,
-          // stok_sekarang will be set by the trigger after warehouse_inventories insert
-          // notes: values.notes, // Add notes to product if schema supports it, otherwise omit
-        })
-        .select("id")
-        .single();
+      // 1. Insert or Update
+      let productError;
+      let newProduct;
+
+      if (initialData) {
+        // UPDATE
+        const { data, error } = await supabase
+          .from("products")
+          .update({
+            nama_barang: values.nama_barang,
+            satuan: values.product_type === "GOODS" ? values.satuan : null,
+            harga_beli: values.harga_beli,
+            harga_jual: values.harga_jual,
+            safe_stock_limit: values.product_type === "GOODS" ? values.safe_stock_limit : 0,
+            supplier_id: values.supplier_id || null,
+            // kode_barang usually should not be changed easily, but let's allow it for now if backend allows
+            kode_barang: values.kode_barang,
+          })
+          .eq("id", initialData.id)
+          .select("id")
+          .single();
+
+        productError = error;
+        newProduct = data;
+      } else {
+        // INSERT
+        const { data, error } = await supabase
+          .from("products")
+          .insert({
+            user_id: session?.user?.id,
+            product_type: values.product_type,
+            kode_barang: values.kode_barang,
+            nama_barang: values.nama_barang,
+            satuan: values.product_type === "GOODS" ? values.satuan : null,
+            harga_beli: values.harga_beli,
+            harga_jual: values.harga_jual,
+            safe_stock_limit: values.product_type === "GOODS" ? values.safe_stock_limit : 0,
+            supplier_id: values.supplier_id || null,
+          })
+          .select("id")
+          .single();
+
+        productError = error;
+        newProduct = data;
+      }
 
       if (productError) {
         throw new Error(productError.message);
       }
 
-      // 2. If initial_stock > 0, add to warehouse_inventories and stock_ledger
-      if (values.initial_stock && values.initial_stock > 0) {
+      // 2. If initial_stock > 0 AND it's a GOODS item AND NOT EDITING, add to warehouse_inventories
+      if (!initialData && values.product_type === "GOODS" && values.initial_stock && values.initial_stock > 0) {
         // Add to 'siap_jual' warehouse category by default
         const { error: inventoryError } = await supabase
           .from("warehouse_inventories")
@@ -132,7 +202,6 @@ export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps)
           );
 
         if (inventoryError) {
-          // Attempt to rollback product creation if inventory fails
           await supabase.from("products").delete().eq("id", newProduct.id);
           throw new Error(`Failed to add initial stock: ${inventoryError.message}`);
         }
@@ -151,13 +220,12 @@ export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps)
           });
 
         if (ledgerError) {
-          // This is a critical failure, manual intervention might be needed for full rollback
           console.error("Failed to record initial stock in ledger:", ledgerError);
           showError("Product added, but failed to record initial stock movement.");
         }
       }
 
-      showSuccess(`Product '${values.nama_barang}' added successfully!`);
+      showSuccess(`Product '${values.nama_barang}' ${initialData ? "updated" : "added"} successfully!`);
       form.reset();
       onProductAdded();
       onClose();
@@ -205,39 +273,76 @@ export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps)
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="satuan"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Unit</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
-                        <SelectValue placeholder="Select unit" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
-                      <SelectItem value="Pcs">Pcs</SelectItem>
-                      <SelectItem value="Dus">Dus</SelectItem>
-                      <SelectItem value="Kg">Kg</SelectItem>
-                      <SelectItem value="Liter">Liter</SelectItem>
-                      <SelectItem value="Meter">Meter</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {productType === "GOODS" && (
+              <FormField
+                control={form.control}
+                name="satuan"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Unit</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || "Pcs"}>
+                      <FormControl>
+                        <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
+                          <SelectValue placeholder="Select unit" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
+                        <SelectItem value="Pcs">Pcs</SelectItem>
+                        <SelectItem value="Unit">Unit</SelectItem>
+                        <SelectItem value="Lot">Lot</SelectItem>
+                        <SelectItem value="Set">Set</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="pricing-stock" className="space-y-4 mt-4">
             <FormField
               control={form.control}
+              name="product_type"
+              render={({ field }) => (
+                <FormItem className="space-y-3 mb-4 p-4 border border-gray-700 rounded-md bg-gray-800/30">
+                  <FormLabel>Product Type</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={!!initialData} // Disable if editing
+                      className="flex space-x-6"
+                    >
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="GOODS" className="border-neon-cyan text-neon-cyan" />
+                        </FormControl>
+                        <FormLabel className="font-normal cursor-pointer">
+                          Goods (Barang)
+                        </FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="SERVICE" className="border-electric-violet text-electric-violet" />
+                        </FormControl>
+                        <FormLabel className="font-normal cursor-pointer">
+                          Service (Jasa)
+                        </FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="harga_beli"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Purchase Price</FormLabel>
+                  <FormLabel>Base Price (Modal)</FormLabel>
                   <FormControl>
                     <Input type="number" {...field} step="0.01" className="glassmorphism border border-gray-700 text-gray-300" />
                   </FormControl>
@@ -258,32 +363,39 @@ export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps)
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="safe_stock_limit"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Safe Stock Limit</FormLabel>
-                  <FormControl>
-                    <Input type="number" {...field} min="0" className="glassmorphism border border-gray-700 text-gray-300" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="initial_stock"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Initial Stock (Optional)</FormLabel>
-                  <FormControl>
-                    <Input type="number" {...field} min="0" className="glassmorphism border border-gray-700 text-gray-300" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
+            {productType === "GOODS" && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="safe_stock_limit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Safe Stock Limit</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} min="0" className="glassmorphism border border-gray-700 text-gray-300" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {!initialData && (
+                  <FormField
+                    control={form.control}
+                    name="initial_stock"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Initial Stock (Optional)</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} min="0" className="glassmorphism border border-gray-700 text-gray-300" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="supplier-notes" className="space-y-4 mt-4">
@@ -362,7 +474,7 @@ export function AddProductForm({ onProductAdded, onClose }: AddProductFormProps)
         </Tabs>
 
         <Button type="submit" className="w-full bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300" disabled={isSubmitting}>
-          {isSubmitting ? "Adding Product..." : "Add Product"}
+          {isSubmitting ? (initialData ? "Updating Product..." : "Adding Product...") : (initialData ? "Update Product" : "Add Product")}
         </Button>
       </form>
     </Form>

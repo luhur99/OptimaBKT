@@ -65,6 +65,7 @@ type Product = {
   nama_barang: string;
   harga_jual: number;
   satuan?: string;
+  product_type?: 'GOODS' | 'SERVICE';
 };
 
 type InvoiceItemForm = {
@@ -76,6 +77,7 @@ type InvoiceItemForm = {
   unit_price: number;
   unit_type?: string;
   subtotal: number;
+  product_type?: 'GOODS' | 'SERVICE';
 };
 
 // Simple CountUp component
@@ -190,7 +192,7 @@ const BillingReviewPage = () => {
     setIsLoadingProducts(true);
     const { data, error } = await supabase
       .from("products")
-      .select("id, kode_barang, nama_barang, harga_jual, satuan");
+      .select("id, kode_barang, nama_barang, harga_jual, satuan, product_type");
 
     if (error) {
       console.error("Error fetching products:", error);
@@ -285,6 +287,7 @@ const BillingReviewPage = () => {
               item_code: product.kode_barang,
               unit_price: product.harga_jual, // Pre-fill unit price
               unit_type: product.satuan,
+              product_type: product.product_type, // Store product_type
             };
             updatedItem.subtotal = updatedItem.quantity * updatedItem.unit_price; // Initial subtotal calculation
             return updatedItem;
@@ -312,12 +315,41 @@ const BillingReviewPage = () => {
       showError("Please select a scheduling request to finalize.");
       return;
     }
+    if (!selectedRequest.invoice_id) {
+      showError("Selected request does not have a valid Invoice ID. Please contact support.");
+      return;
+    }
     if (invoiceItems.length === 0) {
       showError("Please add at least one invoice item.");
       return;
     }
-    if (invoiceItems.some(item => !item.product_id || item.quantity <= 0 || item.unit_price <= 0)) {
-      showError("Please ensure all invoice items have a selected product, quantity > 0, and unit price > 0.");
+    const invalidItems = invoiceItems.filter(item => {
+      const isService = item.product_type === 'SERVICE';
+      // For GOODS: price must be >= 0 (usually > 0 but let's stick to >= 0 per request, actually request said allow 0 for SERVICE)
+      // Actually user said "if Service then it allow to unit price and subtotal 0". Implicitly others might NOT allow 0?
+      // Existing code was checking `item.unit_price < 0` (so 0 was allowed).
+      // But user said "record 'new' has no field ..." then "on button make if the product type Service then it allow to unit price and subtotal 0".
+      // This suggests currently checks might be too strict or previous check `item.unit_price < 0` was not enough or they want to explicitly allow 0 for service but maybe require > 0 for Goods?
+      // Let's assume Goods requires > 0 price, Service allows >= 0.
+
+      // Previous check: if (invoiceItems.some(item => !item.product_id || item.quantity <= 0 || item.unit_price < 0))
+      // Use refined check:
+      if (!item.product_id) return true;
+      if (item.quantity <= 0) return true;
+
+      // Price check
+      if (item.unit_price < 0) return true; // Never negative
+
+      // If NOT service (i.e. Goods), maybe we want to guard against 0 price if that's the intention?
+      // User words: "make if the product type Service then it allow to unit price and subtotal 0"
+      // This implies that for non-Service, it might NOT should be 0.
+      if (!isService && item.unit_price === 0) return true;
+
+      return false;
+    });
+
+    if (invalidItems.length > 0) {
+      showError("Please ensure all items have a product, quantity > 0. Goods must have price > 0. Services can be 0.");
       return;
     }
 

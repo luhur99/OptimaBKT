@@ -44,10 +44,11 @@ const BillingListPage = () => {
           document_url,
           subtotal_amount,
           tax_amount,
-          with_tax
+          with_tax,
+          created_at
         `)
         .in("invoice_status", ["PENDING", "PAID"])
-        .order("invoice_date", { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (error) {
         if (error.message.includes("column") && error.message.includes("does not exist")) {
@@ -70,7 +71,7 @@ const BillingListPage = () => {
               document_url
             `)
             .in("invoice_status", ["PENDING", "PAID"])
-            .order("invoice_date", { ascending: false });
+            .order("created_at", { ascending: false });
 
           if (fallbackError) throw fallbackError;
           await processInvoicesData(fallbackData || []);

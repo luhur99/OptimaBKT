@@ -78,7 +78,7 @@ serve(async (req) => {
 
     const invoiceNumber = invoice?.invoice_number; // Get the invoice number
     if (!invoiceNumber) {
-        throw new Error(`Invoice number not found for invoice ID: ${invoice_id}`);
+      throw new Error(`Invoice number not found for invoice ID: ${invoice_id}`);
     }
 
     // Fetch invoice items
@@ -106,7 +106,24 @@ serve(async (req) => {
       const productId = item.product_id;
       const quantityToDeduct = item.quantity;
       // ALWAYS deduct from 'siap_jual' warehouse for sales
-      const fromWarehouseCategory = 'siap_jual'; 
+      const fromWarehouseCategory = 'siap_jual';
+
+      // Check product type
+      const { data: product, error: productError } = await supabaseAdminClient
+        .from('products')
+        .select('product_type')
+        .eq('id', productId)
+        .single();
+
+      if (productError) {
+        throw new Error(`Failed to fetch product details for ${productId}: ${productError.message}`);
+      }
+
+      // Skip stock deduction for SERVICE items
+      if (product?.product_type === 'SERVICE') {
+        console.log(`Skipping stock deduction for SERVICE item: ${productId}`);
+        continue;
+      }
 
       // Check available stock
       const { data: inventory, error: inventoryError } = await supabaseAdminClient
