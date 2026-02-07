@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/auth-session";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +19,8 @@ import {
 import { AddProductForm } from "@/components/operasional/products/AddProductForm";
 import { ProductTable } from "@/components/operasional/products/ProductTable";
 import { getColumns, Product } from "@/components/operasional/products/product-columns";
+import { TableToolbar } from "@/components/shared/TableToolbar";
+import { DatePreset, buildExportColumns, exportToCsv, filterRows, getDateRange } from "@/utils/table-tools";
 
 // Product interface imported from product-columns
 
@@ -29,6 +31,10 @@ const ProductCatalogPage = () => {
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [searchValue, setSearchValue] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("custom");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
@@ -60,6 +66,28 @@ const ProductCatalogPage = () => {
   };
 
   const tableColumns = getColumns(handleEdit, handleDelete);
+
+  const dateRange = useMemo(
+    () => getDateRange(datePreset, startDate, endDate),
+    [datePreset, startDate, endDate]
+  );
+
+  const filteredProducts = useMemo(
+    () =>
+      filterRows(
+        products,
+        searchValue,
+        dateRange,
+        (row) => (row.updated_at ? new Date(row.updated_at) : null)
+      ),
+    [products, searchValue, dateRange]
+  );
+
+  const exportColumns = useMemo(() => buildExportColumns<Product>(tableColumns), [tableColumns]);
+
+  const handleExport = () => {
+    exportToCsv("products", exportColumns, filteredProducts);
+  };
 
   const fetchProducts = async () => {
     setIsLoadingProducts(true);
@@ -171,13 +199,29 @@ const ProductCatalogPage = () => {
         </Dialog>
       </div>
 
+      <div className="mb-4">
+        <TableToolbar
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          datePreset={datePreset}
+          onDatePresetChange={setDatePreset}
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+          onExport={handleExport}
+          exportDisabled={filteredProducts.length === 0}
+          searchPlaceholder="Cari produk..."
+        />
+      </div>
+
       <ScrollArea className="h-[calc(100vh-180px)] pr-4">
-        {products.length === 0 ? (
+        {filteredProducts.length === 0 ? (
           <div className="h-full flex items-center justify-center text-gray-500 border border-dashed border-gray-700 rounded-md p-4 radar-grid-background">
             <p>No products found in the catalog. Initiating scan...</p>
           </div>
         ) : (
-          <ProductTable columns={tableColumns} data={products} />
+          <ProductTable columns={tableColumns} data={filteredProducts} />
         )}
       </ScrollArea>
     </DashboardLayout>

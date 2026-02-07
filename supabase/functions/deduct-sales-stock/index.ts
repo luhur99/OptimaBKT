@@ -11,12 +11,20 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const authHeader = req.headers.get('Authorization') ?? '';
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   const supabaseClient = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     {
       global: {
-        headers: { Authorization: req.headers.get('Authorization')! },
+        headers: { Authorization: authHeader },
       },
     }
   );
@@ -140,7 +148,7 @@ serve(async (req) => {
       const availableQuantity = inventory?.quantity || 0;
 
       if (availableQuantity < quantityToDeduct) {
-        throw new Response(JSON.stringify({ error: `Insufficient stock for product ${productId} in ${fromWarehouseCategory}. Available: ${availableQuantity}, Requested: ${quantityToDeduct}` }), {
+        return new Response(JSON.stringify({ error: `Insufficient stock for product ${productId} in ${fromWarehouseCategory}. Available: ${availableQuantity}, Requested: ${quantityToDeduct}` }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });

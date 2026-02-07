@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/auth-session";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +24,8 @@ import { StockMovementForm } from "@/components/operasional/stock-movement/Stock
 import { StockAdjustmentForm } from "@/components/operasional/stock-movement/StockAdjustmentForm";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { Badge } from "@/components/ui/badge"; // Import Badge for displaying categories
+import { TableToolbar } from "@/components/shared/TableToolbar";
+import { DatePreset, ExportColumn, exportToCsv, filterRows, getDateRange } from "@/utils/table-tools";
 
 // New type definition for product with its aggregated inventory
 type ProductWithInventory = {
@@ -48,6 +50,10 @@ const StockMovementPage = () => {
   const [inventory, setInventory] = useState<ProductWithInventory[]>([]); // Changed state type
   const [isLoadingInventory, setIsLoadingInventory] = useState(true);
   const [activeTab, setActiveTab] = useState<string>("transfer");
+  const [searchValue, setSearchValue] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("custom");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const fetchInventory = async () => {
     setIsLoadingInventory(true);
@@ -97,6 +103,53 @@ const StockMovementPage = () => {
     }
   }, [isAuthLoading, session, profile, navigate]);
 
+  const dateRange = useMemo(
+    () => getDateRange(datePreset, startDate, endDate),
+    [datePreset, startDate, endDate]
+  );
+
+  const filteredInventory = useMemo(
+    () =>
+      filterRows(
+        inventory,
+        searchValue,
+        dateRange,
+        (row) => (row.updated_at ? new Date(row.updated_at) : null)
+      ),
+    [inventory, searchValue, dateRange]
+  );
+
+  const exportColumns = useMemo<ExportColumn<ProductWithInventory>[]>(
+    () => [
+      {
+        header: "Product",
+        value: (row) => `${row.nama_barang} (${row.kode_barang})`,
+      },
+      {
+        header: "Warehouse Inventories",
+        value: (row) =>
+          row.inventories.length > 0
+            ? row.inventories
+                .map((inv) => `${inv.warehouse_category}:${inv.quantity}`)
+                .join(" | ")
+            : "No stock",
+      },
+      {
+        header: "Total Stock",
+        value: (row) => row.stok_sekarang,
+      },
+      {
+        header: "Last Updated",
+        value: (row) => row.updated_at,
+      },
+    ],
+    []
+  );
+
+  const handleExport = () => {
+    exportToCsv("stock-inventory", exportColumns, filteredInventory);
+  };
+
   if (isAuthLoading || isLoadingInventory) {
     return (
       <DashboardLayout>
@@ -142,7 +195,22 @@ const StockMovementPage = () => {
         <ResizablePanel defaultSize={50} minSize={30}>
           <ScrollArea className="h-full p-4">
             <h2 className="text-xl font-semibold mb-4 text-neon-cyan">Current Warehouse Inventory</h2>
-            {inventory.length === 0 ? (
+            <div className="mb-4">
+              <TableToolbar
+                searchValue={searchValue}
+                onSearchChange={setSearchValue}
+                datePreset={datePreset}
+                onDatePresetChange={setDatePreset}
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+                onExport={handleExport}
+                exportDisabled={filteredInventory.length === 0}
+                searchPlaceholder="Cari produk atau gudang..."
+              />
+            </div>
+            {filteredInventory.length === 0 ? (
               <div className="h-full flex items-center justify-center text-gray-500 border border-dashed border-gray-700 rounded-md p-4 radar-grid-background">
                 <p>No inventory items found. Initiating scan...</p>
               </div>
@@ -157,7 +225,7 @@ const StockMovementPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {inventory.map((product) => (
+                  {filteredInventory.map((product) => (
                     <TableRow key={product.id} className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors">
                       <TableCell>
                         {product.nama_barang} (<span className="text-gray-500">{product.kode_barang}</span>)

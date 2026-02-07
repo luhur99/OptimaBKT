@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { type FieldErrors, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,15 +46,15 @@ interface Technician {
 
 const formSchema = z.object({
   customer_id: z.string().optional(), // New field for selected customer ID
-  customerName: z.string().min(2, { message: "Customer name must be at least 2 characters." }),
+  customerName: z.string().min(2, { message: "Nama customer minimal 2 karakter." }),
   companyName: z.string().optional(),
-  phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 characters." }),
-  contactPerson: z.string().min(2, { message: "Contact person must be at least 2 characters." }),
-  fullAddress: z.string().min(5, { message: "Full address must be at least 5 characters." }),
+  phoneNumber: z.string().min(10, { message: "Nomor telepon minimal 10 karakter." }),
+  contactPerson: z.string().min(2, { message: "Nama PIC minimal 2 karakter." }),
+  fullAddress: z.string().min(5, { message: "Alamat lengkap minimal 5 karakter." }),
   landmark: z.string().optional(),
-  requestedDate: z.date({ required_error: "A date for the request is required." }),
+  requestedDate: z.date({ required_error: "Tanggal permintaan wajib diisi." }),
   requestedTime: z.string().optional(),
-  type: z.enum(["INSTALLATION", "SERVICE", "SERVICE_UNBILL", "DELIVERY"], { required_error: "Please select a request type." }),
+  type: z.enum(["INSTALLATION", "SERVICE", "SERVICE_UNBILL", "DELIVERY"], { required_error: "Jenis permintaan wajib dipilih." }),
   productCategory: z.enum(["gps_tracker", "dashcam", "OTHER"]).optional(),
   vehicleDetails: z.string().optional(),
   notes: z.string().optional(),
@@ -134,6 +134,14 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
   }, [selectedCustomerId, customers, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    const userId = authData?.user?.id;
+
+    if (authError || !userId) {
+      toast.error("You must be signed in to create a scheduling request.");
+      return;
+    }
+
     const payload = {
       customer_id: values.customer_id || null, // Include customer_id if selected
       customer_name: values.customerName,
@@ -154,7 +162,7 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
       technician_name: values.technicianType === "INTERNAL" ? values.technicianName : values.externalTechnicianName,
       technician_type: values.technicianType,
       external_technician_name: values.technicianType === "EXTERNAL" ? values.externalTechnicianName : null,
-      user_id: (await supabase.auth.getUser()).data.user?.id,
+      user_id: userId,
     };
 
     const { error } = await supabase.from("scheduling_requests").insert([payload]);
@@ -172,15 +180,21 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
     }
   };
 
+  const handleValidationError = (errors: FieldErrors<z.infer<typeof formSchema>>) => {
+    const firstError = Object.values(errors)[0];
+    const message = firstError?.message || "Periksa kembali isian wajib.";
+    toast.error(String(message));
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-4 text-gray-300">
+      <form onSubmit={form.handleSubmit(onSubmit, handleValidationError)} className="space-y-6 p-4 text-gray-300">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4 bg-midnight-blue border border-gray-700">
-            <TabsTrigger value="customer-contact" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Customer & Contact</TabsTrigger>
-            <TabsTrigger value="scheduling-details" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Scheduling Details</TabsTrigger>
-            <TabsTrigger value="product-notes" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Product & Notes</TabsTrigger>
-            <TabsTrigger value="technician-assignment" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Technician Assignment</TabsTrigger>
+            <TabsTrigger value="customer-contact" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Customer & Kontak</TabsTrigger>
+            <TabsTrigger value="scheduling-details" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Detail Penjadwalan</TabsTrigger>
+            <TabsTrigger value="product-notes" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Produk & Catatan</TabsTrigger>
+            <TabsTrigger value="technician-assignment" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Penugasan Teknisi</TabsTrigger>
           </TabsList>
 
           <TabsContent value="customer-contact" className="space-y-4">
@@ -189,7 +203,7 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
               name="customer_id"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel className="text-gray-300">Select Existing Customer (Optional)</FormLabel>
+                  <FormLabel className="text-gray-300">Pilih Customer (Opsional)</FormLabel>
                   <Popover open={openCustomerCombobox} onOpenChange={setOpenCustomerCombobox}>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -203,16 +217,16 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
                         >
                           {field.value
                             ? customers?.find((customer) => customer.id === field.value)?.customer_name
-                            : "Select customer or enter new details"}
+                            : "Pilih customer atau isi data baru"}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0 glassmorphism border border-gray-700">
                       <Command>
-                        <CommandInput placeholder="Search customer..." className="text-gray-300" />
+                        <CommandInput placeholder="Cari customer..." className="text-gray-300" />
                         <CommandList>
-                          <CommandEmpty>No customer found.</CommandEmpty>
+                          <CommandEmpty>Customer tidak ditemukan.</CommandEmpty>
                           <CommandGroup>
                             {customers?.map((customer) => (
                               <CommandItem
@@ -248,9 +262,9 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
               name="customerName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Customer Name</FormLabel>
+                  <FormLabel className="text-gray-300">Nama Customer <span className="text-red-400">*</span></FormLabel>
                   <FormControl>
-                    <Input placeholder="Customer Name" {...field} className="bg-gray-800 border-gray-700 text-gray-300" disabled={!!selectedCustomerId} />
+                    <Input placeholder="Nama customer" {...field} className="bg-gray-800 border-gray-700 text-gray-300" disabled={!!selectedCustomerId} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -261,9 +275,9 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
               name="companyName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Company Name (Optional)</FormLabel>
+                  <FormLabel className="text-gray-300">Nama Perusahaan (Opsional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Company Name" {...field} className="bg-gray-800 border-gray-700 text-gray-300" disabled={!!selectedCustomerId} />
+                    <Input placeholder="Nama perusahaan" {...field} className="bg-gray-800 border-gray-700 text-gray-300" disabled={!!selectedCustomerId} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -274,9 +288,9 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
               name="phoneNumber"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Phone Number</FormLabel>
+                  <FormLabel className="text-gray-300">Nomor Telepon <span className="text-red-400">*</span></FormLabel>
                   <FormControl>
-                    <Input placeholder="Phone Number" {...field} className="bg-gray-800 border-gray-700 text-gray-300" disabled={!!selectedCustomerId} />
+                    <Input placeholder="08xxxxxxxxxx" {...field} className="bg-gray-800 border-gray-700 text-gray-300" disabled={!!selectedCustomerId} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -287,9 +301,9 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
               name="contactPerson"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Contact Person</FormLabel>
+                  <FormLabel className="text-gray-300">Nama PIC <span className="text-red-400">*</span></FormLabel>
                   <FormControl>
-                    <Input placeholder="Contact Person" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
+                    <Input placeholder="Nama PIC" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -300,9 +314,9 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
               name="fullAddress"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Full Address</FormLabel>
+                  <FormLabel className="text-gray-300">Alamat Lengkap <span className="text-red-400">*</span></FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Full Address" {...field} className="bg-gray-800 border-gray-700 text-gray-300" disabled={!!selectedCustomerId} />
+                    <Textarea placeholder="Alamat lengkap" {...field} className="bg-gray-800 border-gray-700 text-gray-300" disabled={!!selectedCustomerId} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -313,9 +327,9 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
               name="landmark"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Landmark (Optional)</FormLabel>
+                  <FormLabel className="text-gray-300">Patokan (Opsional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Landmark" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
+                    <Input placeholder="Patokan lokasi" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -329,7 +343,7 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
               name="requestedDate"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel className="text-gray-300">Requested Date</FormLabel>
+                  <FormLabel className="text-gray-300">Tanggal Permintaan <span className="text-red-400">*</span></FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -343,7 +357,7 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
                           {field.value ? (
                             format(field.value, "PPP")
                           ) : (
-                            <span>Pick a date</span>
+                            <span>Pilih tanggal</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -362,7 +376,7 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
                     </PopoverContent>
                   </Popover>
                   <FormDescription className="text-gray-500">
-                    The date for the requested service.
+                    Tanggal untuk layanan yang diminta.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -373,9 +387,9 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
               name="requestedTime"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Requested Time (Optional)</FormLabel>
+                  <FormLabel className="text-gray-300">Waktu Permintaan (Opsional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., 09:00 AM - 12:00 PM" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
+                    <Input placeholder="contoh: 09:00 - 12:00" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -386,22 +400,22 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
               name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Request Type</FormLabel>
+                  <FormLabel className="text-gray-300">Jenis Permintaan <span className="text-red-400">*</span></FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-300">
-                        <SelectValue placeholder="Select a request type" />
+                        <SelectValue placeholder="Pilih jenis permintaan" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
-                      <SelectItem value="INSTALLATION">Installation</SelectItem>
+                      <SelectItem value="INSTALLATION">Instalasi</SelectItem>
                       <SelectItem value="SERVICE">Service</SelectItem>
-                      <SelectItem value="SERVICE_UNBILL">Service Unbill</SelectItem>
-                      <SelectItem value="DELIVERY">Delivery</SelectItem>
+                      <SelectItem value="SERVICE_UNBILL">Service Non Tagihan</SelectItem>
+                      <SelectItem value="DELIVERY">Pengiriman</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription className="text-gray-500">
-                    The type of service being requested.
+                    Jenis layanan yang diminta.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -412,15 +426,15 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
               name="paymentMethod"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Payment Method (Optional)</FormLabel>
+                  <FormLabel className="text-gray-300">Metode Pembayaran (Opsional)</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-300">
-                        <SelectValue placeholder="Select payment method" />
+                        <SelectValue placeholder="Pilih metode pembayaran" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
-                      <SelectItem value="Cash">Cash</SelectItem>
+                      <SelectItem value="Cash">Tunai</SelectItem>
                       <SelectItem value="Transfer">Transfer</SelectItem>
                       <SelectItem value="DP">DP</SelectItem>
                       <SelectItem value="Lainnya">Lainnya</SelectItem>
@@ -438,21 +452,21 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
               name="productCategory"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Product Category (Optional)</FormLabel>
+                  <FormLabel className="text-gray-300">Kategori Produk (Opsional)</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-300">
-                        <SelectValue placeholder="Select a product category" />
+                        <SelectValue placeholder="Pilih kategori produk" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
                       <SelectItem value="gps_tracker">GPS Tracker</SelectItem>
                       <SelectItem value="dashcam">Dashcam</SelectItem>
-                      <SelectItem value="OTHER">Other</SelectItem>
+                      <SelectItem value="OTHER">Lainnya</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription className="text-gray-500">
-                    The category of product related to the service.
+                    Kategori produk terkait layanan.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -463,9 +477,9 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
               name="vehicleDetails"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Vehicle Details (Optional)</FormLabel>
+                  <FormLabel className="text-gray-300">Detail Kendaraan (Opsional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Car, Motorcycle, Van" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
+                    <Input placeholder="contoh: Mobil, Motor, Van" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -476,9 +490,9 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Notes (Optional)</FormLabel>
+                  <FormLabel className="text-gray-300">Catatan (Opsional)</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Any additional notes or special instructions" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
+                    <Textarea placeholder="Catatan atau instruksi tambahan" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -492,7 +506,7 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
               name="technicianType"
               render={({ field }) => (
                 <FormItem className="space-y-3">
-                  <FormLabel className="text-gray-300">Technician Type</FormLabel>
+                  <FormLabel className="text-gray-300">Tipe Teknisi</FormLabel>
                   <FormControl>
                     <RadioGroup
                       onValueChange={field.onChange}
@@ -504,7 +518,7 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
                           <RadioGroupItem value="INTERNAL" />
                         </FormControl>
                         <FormLabel className="font-normal text-gray-400">
-                          Internal Technician
+                          Teknisi Internal
                         </FormLabel>
                       </FormItem>
                       <FormItem className="flex items-center space-x-3 space-y-0">
@@ -512,7 +526,7 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
                           <RadioGroupItem value="EXTERNAL" />
                         </FormControl>
                         <FormLabel className="font-normal text-gray-400">
-                          External Technician
+                          Teknisi Eksternal
                         </FormLabel>
                       </FormItem>
                     </RadioGroup>
@@ -528,7 +542,7 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
                 name="assignedTechnicianId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-300">Assigned Technician</FormLabel>
+                    <FormLabel className="text-gray-300">Teknisi Internal</FormLabel>
                     <Select
                       onValueChange={(value) => {
                         field.onChange(value);
@@ -539,12 +553,12 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
                     >
                       <FormControl>
                         <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-300">
-                          <SelectValue placeholder="Select an internal technician" />
+                          <SelectValue placeholder="Pilih teknisi internal" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
                         {isLoadingTechnicians ? (
-                          <SelectItem value="loading" disabled>Loading technicians...</SelectItem>
+                          <SelectItem value="loading" disabled>Memuat data teknisi...</SelectItem>
                         ) : (
                           technicians?.map((tech) => (
                             <SelectItem key={tech.id} value={tech.id}>
@@ -555,7 +569,7 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
                       </SelectContent>
                     </Select>
                     <FormDescription className="text-gray-500">
-                      Select an internal technician for this request.
+                      Pilih teknisi internal untuk permintaan ini.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -569,12 +583,12 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
                 name="externalTechnicianName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-300">External Technician Name</FormLabel>
+                    <FormLabel className="text-gray-300">Nama Teknisi Eksternal</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter external technician's name" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
+                      <Input placeholder="Masukkan nama teknisi eksternal" {...field} className="bg-gray-800 border-gray-700 text-gray-300" />
                     </FormControl>
                     <FormDescription className="text-gray-500">
-                      Enter the name of the external technician.
+                      Masukkan nama teknisi eksternal.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -584,7 +598,7 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
           </TabsContent>
         </Tabs>
         <Button type="submit" className="w-full bg-neon-cyan hover:bg-neon-cyan/90 text-gray-900 font-bold py-2 px-4 rounded-md shadow-neon-glow transition-all duration-200">
-          Submit Request
+          Kirim Permintaan
         </Button>
       </form>
     </Form>

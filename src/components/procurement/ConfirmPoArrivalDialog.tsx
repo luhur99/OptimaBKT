@@ -90,13 +90,22 @@ export const ConfirmPoArrivalDialog: React.FC<ConfirmPoArrivalDialogProps> = ({
         return;
       }
 
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!baseUrl) {
+        showError("Supabase URL is not configured.");
+        setIsSubmitting(false);
+        return;
+      }
+
       const accessToken = session?.access_token;
       if (!accessToken) {
-        throw new Error("User not authenticated.");
+        showError("You must be signed in to confirm PO arrival.");
+        setIsSubmitting(false);
+        return;
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/confirm-po-arrival`,
+        `${baseUrl}/functions/v1/confirm-po-arrival`,
         {
           method: "POST",
           headers: {

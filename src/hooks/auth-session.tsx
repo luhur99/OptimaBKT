@@ -2,6 +2,14 @@ import React, { useState, useEffect, useContext, createContext, useCallback } fr
 import { supabase } from '@/integrations/supabase/client';
 import { Session, AuthChangeEvent } from '@supabase/supabase-js';
 
+declare global {
+    interface Window {
+        __authInitDone?: boolean;
+        __authCachedSession?: Session | null;
+        __authCachedProfile?: Profile | null;
+    }
+}
+
 export interface Profile {
     id: string;
     full_name: string;
@@ -57,36 +65,61 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     useEffect(() => {
         let mounted = true;
 
+        const getSessionWithTimeout = async (timeoutMs: number, retries: number, delayMs: number) => {
+            for (let attempt = 0; attempt <= retries; attempt++) {
+                try {
+                    const sessionPromise = supabase.auth.getSession();
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Session fetch timed out')), timeoutMs)
+                    );
+
+                    const { data: { session: initialSession }, error: sessionError } = await Promise.race([
+                        sessionPromise,
+                        timeoutPromise
+                    ]) as any;
+
+                    if (sessionError) {
+                        throw sessionError;
+                    }
+
+                    return initialSession ?? null;
+                } catch (error: any) {
+                    const isAbort = error?.name === 'AbortError' || error?.message?.includes('aborted');
+                    if (attempt >= retries && !isAbort) {
+                        throw error;
+                    }
+                    if (attempt >= retries) {
+                        return null;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                }
+            }
+            return null;
+        };
+
         const initializeAuth = async () => {
             console.log('AuthSessionProvider: Starting initialization...');
             try {
-                // Set a timeout for getSession as it can sometimes hang
-                const sessionPromise = supabase.auth.getSession();
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Session fetch timed out')), 12000)
-                );
-
-                const { data: { session: initialSession }, error: sessionError } = await Promise.race([
-                    sessionPromise,
-                    timeoutPromise
-                ]) as any;
+                const initialSession = await getSessionWithTimeout(15000, 2, 500);
 
                 if (!mounted) return;
 
-                if (sessionError) {
-                    if (sessionError.name !== 'AbortError') {
-                        console.error('AuthSessionProvider: Initial session error:', sessionError);
+                console.log('AuthSessionProvider: Initial session retrieved:', initialSession?.user?.id || 'No session');
+                setSession(initialSession);
+                if (initialSession?.user) {
+                    const profileData = await fetchProfile(initialSession.user.id, mounted);
+                    if (mounted) {
+                        setProfile(profileData);
+                        if (typeof window !== 'undefined') {
+                            window.__authCachedSession = initialSession;
+                            window.__authCachedProfile = profileData;
+                        }
                     }
-                    setSession(null);
-                    setProfile(null);
                 } else {
-                    console.log('AuthSessionProvider: Initial session retrieved:', initialSession?.user?.id || 'No session');
-                    setSession(initialSession);
-                    if (initialSession?.user) {
-                        const profileData = await fetchProfile(initialSession.user.id, mounted);
-                        if (mounted) setProfile(profileData);
-                    } else {
-                        setProfile(null);
+                    setProfile(null);
+                    if (typeof window !== 'undefined') {
+                        window.__authCachedSession = initialSession;
+                        window.__authCachedProfile = null;
                     }
                 }
             } catch (error: any) {
@@ -107,7 +140,16 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             }
         };
 
-        initializeAuth();
+        if (typeof window !== 'undefined' && window.__authInitDone) {
+            setSession(window.__authCachedSession ?? null);
+            setProfile(window.__authCachedProfile ?? null);
+            setIsLoading(false);
+        } else {
+            if (typeof window !== 'undefined') {
+                window.__authInitDone = true;
+            }
+            initializeAuth();
+        }
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event: AuthChangeEvent, newSession: Session | null) => {
@@ -117,6 +159,10 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     setSession(null);
                     setProfile(null);
                     setIsLoading(false); // Ensure loading is off on sign out
+                    if (typeof window !== 'undefined') {
+                        window.__authCachedSession = null;
+                        window.__authCachedProfile = null;
+                    }
                     return;
                 }
 
@@ -140,10 +186,18 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     if (mounted) {
                         setProfile(profileData);
                         setIsLoading(false);
+                        if (typeof window !== 'undefined') {
+                            window.__authCachedSession = newSession;
+                            window.__authCachedProfile = profileData;
+                        }
                     }
                 } else {
                     setProfile(null);
                     setIsLoading(false);
+                    if (typeof window !== 'undefined') {
+                        window.__authCachedSession = newSession;
+                        window.__authCachedProfile = null;
+                    }
                 }
             }
         );

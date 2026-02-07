@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/auth-session";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,8 @@ import DashboardLayout from "@/layouts/DashboardLayout";
 import { BillingListTable } from "@/components/operasional/billing-list/BillingListTable";
 import { createBillingListColumns, Invoice, InvoiceDocumentStatus } from "@/components/operasional/billing-list/billing-list-columns";
 import BillingListDetail from "@/components/operasional/billing-list/BillingListDetail";
+import { TableToolbar } from "@/components/shared/TableToolbar";
+import { DatePreset, buildExportColumns, exportToCsv, filterRows, getDateRange } from "@/utils/table-tools";
 
 const BillingListPage = () => {
   const { session, profile, isLoading: isAuthLoading } = useAuthSession();
@@ -21,6 +23,10 @@ const BillingListPage = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [searchValue, setSearchValue] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("custom");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const fetchInvoices = async () => {
     console.log("BillingListPage: fetchInvoices called.");
@@ -45,7 +51,8 @@ const BillingListPage = () => {
           subtotal_amount,
           tax_amount,
           with_tax,
-          created_at
+          created_at,
+          updated_at
         `)
         .in("invoice_status", ["PENDING", "PAID"])
         .order("created_at", { ascending: false });
@@ -68,7 +75,8 @@ const BillingListPage = () => {
               user_id,
               do_number,
               notes,
-              document_url
+              document_url,
+              updated_at
             `)
             .in("invoice_status", ["PENDING", "PAID"])
             .order("created_at", { ascending: false });
@@ -127,6 +135,28 @@ const BillingListPage = () => {
 
   const columns = useMemo(() => createBillingListColumns({ onSelectInvoice: setSelectedInvoice }), []);
 
+  const dateRange = useMemo(
+    () => getDateRange(datePreset, startDate, endDate),
+    [datePreset, startDate, endDate]
+  );
+
+  const filteredInvoices = useMemo(
+    () =>
+      filterRows(
+        invoices,
+        searchValue,
+        dateRange,
+        (row) => (row.updated_at ? new Date(row.updated_at as string) : row.created_at ? new Date(row.created_at) : null)
+      ),
+    [invoices, searchValue, dateRange]
+  );
+
+  const exportColumns = useMemo(() => buildExportColumns<Invoice>(columns), [columns]);
+
+  const handleExport = () => {
+    exportToCsv("billing-list", exportColumns, filteredInvoices);
+  };
+
   if (isAuthLoading || isLoadingInvoices) {
     return (
       <DashboardLayout>
@@ -156,20 +186,37 @@ const BillingListPage = () => {
       </div>
 
       <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg glassmorphism border border-neon-cyan/30">
-        <ResizablePanel defaultSize={50} minSize={30}>
-          <ScrollArea className="h-full p-4">
+        <ResizablePanel defaultSize={50} minSize={30} className="relative z-10">
+          <div className="p-4">
             <h2 className="text-xl font-semibold mb-4 text-neon-cyan">Issued Invoices</h2>
-            {invoices.length === 0 ? (
+            <div className="mb-4">
+              <TableToolbar
+                searchValue={searchValue}
+                onSearchChange={setSearchValue}
+                datePreset={datePreset}
+                onDatePresetChange={setDatePreset}
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+                onExport={handleExport}
+                exportDisabled={filteredInvoices.length === 0}
+                searchPlaceholder="Cari invoice..."
+              />
+            </div>
+          </div>
+          <ScrollArea className="h-full px-4 pb-4">
+            {filteredInvoices.length === 0 ? (
               <div className="h-full flex items-center justify-center text-gray-500 border border-dashed border-gray-700 rounded-md p-4 radar-grid-background">
                 <p>No issued invoices found. Scanning...</p>
               </div>
             ) : (
-              <BillingListTable columns={columns} data={invoices} onRowClick={setSelectedInvoice} />
+              <BillingListTable columns={columns} data={filteredInvoices} onRowClick={setSelectedInvoice} />
             )}
           </ScrollArea>
         </ResizablePanel>
         <ResizableHandle withHandle className="bg-gray-700 hover:bg-neon-cyan transition-colors" />
-        <ResizablePanel defaultSize={50} minSize={30}>
+        <ResizablePanel defaultSize={50} minSize={30} className="relative z-0">
           <ScrollArea className="h-full p-6">
             {selectedInvoice ? (
               <BillingListDetail

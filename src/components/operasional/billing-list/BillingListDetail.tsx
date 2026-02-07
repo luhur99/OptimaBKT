@@ -173,13 +173,18 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
 
       // If the invoice is marked as 'paid', call the deduct-sales-stock edge function
       if (newPaymentStatus === 'paid' && !invoice.stock_deducted) {
+        const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+        if (!baseUrl) {
+          throw new Error("Supabase URL is not configured.");
+        }
+
         const accessToken = (await supabase.auth.getSession()).data.session?.access_token;
         if (!accessToken) {
           throw new Error("User not authenticated for stock deduction.");
         }
 
         const deductStockResponse = await fetch(
-          `https://hhhzugqimtypijkdxxsm.supabase.co/functions/v1/deduct-sales-stock`,
+          `${baseUrl}/functions/v1/deduct-sales-stock`,
           {
             method: "POST",
             headers: {

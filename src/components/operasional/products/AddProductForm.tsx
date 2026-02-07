@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { type FieldErrors, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,11 +47,11 @@ interface AddProductFormProps {
 
 const formSchema = z.object({
   product_type: z.enum(["GOODS", "SERVICE"]),
-  kode_barang: z.string().min(2, { message: "Product Code must be at least 2 characters." }),
-  nama_barang: z.string().min(2, { message: "Product Name must be at least 2 characters." }),
+  kode_barang: z.string().min(2, { message: "Kode produk minimal 2 karakter." }),
+  nama_barang: z.string().min(2, { message: "Nama produk minimal 2 karakter." }),
   satuan: z.string().optional(), // Made optional for SERVICE
-  harga_beli: z.coerce.number().min(0, { message: "Purchase Price cannot be negative." }), // Relaxed validation
-  harga_jual: z.coerce.number().min(0, { message: "Selling Price cannot be negative." }), // Relaxed validation
+  harga_beli: z.coerce.number().min(0, { message: "Harga modal tidak boleh negatif." }), // Relaxed validation
+  harga_jual: z.coerce.number().min(0, { message: "Harga jual tidak boleh negatif." }), // Relaxed validation
   safe_stock_limit: z.coerce.number().min(0).optional(),
   initial_stock: z.coerce.number().min(0).optional(),
   supplier_id: z.string().optional(),
@@ -63,7 +63,7 @@ const formSchema = z.object({
   }
   return true;
 }, {
-  message: "Unit is required for Goods.",
+  message: "Satuan wajib diisi untuk barang.",
   path: ["satuan"],
 });
 
@@ -136,6 +136,12 @@ export function AddProductForm({ onProductAdded, onClose, initialData }: AddProd
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
+      if (!session?.user?.id) {
+        showError("You must be signed in to manage products.");
+        setIsSubmitting(false);
+        return;
+      }
+
       // 1. Insert or Update
       let productError;
       let newProduct;
@@ -236,14 +242,20 @@ export function AddProductForm({ onProductAdded, onClose, initialData }: AddProd
     }
   }
 
+  const handleValidationError = (errors: FieldErrors<z.infer<typeof formSchema>>) => {
+    const firstError = Object.values(errors)[0];
+    const message = firstError?.message || "Periksa kembali isian wajib.";
+    showError(String(message));
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 text-gray-300">
+      <form onSubmit={form.handleSubmit(onSubmit, handleValidationError)} className="space-y-4 text-gray-300">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-midnight-blue border border-gray-700">
-            <TabsTrigger value="product-details" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Product Details</TabsTrigger>
-            <TabsTrigger value="pricing-stock" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Pricing & Stock</TabsTrigger>
-            <TabsTrigger value="supplier-notes" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Supplier & Notes</TabsTrigger>
+            <TabsTrigger value="product-details" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Detail Produk</TabsTrigger>
+            <TabsTrigger value="pricing-stock" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Harga & Stok</TabsTrigger>
+            <TabsTrigger value="supplier-notes" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Supplier & Catatan</TabsTrigger>
           </TabsList>
 
           <TabsContent value="product-details" className="space-y-4 mt-4">
@@ -252,9 +264,9 @@ export function AddProductForm({ onProductAdded, onClose, initialData }: AddProd
               name="kode_barang"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Product Code</FormLabel>
+                  <FormLabel>Kode Produk <span className="text-red-400">*</span></FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., P001" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
+                    <Input placeholder="contoh: P001" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -265,9 +277,9 @@ export function AddProductForm({ onProductAdded, onClose, initialData }: AddProd
               name="nama_barang"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Product Name</FormLabel>
+                  <FormLabel>Nama Produk <span className="text-red-400">*</span></FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Laptop XYZ" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
+                    <Input placeholder="contoh: GPS Tracker X" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -279,11 +291,11 @@ export function AddProductForm({ onProductAdded, onClose, initialData }: AddProd
                 name="satuan"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Unit</FormLabel>
+                    <FormLabel>Satuan <span className="text-red-400">*</span></FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value || "Pcs"}>
                       <FormControl>
                         <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
-                          <SelectValue placeholder="Select unit" />
+                          <SelectValue placeholder="Pilih satuan" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
@@ -306,7 +318,7 @@ export function AddProductForm({ onProductAdded, onClose, initialData }: AddProd
               name="product_type"
               render={({ field }) => (
                 <FormItem className="space-y-3 mb-4 p-4 border border-gray-700 rounded-md bg-gray-800/30">
-                  <FormLabel>Product Type</FormLabel>
+                  <FormLabel>Tipe Produk <span className="text-red-400">*</span></FormLabel>
                   <FormControl>
                     <RadioGroup
                       onValueChange={field.onChange}
@@ -319,7 +331,7 @@ export function AddProductForm({ onProductAdded, onClose, initialData }: AddProd
                           <RadioGroupItem value="GOODS" className="border-neon-cyan text-neon-cyan" />
                         </FormControl>
                         <FormLabel className="font-normal cursor-pointer">
-                          Goods (Barang)
+                          Barang
                         </FormLabel>
                       </FormItem>
                       <FormItem className="flex items-center space-x-3 space-y-0">
@@ -327,7 +339,7 @@ export function AddProductForm({ onProductAdded, onClose, initialData }: AddProd
                           <RadioGroupItem value="SERVICE" className="border-electric-violet text-electric-violet" />
                         </FormControl>
                         <FormLabel className="font-normal cursor-pointer">
-                          Service (Jasa)
+                          Jasa
                         </FormLabel>
                       </FormItem>
                     </RadioGroup>
@@ -342,7 +354,7 @@ export function AddProductForm({ onProductAdded, onClose, initialData }: AddProd
               name="harga_beli"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Base Price (Modal)</FormLabel>
+                  <FormLabel>Harga Modal <span className="text-red-400">*</span></FormLabel>
                   <FormControl>
                     <Input type="number" {...field} step="0.01" className="glassmorphism border border-gray-700 text-gray-300" />
                   </FormControl>
@@ -355,7 +367,7 @@ export function AddProductForm({ onProductAdded, onClose, initialData }: AddProd
               name="harga_jual"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Selling Price</FormLabel>
+                  <FormLabel>Harga Jual <span className="text-red-400">*</span></FormLabel>
                   <FormControl>
                     <Input type="number" {...field} step="0.01" className="glassmorphism border border-gray-700 text-gray-300" />
                   </FormControl>
@@ -371,7 +383,7 @@ export function AddProductForm({ onProductAdded, onClose, initialData }: AddProd
                   name="safe_stock_limit"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Safe Stock Limit</FormLabel>
+                      <FormLabel>Batas Stok Aman (Opsional)</FormLabel>
                       <FormControl>
                         <Input type="number" {...field} min="0" className="glassmorphism border border-gray-700 text-gray-300" />
                       </FormControl>
@@ -385,7 +397,7 @@ export function AddProductForm({ onProductAdded, onClose, initialData }: AddProd
                     name="initial_stock"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Initial Stock (Optional)</FormLabel>
+                        <FormLabel>Stok Awal (Opsional)</FormLabel>
                         <FormControl>
                           <Input type="number" {...field} min="0" className="glassmorphism border border-gray-700 text-gray-300" />
                         </FormControl>
@@ -404,7 +416,7 @@ export function AddProductForm({ onProductAdded, onClose, initialData }: AddProd
               name="supplier_id"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Primary Supplier (Optional)</FormLabel>
+                  <FormLabel>Supplier Utama (Opsional)</FormLabel>
                   <Popover open={openSupplierCombobox} onOpenChange={setOpenSupplierCombobox}>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -418,16 +430,16 @@ export function AddProductForm({ onProductAdded, onClose, initialData }: AddProd
                         >
                           {field.value
                             ? suppliers.find((supplier) => supplier.id === field.value)?.name
-                            : "Select supplier"}
+                            : "Pilih supplier"}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0 glassmorphism border border-gray-700">
                       <Command>
-                        <CommandInput placeholder="Search supplier..." className="text-gray-300" />
+                        <CommandInput placeholder="Cari supplier..." className="text-gray-300" />
                         <CommandList>
-                          <CommandEmpty>No supplier found.</CommandEmpty>
+                          <CommandEmpty>Supplier tidak ditemukan.</CommandEmpty>
                           <CommandGroup>
                             {suppliers.map((supplier) => (
                               <CommandItem
@@ -462,9 +474,9 @@ export function AddProductForm({ onProductAdded, onClose, initialData }: AddProd
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Notes (Optional)</FormLabel>
+                  <FormLabel>Catatan (Opsional)</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Any specific notes about the product" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
+                    <Textarea placeholder="Catatan khusus produk" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -474,7 +486,7 @@ export function AddProductForm({ onProductAdded, onClose, initialData }: AddProd
         </Tabs>
 
         <Button type="submit" className="w-full bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300" disabled={isSubmitting}>
-          {isSubmitting ? (initialData ? "Updating Product..." : "Adding Product...") : (initialData ? "Update Product" : "Add Product")}
+          {isSubmitting ? (initialData ? "Memperbarui Produk..." : "Menambahkan Produk...") : (initialData ? "Perbarui Produk" : "Tambah Produk")}
         </Button>
       </form>
     </Form>

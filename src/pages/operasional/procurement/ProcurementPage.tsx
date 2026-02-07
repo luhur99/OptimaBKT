@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/auth-session";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { QuickAddCustomerSupplierForm } from "@/components/shared/QuickAddCustomerSupplierForm"; // Import new form
+import { TableToolbar } from "@/components/shared/TableToolbar";
+import { DatePreset, buildExportColumns, exportToCsv, filterRows, getDateRange } from "@/utils/table-tools";
 
 const ProcurementPage = () => {
   const { session, profile, isLoading: isAuthLoading } = useAuthSession();
@@ -35,6 +37,10 @@ const ProcurementPage = () => {
   const [activeTab, setActiveTab] = useState<string>("manage-pos");
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   const [isQuickAddSupplierDialogOpen, setIsQuickAddSupplierDialogOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("custom");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const fetchPurchaseOrders = async () => {
     setIsLoadingPOs(true);
@@ -89,6 +95,28 @@ const ProcurementPage = () => {
   };
 
   const columns = useMemo(() => createPurchaseOrderColumns(), []);
+
+  const dateRange = useMemo(
+    () => getDateRange(datePreset, startDate, endDate),
+    [datePreset, startDate, endDate]
+  );
+
+  const filteredPurchaseOrders = useMemo(
+    () =>
+      filterRows(
+        purchaseOrders,
+        searchValue,
+        dateRange,
+        (row) => (row.created_at ? new Date(row.created_at) : null)
+      ),
+    [purchaseOrders, searchValue, dateRange]
+  );
+
+  const exportColumns = useMemo(() => buildExportColumns<PurchaseOrder>(columns), [columns]);
+
+  const handleExport = () => {
+    exportToCsv("purchase-orders", exportColumns, filteredPurchaseOrders);
+  };
 
   if (isAuthLoading || isLoadingPOs) {
     return (
@@ -175,9 +203,24 @@ const ProcurementPage = () => {
             <ResizablePanel defaultSize={50} minSize={30}>
               <div className="p-4 h-full">
                 <h2 className="text-xl font-semibold mb-4 text-neon-cyan">All Purchase Orders</h2>
+                <div className="mb-4">
+                  <TableToolbar
+                    searchValue={searchValue}
+                    onSearchChange={setSearchValue}
+                    datePreset={datePreset}
+                    onDatePresetChange={setDatePreset}
+                    startDate={startDate}
+                    endDate={endDate}
+                    onStartDateChange={setStartDate}
+                    onEndDateChange={setEndDate}
+                    onExport={handleExport}
+                    exportDisabled={filteredPurchaseOrders.length === 0}
+                    searchPlaceholder="Cari PO..."
+                  />
+                </div>
                 <PurchaseOrderTable
                   columns={columns}
-                  data={purchaseOrders}
+                  data={filteredPurchaseOrders}
                   onRowClick={setSelectedPO}
                 />
               </div>

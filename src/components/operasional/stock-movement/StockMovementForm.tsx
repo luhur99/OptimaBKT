@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { type FieldErrors, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,10 +39,10 @@ interface StockMovementFormProps {
 }
 
 const formSchema = z.object({
-  product_id: z.string().min(1, { message: "Product is required." }),
-  from_warehouse_category: z.string().min(1, { message: "Source warehouse is required." }),
-  to_warehouse_category: z.string().min(1, { message: "Destination warehouse is required." }),
-  quantity: z.coerce.number().min(1, { message: "Quantity must be at least 1." }),
+  product_id: z.string().min(1, { message: "Produk wajib dipilih." }),
+  from_warehouse_category: z.string().min(1, { message: "Gudang asal wajib dipilih." }),
+  to_warehouse_category: z.string().min(1, { message: "Gudang tujuan wajib dipilih." }),
+  quantity: z.coerce.number().min(1, { message: "Jumlah minimal 1." }),
 });
 
 export function StockMovementForm({ onMoveSuccess }: StockMovementFormProps) {
@@ -91,8 +91,21 @@ export function StockMovementForm({ onMoveSuccess }: StockMovementFormProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!baseUrl) {
+        showError("Supabase URL is not configured.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!session?.access_token) {
+        showError("You must be signed in to move stock.");
+        setIsSubmitting(false);
+        return;
+      }
+
       const response = await fetch(
-        `https://hhhzugqimtypijkdxxsm.supabase.co/functions/v1/move-stock`,
+        `${baseUrl}/functions/v1/move-stock`,
         {
           method: "POST",
           headers: {
@@ -119,19 +132,25 @@ export function StockMovementForm({ onMoveSuccess }: StockMovementFormProps) {
     }
   }
 
+  const handleValidationError = (errors: FieldErrors<z.infer<typeof formSchema>>) => {
+    const firstError = Object.values(errors)[0];
+    const message = firstError?.message || "Periksa kembali isian wajib.";
+    showError(String(message));
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 text-gray-300">
+      <form onSubmit={form.handleSubmit(onSubmit, handleValidationError)} className="space-y-4 text-gray-300">
         <FormField
           control={form.control}
           name="product_id"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Product</FormLabel>
+              <FormLabel>Produk <span className="text-red-400">*</span></FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
-                    <SelectValue placeholder="Select a product" />
+                    <SelectValue placeholder="Pilih produk" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
@@ -151,11 +170,11 @@ export function StockMovementForm({ onMoveSuccess }: StockMovementFormProps) {
           name="from_warehouse_category"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>From Warehouse</FormLabel>
+              <FormLabel>Gudang Asal <span className="text-red-400">*</span></FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
-                    <SelectValue placeholder="Select source warehouse" />
+                    <SelectValue placeholder="Pilih gudang asal" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
@@ -175,11 +194,11 @@ export function StockMovementForm({ onMoveSuccess }: StockMovementFormProps) {
           name="to_warehouse_category"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>To Warehouse</FormLabel>
+              <FormLabel>Gudang Tujuan <span className="text-red-400">*</span></FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
-                    <SelectValue placeholder="Select destination warehouse" />
+                    <SelectValue placeholder="Pilih gudang tujuan" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
@@ -199,7 +218,7 @@ export function StockMovementForm({ onMoveSuccess }: StockMovementFormProps) {
           name="quantity"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Quantity</FormLabel>
+              <FormLabel>Jumlah <span className="text-red-400">*</span></FormLabel>
               <FormControl>
                 <Input type="number" {...field} min="1" className="glassmorphism border border-gray-700 text-gray-300" />
               </FormControl>
@@ -208,7 +227,7 @@ export function StockMovementForm({ onMoveSuccess }: StockMovementFormProps) {
           )}
         />
         <Button type="submit" className="w-full bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300" disabled={isSubmitting}>
-          {isSubmitting ? "Moving Stock..." : "Move Stock"}
+          {isSubmitting ? "Memindahkan Stok..." : "Pindahkan Stok"}
         </Button>
       </form>
     </Form>
