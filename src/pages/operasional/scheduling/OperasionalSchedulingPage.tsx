@@ -431,176 +431,193 @@ const OperasionalSchedulingPage = () => {
           <Table className="w-full">
             <TableHeader>
               <TableRow className="bg-gray-700 hover:bg-gray-700">
-                <TableHead className="text-neon-cyan">SR Number</TableHead>
-                <TableHead className="text-neon-cyan">Customer Name</TableHead>
-                <TableHead className="text-neon-cyan">Type</TableHead>
-                <TableHead className="text-neon-cyan">Product Category</TableHead>
-                <TableHead className="text-neon-cyan">Requested Date</TableHead>
-                <TableHead className="text-neon-cyan">Technician</TableHead>
-                <TableHead className="text-neon-cyan">Status</TableHead>
-                <TableHead className="text-neon-cyan text-right">Actions</TableHead>
+                {[
+                  { label: "SR Number" },
+                  { label: "Customer Name" },
+                  { label: "Type" },
+                  { label: "Product Category" },
+                  { label: "Requested Date" },
+                  { label: "Technician" },
+                  { label: "Status" },
+                  { label: "Actions", className: "text-right" },
+                ].map((column) => (
+                  <TableHead
+                    key={column.label}
+                    className={cn("text-neon-cyan", column.className)}
+                  >
+                    {column.label}
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredRequests.map((request) => (
                 <TableRow key={request.id} className="border-gray-700 hover:bg-gray-700/50">
-                  <TableCell className="font-medium">{request.sr_number}</TableCell>
-                  <TableCell>{request.customer_name}</TableCell>
-                  <TableCell>{request.type}</TableCell>
-                  <TableCell>{request.product_category}</TableCell>
-                  <TableCell>{format(new Date(request.created_at), "PPP")}</TableCell> {/* Changed to created_at for consistency with sorting */}
-                  <TableCell>{request.technician_name || "N/A"}</TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusBadgeVariant(request.status)}>{request.status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right flex space-x-2 justify-end">
-                    <TooltipProvider>
-                      {request.status === "pending" && (
-                        <>
+                  {[
+                    <TableCell key="sr" className="font-medium">
+                      {request.sr_number}
+                    </TableCell>,
+                    <TableCell key="customer">{request.customer_name}</TableCell>,
+                    <TableCell key="type">{request.type}</TableCell>,
+                    <TableCell key="category">{request.product_category}</TableCell>,
+                    <TableCell key="date">
+                      {format(new Date(`${request.requested_date}T00:00:00`), "PPP")}
+                    </TableCell>,
+                    <TableCell key="technician">{request.technician_name || "N/A"}</TableCell>,
+                    <TableCell key="status">
+                      <Badge variant={getStatusBadgeVariant(request.status)}>{request.status}</Badge>
+                    </TableCell>,
+                    <TableCell key="actions" className="text-right flex space-x-2 justify-end">
+                      <TooltipProvider>
+                        {request.status === "pending" && (
+                          <>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  key="approve"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleApproveRequest(request)}
+                                  disabled={isApproving === request.id}
+                                >
+                                  {isApproving === request.id ? (
+                                    <Loader2 className="h-5 w-5 text-green-500 animate-spin" />
+                                  ) : (
+                                    <CheckCircle className="h-5 w-5 text-green-500" />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                                <p>Approve Request</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button key="reject" variant="ghost" size="icon" onClick={() => handleOpenModal(request, "rejected")}>
+                                  <XCircle className="h-5 w-5 text-red-500" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                                <p>Reject Request</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button key="reschedule" variant="ghost" size="icon" onClick={() => handleOpenModal(request, "rescheduled")}>
+                                  <CalendarDays className="h-5 w-5 text-blue-500" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                                <p>Reschedule Request</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </>
+                        )}
+                        {(request.status === "approved" || request.status === "in_progress" || request.status === "rescheduled") && (
+                          <>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button key="in_progress" variant="ghost" size="icon" onClick={() => handleOpenModal(request, "in_progress")}>
+                                  <Truck className="h-5 w-5 text-orange-500" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                                <p>Set In Progress</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button key="complete" variant="ghost" size="icon" onClick={() => handleOpenModal(request, "completed")}>
+                                  <CheckCircle className="h-5 w-5 text-purple-500" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                                <p>Complete Request</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button key="cancel" variant="ghost" size="icon" onClick={() => handleOpenModal(request, "cancelled")}>
+                                  <XCircle className="h-5 w-5 text-gray-500" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                                <p>Cancel Request</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </>
+                        )}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button key="edit" variant="ghost" size="icon" onClick={() => handleOpenModal(request, "edit")}>
+                              <Edit className="h-5 w-5 text-blue-400" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                            <p>Edit Request</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <AlertDialog>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button
-                                key="approve"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleApproveRequest(request)}
-                                disabled={isApproving === request.id}
-                              >
-                                {isApproving === request.id ? (
-                                  <Loader2 className="h-5 w-5 text-green-500 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="h-5 w-5 text-green-500" />
-                                )}
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
-                              <p>Approve Request</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button key="reject" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'rejected')}>
-                                <XCircle className="h-5 w-5 text-red-500" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
-                              <p>Reject Request</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button key="reschedule" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'rescheduled')}>
-                                <CalendarDays className="h-5 w-5 text-blue-500" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
-                              <p>Reschedule Request</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </>
-                      )}
-                      {(request.status === "approved" || request.status === "in_progress" || request.status === "rescheduled") && (
-                        <>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button key="in_progress" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'in_progress')}>
-                                <Truck className="h-5 w-5 text-orange-500" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
-                              <p>Set In Progress</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button key="complete" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'completed')}>
-                                <CheckCircle className="h-5 w-5 text-purple-500" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
-                              <p>Complete Request</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button key="cancel" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'cancelled')}>
-                                <XCircle className="h-5 w-5 text-gray-500" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
-                              <p>Cancel Request</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </>
-                      )}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button key="edit" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'edit')}>
-                            <Edit className="h-5 w-5 text-blue-400" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
-                          <p>Edit Request</p>
-                        </TooltipContent>
-                      </Tooltip>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <Trash2 className="h-5 w-5 text-red-600" />
-                              </Button>
+                              <span>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <Trash2 className="h-5 w-5 text-red-600" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                              </span>
                             </TooltipTrigger>
                             <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
                               <p>Delete Request</p>
                             </TooltipContent>
                           </Tooltip>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent className="bg-gray-800 border-gray-700 text-gray-300">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle className="text-neon-cyan">Are you absolutely sure?</AlertDialogTitle>
-                            <AlertDialogDescription className="text-gray-400">
-                              This action cannot be undone. This will permanently delete the
-                              scheduling request.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel className="bg-gray-700 text-gray-300 hover:bg-gray-600">Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDeleteRequest(request.id)}
-                              className="bg-red-600 hover:bg-red-700 text-white"
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                      {request.invoice_id && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button key="view_invoice" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'view_invoice')}>
-                              <FileText className="h-5 w-5 text-indigo-500" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
-                            <p>View Invoice</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                      {request.status === "approved" && !request.delivery_order_id && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button key="create_delivery_order" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'create_delivery_order')}>
-                              <Truck className="h-5 w-5 text-cyan-500" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
-                            <p>Create Delivery Order</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </TooltipProvider>
-                  </TableCell>
+                          <AlertDialogContent className="bg-gray-800 border-gray-700 text-gray-300">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="text-neon-cyan">Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription className="text-gray-400">
+                                This action cannot be undone. This will permanently delete the
+                                scheduling request.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel className="bg-gray-700 text-gray-300 hover:bg-gray-600">Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteRequest(request.id)}
+                                className="bg-red-600 hover:bg-red-700 text-white"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                        {request.invoice_id && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button key="view_invoice" variant="ghost" size="icon" onClick={() => handleOpenModal(request, "view_invoice")}>
+                                <FileText className="h-5 w-5 text-indigo-500" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                              <p>View Invoice</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {request.status === "approved" && !request.delivery_order_id && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button key="create_delivery_order" variant="ghost" size="icon" onClick={() => handleOpenModal(request, "create_delivery_order")}>
+                                <Truck className="h-5 w-5 text-cyan-500" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                              <p>Create Delivery Order</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </TooltipProvider>
+                    </TableCell>,
+                  ]}
                 </TableRow>
               ))}
             </TableBody>

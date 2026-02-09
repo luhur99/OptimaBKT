@@ -26,6 +26,16 @@ import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -43,6 +53,9 @@ interface Technician {
   name: string;
   type: 'internal' | 'external';
 }
+
+const todayStart = new Date();
+todayStart.setHours(0, 0, 0, 0);
 
 const formSchema = z.object({
   customer_id: z.string().optional(), // New field for selected customer ID
@@ -72,6 +85,8 @@ interface CreateSchedulingRequestFormProps {
 export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRequestFormProps) => {
   const [activeTab, setActiveTab] = useState("customer-contact");
   const [openCustomerCombobox, setOpenCustomerCombobox] = useState(false);
+  const [backdateConfirmOpen, setBackdateConfirmOpen] = useState(false);
+  const [pendingValues, setPendingValues] = useState<z.infer<typeof formSchema> | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -133,7 +148,9 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
     }
   }, [selectedCustomerId, customers, form]);
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const isBackdate = (date: Date) => date < todayStart;
+
+  const submitRequest = async (values: z.infer<typeof formSchema>) => {
     const { data: authData, error: authError } = await supabase.auth.getUser();
     const userId = authData?.user?.id;
 
@@ -178,6 +195,24 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
       setActiveTab("customer-contact");
       if (onFormSubmit) onFormSubmit();
     }
+  };
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (isBackdate(values.requestedDate)) {
+      setPendingValues(values);
+      setBackdateConfirmOpen(true);
+      return;
+    }
+
+    await submitRequest(values);
+  };
+
+  const handleConfirmBackdate = async () => {
+    if (!pendingValues) return;
+
+    setBackdateConfirmOpen(false);
+    await submitRequest(pendingValues);
+    setPendingValues(null);
   };
 
   const handleValidationError = (errors: FieldErrors<z.infer<typeof formSchema>>) => {
@@ -368,9 +403,7 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
                         mode="single"
                         selected={field.value}
                         onSelect={field.onChange}
-                        disabled={(date) =>
-                          date < new Date("1900-01-01")
-                        }
+                        disabled={(date) => date < new Date("1900-01-01")}
                         initialFocus
                       />
                     </PopoverContent>
@@ -600,6 +633,27 @@ export const CreateSchedulingRequestForm = ({ onFormSubmit }: CreateSchedulingRe
         <Button type="submit" className="w-full bg-neon-cyan hover:bg-neon-cyan/90 text-gray-900 font-bold py-2 px-4 rounded-md shadow-neon-glow transition-all duration-200">
           Kirim Permintaan
         </Button>
+        <AlertDialog open={backdateConfirmOpen} onOpenChange={setBackdateConfirmOpen}>
+          <AlertDialogContent className="bg-gray-800 border-gray-700 text-gray-300">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-neon-cyan">Konfirmasi Backdate</AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-400">
+                Tanggal permintaan berada di masa lalu. Lanjutkan membuat scheduling request?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="bg-gray-700 text-gray-300 hover:bg-gray-600">
+                Batal
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmBackdate}
+                className="bg-neon-cyan text-gray-900 hover:bg-neon-cyan/80"
+              >
+                Lanjutkan
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </form>
     </Form>
   );
