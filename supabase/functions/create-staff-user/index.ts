@@ -19,6 +19,7 @@ serve(async (req) => {
     });
   }
 
+  // Use anon client with user's token to validate auth
   const supabaseClient = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -29,25 +30,40 @@ serve(async (req) => {
     }
   );
 
+  // Admin client for privileged operations (bypasses RLS)
+  const supabaseAdminClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
   try {
     // Get the user session from the request
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
 
     if (userError || !user) {
+      console.error('Auth error:', userError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Check if the authenticated user is a SUPER_ADMIN
-    const { data: profile, error: profileError } = await supabaseClient
+    // Check if the authenticated user is a SUPER_ADMIN (use admin client to bypass RLS)
+    const { data: profile, error: profileError } = await supabaseAdminClient
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    if (profileError || profile?.role !== 'SUPER_ADMIN') {
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+      return new Response(JSON.stringify({ error: 'Failed to verify user role.' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (profile?.role !== 'SUPER_ADMIN') {
       return new Response(JSON.stringify({ error: 'Forbidden: Only SUPER_ADMIN can create staff users.' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -63,12 +79,7 @@ serve(async (req) => {
       });
     }
 
-    // Create user using admin client
-    const supabaseAdminClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
+    // Create the new user using admin client
     const { data: newUser, error: createUserError } = await supabaseAdminClient.auth.admin.createUser({
       email,
       password,

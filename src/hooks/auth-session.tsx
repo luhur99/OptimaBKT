@@ -140,16 +140,12 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             }
         };
 
-        if (typeof window !== 'undefined' && window.__authInitDone) {
-            setSession(window.__authCachedSession ?? null);
-            setProfile(window.__authCachedProfile ?? null);
-            setIsLoading(false);
-        } else {
-            if (typeof window !== 'undefined') {
-                window.__authInitDone = true;
-            }
-            initializeAuth();
+        // Always re-initialize auth to ensure fresh session state
+        // Window cache is only used as a brief optimization, not as source of truth
+        if (typeof window !== 'undefined') {
+            window.__authInitDone = true;
         }
+        initializeAuth();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event: AuthChangeEvent, newSession: Session | null) => {
