@@ -1,39 +1,38 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Package, DollarSign, User, Building, FileText, Clock, Tag, Info, Loader2, CheckCircle, XCircle } from 'lucide-react';
-import { Dialog } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
+import React, { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { ArrowLeft, Package, DollarSign, User, Building, FileText, Clock, Tag, Info, Loader2, CheckCircle, XCircle, Link2 } from "lucide-react";
+import { Dialog } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
 import { showSuccess, showError } from "@/utils/toast";
-import { PurchaseRequest } from './purchase-request-columns';
-import { PurchaseRequestActionDialog } from './PurchaseRequestActionDialog'; // New dialog for actions
+import { UtilityRequest } from "./utility-request-columns";
+import { UtilityRequestActionDialog } from "./UtilityRequestActionDialog";
 
-interface PurchaseRequestDetailProps {
-  request: PurchaseRequest;
+interface UtilityRequestDetailProps {
+  request: UtilityRequest;
   canManage: boolean;
   onUpdate: () => void;
   onClose: () => void;
 }
 
-const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: initialRequest, canManage, onUpdate, onClose }) => {
-  const [request, setRequest] = useState<PurchaseRequest>(initialRequest);
+const UtilityRequestDetail: React.FC<UtilityRequestDetailProps> = ({ request: initialRequest, canManage, onUpdate, onClose }) => {
+  const [request, setRequest] = useState<UtilityRequest>(initialRequest);
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
-  const [currentAction, setCurrentAction] = useState<'approved' | 'rejected' | null>(null); // Now 'approved' also uses the dialog
+  const [currentAction, setCurrentAction] = useState<"approved" | "rejected" | null>(null);
 
   const fetchRequestDetails = useCallback(async () => {
     setIsLoadingDetails(true);
     try {
       const { data: updatedRequest, error: requestError } = await supabase
-        .from('purchase_requests')
+        .from("utility_requests")
         .select(`
           *,
-          profiles!user_id (full_name),
-          suppliers (name)
+          profiles!user_id (full_name)
         `)
-        .eq('id', initialRequest.id)
+        .eq("id", initialRequest.id)
         .single();
 
       if (requestError) throw new Error(requestError.message);
@@ -41,13 +40,11 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
       setRequest({
         ...updatedRequest,
         requested_by_name: updatedRequest.profiles?.full_name || "N/A",
-        supplier_name: updatedRequest.suppliers?.name || "N/A",
-        status: updatedRequest.status as PurchaseRequest['status'],
+        status: updatedRequest.status as UtilityRequest["status"],
       });
-
     } catch (error: any) {
-      console.error("Error fetching purchase request details:", error.message);
-      showError("Failed to load purchase request details: " + error.message);
+      console.error("Error fetching utility request details:", error.message);
+      showError("Failed to load utility request details: " + error.message);
     } finally {
       setIsLoadingDetails(false);
     }
@@ -58,57 +55,55 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
   }, [fetchRequestDetails]);
 
   const handleActionSubmit = async (actionData: {
-    status: PurchaseRequest['status'];
+    status: UtilityRequest["status"];
     notes?: string;
   }) => {
-    if (!request) return;
-
     setIsLoadingDetails(true);
     const { status: newStatus, notes } = actionData;
 
     try {
       const { error: updateError } = await supabase
-        .from('purchase_requests')
-        .update({ status: newStatus, notes: notes })
-        .eq('id', request.id);
+        .from("utility_requests")
+        .update({ status: newStatus, notes })
+        .eq("id", request.id);
 
       if (updateError) {
         throw new Error(updateError.message);
       }
 
-      showSuccess(`Purchase Request status updated to ${newStatus.replace(/_/g, ' ').toUpperCase()}.`);
+      showSuccess(`Utility Request status updated to ${newStatus.replace(/_/g, " ").toUpperCase()}.`);
       onUpdate();
       fetchRequestDetails();
     } catch (error: any) {
-      console.error('Error updating purchase request status:', error.message);
-      showError(`Failed to update purchase request status: ${error.message}`);
+      console.error("Error updating utility request status:", error.message);
+      showError(`Failed to update utility request status: ${error.message}`);
     } finally {
       setIsLoadingDetails(false);
       setCurrentAction(null);
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: UtilityRequest["status"]) => {
     switch (status) {
-      case 'pending': return 'bg-yellow-600/20 text-yellow-300 border border-yellow-500/30';
-      case 'approved': return 'bg-green-600/20 text-green-300 border border-green-500/30';
-      case 'rejected': return 'bg-red-600/20 text-red-300 border border-red-500/30';
-      case 'waiting for received': return 'bg-blue-600/20 text-blue-300 border border-blue-500/30';
-      case 'closed': return 'bg-purple-600/20 text-purple-300 border border-purple-500/30';
-      default: return 'bg-gray-700/20 text-gray-400 border border-gray-600/30';
+      case "pending":
+        return "bg-yellow-600/20 text-yellow-300 border border-yellow-500/30";
+      case "approved":
+        return "bg-green-600/20 text-green-300 border border-green-500/30";
+      case "rejected":
+        return "bg-red-600/20 text-red-300 border border-red-500/30";
+      default:
+        return "bg-gray-700/20 text-gray-400 border border-gray-600/30";
     }
   };
 
-  const isPending = request.status === 'pending';
-  // const isApproved = request.status === 'approved'; // No longer needed for button logic
-  // const isFinalStatus = request.status === 'rejected' || request.status === 'closed'; // No longer needed for button logic
+  const isPending = request.status === "pending";
 
   if (isLoadingDetails) {
     return (
       <Card className="glassmorphism border border-electric-violet/30 h-full flex flex-col animate-pulse">
         <CardHeader className="pb-4">
           <div className="flex justify-between items-center">
-            <CardTitle className="text-2xl text-neon-cyan">Loading PR Details...</CardTitle>
+            <CardTitle className="text-2xl text-neon-cyan">Loading UR Details...</CardTitle>
             <Button variant="ghost" disabled>Close</Button>
           </div>
         </CardHeader>
@@ -132,7 +127,7 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
       <CardHeader className="border-b border-gray-700 pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-2xl text-neon-cyan flex items-center">
-            <Tag className="mr-2 h-5 w-5" /> PR Details: <span className="text-electric-violet ml-2">{request.pr_number}</span>
+            <Tag className="mr-2 h-5 w-5" /> UR Details: <span className="text-electric-violet ml-2">{request.ur_number}</span>
           </CardTitle>
           <Button variant="ghost" onClick={onClose} className="text-neon-cyan hover:text-neon-cyan/80">
             <ArrowLeft className="mr-2 h-4 w-4" /> Close Details
@@ -142,20 +137,20 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
       </CardHeader>
       <CardContent className="p-5 flex-1 overflow-y-auto space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-4">
-          <h1 className="text-2xl font-bold text-neon-cyan">Purchase Request Information</h1>
+          <h1 className="text-2xl font-bold text-neon-cyan">Utility Request Information</h1>
           <div className="flex flex-wrap gap-2">
             {isPending && canManage && (
               <>
                 <Button
                   className="bg-green-600 text-white hover:bg-green-700 transition-all duration-300 text-sm py-2 px-3"
-                  onClick={() => setCurrentAction('approved')} // Now opens dialog for approval
+                  onClick={() => setCurrentAction("approved")}
                   disabled={isLoadingDetails}
                 >
                   {isLoadingDetails ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />} Approve
                 </Button>
                 <Button
                   className="bg-red-600 text-white hover:bg-red-700 transition-all duration-300 text-sm py-2 px-3"
-                  onClick={() => setCurrentAction('rejected')} // Still uses dialog for rejection
+                  onClick={() => setCurrentAction("rejected")}
                   disabled={isLoadingDetails}
                 >
                   {isLoadingDetails ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />} Reject
@@ -164,7 +159,7 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
             )}
             <Dialog open={!!currentAction} onOpenChange={(open) => !open && setCurrentAction(null)}>
               {currentAction && (
-                <PurchaseRequestActionDialog
+                <UtilityRequestActionDialog
                   isOpen={true}
                   onClose={() => setCurrentAction(null)}
                   onSubmit={handleActionSubmit}
@@ -181,13 +176,11 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
             <h2 className="text-lg font-semibold text-neon-cyan mb-3">Request Details</h2>
             <div className="space-y-2">
               <p className="flex items-center text-sm"><Tag className="mr-2 h-4 w-4 text-blue-400" /> Item Name: <span className="ml-2 font-medium">{request.item_name}</span></p>
-              <p className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-blue-400" /> Item Code: <span className="ml-2 font-medium">{request.item_code}</span></p>
               <p className="flex items-center text-sm"><Package className="mr-2 h-4 w-4 text-yellow-400" /> Quantity: <span className="ml-2 font-medium">{request.quantity}</span></p>
               <p className="flex items-center text-sm"><DollarSign className="mr-2 h-4 w-4 text-purple-400" /> Unit Price: <span className="ml-2 font-medium">Rp {request.unit_price.toLocaleString("id-ID")}</span></p>
               <p className="flex items-center text-sm"><DollarSign className="mr-2 h-4 w-4 text-teal-400" /> Total Price: <span className="ml-2 font-medium">Rp {request.total_price.toLocaleString("id-ID")}</span></p>
-              <p className="flex items-center text-sm"><Building className="mr-2 h-4 w-4 text-orange-400" /> Target Warehouse: <span className="ml-2 font-medium">{request.target_warehouse_category}</span></p>
               <p className="flex items-center text-sm"><Clock className="mr-2 h-4 w-4 text-lime-400" /> Created At: <span className="ml-2 font-medium">{format(new Date(request.created_at), "PPP")}</span></p>
-              <p className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Status: <Badge className={getStatusColor(request.status)}>{request.status.replace(/_/g, ' ').toUpperCase()}</Badge></p>
+              <p className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Status: <Badge className={getStatusColor(request.status)}>{request.status.replace(/_/g, " ").toUpperCase()}</Badge></p>
               {request.notes && <p className="flex items-start text-sm"><FileText className="mr-2 h-4 w-4 text-red-400 mt-1" /> Notes: <span className="ml-2 font-medium">{request.notes}</span></p>}
             </div>
           </div>
@@ -198,8 +191,23 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
           <div>
             <h2 className="text-lg font-semibold text-neon-cyan mb-3">Supplier Information</h2>
             <div className="space-y-2">
-              <p className="flex items-center text-sm"><User className="mr-2 h-4 w-4 text-cyan-400" /> Supplier Name: <span className="ml-2 font-medium">{request.supplier_name}</span></p>
-              {/* Add more supplier details if available from the join */}
+              <p className="flex items-center text-sm"><User className="mr-2 h-4 w-4 text-cyan-400" /> Supplier Name: <span className="ml-2 font-medium">{request.supplier_name || "N/A"}</span></p>
+              {request.supplier_url && (
+                <p className="flex items-center text-sm">
+                  <Link2 className="mr-2 h-4 w-4 text-cyan-400" /> Supplier Link:
+                  <a
+                    href={request.supplier_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ml-2 font-medium text-neon-cyan hover:underline"
+                  >
+                    {request.supplier_url}
+                  </a>
+                </p>
+              )}
+              {!request.supplier_url && (
+                <p className="flex items-center text-sm"><Building className="mr-2 h-4 w-4 text-orange-400" /> Store Name: <span className="ml-2 font-medium">{request.supplier_name || "N/A"}</span></p>
+              )}
             </div>
           </div>
         </div>
@@ -208,4 +216,4 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
   );
 };
 
-export default PurchaseRequestDetail;
+export default UtilityRequestDetail;

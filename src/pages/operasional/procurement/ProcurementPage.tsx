@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { CreatePurchaseRequestForm } from "@/components/procurement/CreatePurchaseRequestForm";
+import { CreateUtilityRequestForm } from "@/components/procurement/CreateUtilityRequestForm";
 import { PurchaseOrderTable, createPurchaseOrderColumns, PurchaseOrder } from "@/components/procurement/PurchaseOrderTable";
 import { PurchaseOrderDetail } from "@/components/procurement/PurchaseOrderDetail";
 import { Button } from "@/components/ui/button";
@@ -162,6 +163,7 @@ const ProcurementPage = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
         <TabsList className="bg-midnight-blue border border-gray-700">
           <TabsTrigger value="create-pr" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Create Purchase Request</TabsTrigger>
+          <TabsTrigger value="create-ur" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Create Utility Request</TabsTrigger>
           <TabsTrigger value="manage-pos" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Manage Purchase Orders</TabsTrigger>
         </TabsList>
         <TabsContent value="create-pr" className="mt-4">
@@ -194,6 +196,18 @@ const ProcurementPage = () => {
                 showSuccess("Purchase Request created successfully! It will appear in 'Manage Purchase Orders' once approved.");
                 setActiveTab("manage-pos");
                 fetchPurchaseOrders();
+              }} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="create-ur" className="mt-4">
+          <Card className="glassmorphism border border-electric-violet/30">
+            <CardHeader className="flex flex-row justify-between items-center">
+              <CardTitle className="text-electric-violet">New Utility Request</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CreateUtilityRequestForm onURCreated={() => {
+                showSuccess("Utility Request created successfully!");
               }} />
             </CardContent>
           </Card>
