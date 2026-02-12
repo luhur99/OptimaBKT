@@ -62,37 +62,25 @@ export function AddStaffForm({ onStaffAdded, onClose }: AddStaffFormProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
-      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-      if (!baseUrl) {
-        showError("Supabase URL is not configured.");
-        setIsSubmitting(false);
-        return;
-      }
+      const { data, error } = await supabase.functions.invoke('create-staff-user', {
+        body: values,
+      });
 
-      const sessionResult = await supabase.auth.getSession();
-      const accessToken = sessionResult.data.session?.access_token;
-      if (!accessToken) {
-        showError("You must be signed in to create staff users.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      const response = await fetch(
-        `${baseUrl}/functions/v1/create-staff-user`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify(values),
+      if (error) {
+        // Try to read the response body for more details
+        const context = (error as any)?.context;
+        let errorMessage = error.message;
+        if (context?.json) {
+          try {
+            const body = await context.json();
+            errorMessage = body?.error || errorMessage;
+          } catch { /* ignore parse error */ }
         }
-      );
+        throw new Error(errorMessage || "Failed to create staff user.");
+      }
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create staff user.");
+      if (data?.error) {
+        throw new Error(data.error);
       }
 
       showSuccess("Staff user created successfully!");

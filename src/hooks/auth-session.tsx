@@ -2,13 +2,7 @@ import React, { useState, useEffect, useContext, createContext, useCallback } fr
 import { supabase } from '@/integrations/supabase/client';
 import { Session, AuthChangeEvent } from '@supabase/supabase-js';
 
-declare global {
-    interface Window {
-        __authInitDone?: boolean;
-        __authCachedSession?: Session | null;
-        __authCachedProfile?: Profile | null;
-    }
-}
+
 
 export interface Profile {
     id: string;
@@ -110,17 +104,9 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     const profileData = await fetchProfile(initialSession.user.id, mounted);
                     if (mounted) {
                         setProfile(profileData);
-                        if (typeof window !== 'undefined') {
-                            window.__authCachedSession = initialSession;
-                            window.__authCachedProfile = profileData;
-                        }
                     }
                 } else {
                     setProfile(null);
-                    if (typeof window !== 'undefined') {
-                        window.__authCachedSession = initialSession;
-                        window.__authCachedProfile = null;
-                    }
                 }
             } catch (error: any) {
                 // Only log non-AbortError warnings
@@ -141,10 +127,6 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         };
 
         // Always re-initialize auth to ensure fresh session state
-        // Window cache is only used as a brief optimization, not as source of truth
-        if (typeof window !== 'undefined') {
-            window.__authInitDone = true;
-        }
         initializeAuth();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -154,11 +136,7 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 if (event === 'SIGNED_OUT') {
                     setSession(null);
                     setProfile(null);
-                    setIsLoading(false); // Ensure loading is off on sign out
-                    if (typeof window !== 'undefined') {
-                        window.__authCachedSession = null;
-                        window.__authCachedProfile = null;
-                    }
+                    setIsLoading(false);
                     return;
                 }
 
@@ -182,18 +160,10 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     if (mounted) {
                         setProfile(profileData);
                         setIsLoading(false);
-                        if (typeof window !== 'undefined') {
-                            window.__authCachedSession = newSession;
-                            window.__authCachedProfile = profileData;
-                        }
                     }
                 } else {
                     setProfile(null);
                     setIsLoading(false);
-                    if (typeof window !== 'undefined') {
-                        window.__authCachedSession = newSession;
-                        window.__authCachedProfile = null;
-                    }
                 }
             }
         );

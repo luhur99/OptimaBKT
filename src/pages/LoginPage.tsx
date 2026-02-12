@@ -2,7 +2,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthSession } from '@/hooks/auth-session';
-import DashboardLayout from '@/layouts/DashboardLayout'; // Import DashboardLayout
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { showError } from '@/utils/toast';
@@ -49,11 +48,9 @@ function LoginPage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-screen text-gray-400">
-          Loading authentication status...
-        </div>
-      </DashboardLayout>
+      <div className="min-h-screen flex items-center justify-center bg-deep-charcoal text-gray-400">
+        Loading authentication status...
+      </div>
     );
   }
 
