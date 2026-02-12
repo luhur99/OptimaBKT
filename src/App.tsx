@@ -39,6 +39,7 @@ const BillingListPage = lazy(
   () => import("./pages/operasional/billing-list/BillingListPage")
 );
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const SupabaseTestPage = lazy(() => import("./pages/SupabaseTestPage"));
 import { AuthSessionProvider } from "@/hooks/auth-session";
 import ProtectedRoute from "@/components/shared/ProtectedRoute";
 
@@ -61,6 +62,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/supabase-test" element={<SupabaseTestPage />} />
 
               {/* Protected Routes */}
               <Route
