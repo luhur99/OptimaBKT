@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -18,7 +18,7 @@ export function SupabaseConnectionStatus({
   const [status, setStatus] = useState<ConnectionStatus>('checking');
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
-  const checkConnection = async () => {
+  const checkConnection = useCallback(async () => {
     try {
       setStatus('checking');
       const { error } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
@@ -35,7 +35,7 @@ export function SupabaseConnectionStatus({
       setStatus('disconnected');
       setLastChecked(new Date());
     }
-  };
+  }, []);
 
   useEffect(() => {
     checkConnection();
@@ -44,7 +44,7 @@ export function SupabaseConnectionStatus({
     const interval = setInterval(checkConnection, 30000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [checkConnection]);
 
   const getStatusIcon = () => {
     switch (status) {

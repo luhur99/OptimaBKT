@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,7 +44,7 @@ function SupabaseTestPage() {
   ]);
   const [isRunning, setIsRunning] = useState(false);
 
-  const runTests = async () => {
+  const runTests = useCallback(async () => {
     setIsRunning(true);
     const newTests = [...tests];
 
@@ -136,11 +136,11 @@ function SupabaseTestPage() {
     setTests([...newTests]);
 
     setIsRunning(false);
-  };
+  }, [session, profile]);
 
   useEffect(() => {
     runTests();
-  }, [session]);
+  }, [runTests]);
 
   const allTestsPassed = tests.every((test) => test.status === 'success');
 
