@@ -35,6 +35,9 @@ const DeliveryOrderPage = lazy(
 const PurchaseRequestPage = lazy(
   () => import("./pages/operasional/procurement/PurchaseRequestPage")
 );
+const UtilityRequestPage = lazy(
+  () => import("./pages/operasional/procurement/UtilityRequestPage")
+);
 const BillingListPage = lazy(
   () => import("./pages/operasional/billing-list/BillingListPage")
 );
@@ -100,7 +103,7 @@ const App = () => (
               <Route
                 path="/operasional/procurement"
                 element={
-                  <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV"]}>
+                  <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"]}>
                     <ProcurementPage />
                   </ProtectedRoute>
                 }
@@ -108,8 +111,16 @@ const App = () => (
               <Route
                 path="/operasional/purchase-requests"
                 element={
-                  <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV"]}>
+                  <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"]}>
                     <PurchaseRequestPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/operasional/utility-requests"
+                element={
+                  <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"]}>
+                    <UtilityRequestPage />
                   </ProtectedRoute>
                 }
               />

@@ -90,6 +90,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"],
     },
     {
+      name: "Utility Requests",
+      href: "/operasional/utility-requests",
+      icon: ClipboardList,
+      roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"],
+    },
+    {
       name: "Delivery Orders",
       href: "/operasional/delivery-orders",
       icon: Truck,
