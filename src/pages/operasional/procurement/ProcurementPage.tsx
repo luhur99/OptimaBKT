@@ -77,10 +77,14 @@ const ProcurementPage = () => {
   useEffect(() => {
     if (!isAuthLoading) {
       if (!session) {
-        navigate("/");
+        navigate("/login");
         return;
       }
-      fetchPurchaseOrders();
+      if (profile?.role === "STAFF") {
+        setIsLoadingPOs(false);
+      } else {
+        fetchPurchaseOrders();
+      }
     }
   }, [isAuthLoading, session, profile, navigate]);
 
@@ -152,6 +156,24 @@ const ProcurementPage = () => {
         <div className="flex items-center justify-center min-h-screen text-gray-400">
           Unauthorized access.
         </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (profile?.role === "STAFF") {
+    return (
+      <DashboardLayout>
+        <h1 className="text-3xl font-bold mb-6 text-neon-cyan">Utility Request</h1>
+        <Card className="glassmorphism border border-electric-violet/30">
+          <CardHeader>
+            <CardTitle className="text-electric-violet">New Utility Request</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CreateUtilityRequestForm onURCreated={() => {
+              showSuccess("Utility Request created successfully!");
+            }} />
+          </CardContent>
+        </Card>
       </DashboardLayout>
     );
   }

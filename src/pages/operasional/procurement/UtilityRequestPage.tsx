@@ -35,9 +35,6 @@ const UtilityRequestPage = () => {
       .select(`
         id,
         ur_number,
-        item_name,
-        quantity,
-        unit_price,
         total_price,
         supplier_name,
         supplier_url,
@@ -65,10 +62,10 @@ const UtilityRequestPage = () => {
   useEffect(() => {
     if (!isAuthLoading) {
       if (!session) {
-        navigate("/");
+        navigate("/login");
         return;
       }
-      if (!["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"].includes(profile?.role || "")) {
+      if (!["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV", "STAFF"].includes(profile?.role || "")) {
         navigate("/dashboard");
         showError("You do not have permission to access this page.");
         return;
@@ -116,7 +113,7 @@ const UtilityRequestPage = () => {
     );
   }
 
-  if (!session || !["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"].includes(profile?.role || "")) {
+  if (!session || !["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV", "STAFF"].includes(profile?.role || "")) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">

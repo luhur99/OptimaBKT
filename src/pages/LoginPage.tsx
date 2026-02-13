@@ -42,7 +42,6 @@ function LoginPage() {
       return;
     }
 
-    navigate(redirectPath, { replace: true });
     setIsSubmitting(false);
   };
 

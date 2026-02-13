@@ -66,7 +66,7 @@ const PurchaseRequestPage = () => {
   useEffect(() => {
     if (!isAuthLoading) {
       if (!session) {
-        navigate("/");
+        navigate("/login");
         return;
       }
       // Allow SUPER_ADMIN, OPERASIONAL_DIV, SALES_DIV to access this page

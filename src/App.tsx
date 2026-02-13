@@ -65,7 +65,14 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/supabase-test" element={<SupabaseTestPage />} />
+              <Route
+                path="/supabase-test"
+                element={
+                  <ProtectedRoute allowedRoles={["SUPER_ADMIN"]}>
+                    <SupabaseTestPage />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Protected Routes */}
               <Route
@@ -103,7 +110,7 @@ const App = () => (
               <Route
                 path="/operasional/procurement"
                 element={
-                  <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"]}>
+                  <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV", "STAFF"]}>
                     <ProcurementPage />
                   </ProtectedRoute>
                 }
@@ -119,7 +126,7 @@ const App = () => (
               <Route
                 path="/operasional/utility-requests"
                 element={
-                  <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"]}>
+                  <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV", "STAFF"]}>
                     <UtilityRequestPage />
                   </ProtectedRoute>
                 }

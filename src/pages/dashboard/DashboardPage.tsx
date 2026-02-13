@@ -6,6 +6,7 @@ import { SalesDivDashboard } from "@/components/dashboard/SalesDivDashboard";
 import { OperasionalDivDashboard } from "@/components/dashboard/OperasionalDivDashboard";
 import { TechnicianDashboard } from "@/components/dashboard/TechnicianDashboard";
 import { AccountingDashboard } from "@/components/dashboard/AccountingDashboard";
+import { StaffDashboard } from "@/components/dashboard/StaffDashboard";
 import DashboardLayout from "@/layouts/DashboardLayout";
 
 const DashboardPage = () => {
@@ -39,6 +40,8 @@ const DashboardPage = () => {
         return <TechnicianDashboard />;
       case "ACCOUNTING":
         return <AccountingDashboard />;
+      case "STAFF":
+        return <StaffDashboard />;
       case "USER":
       default:
         return (

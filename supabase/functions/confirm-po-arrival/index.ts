@@ -1,8 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
+// Set ALLOWED_ORIGIN in Supabase edge function secrets to restrict to your production domain.
+// Example: supabase secrets set ALLOWED_ORIGIN=https://your-app.vercel.app
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
@@ -61,6 +63,14 @@ serve(async (req) => {
 
     if (!po_id || !Array.isArray(items_received) || items_received.length === 0) {
       return new Response(JSON.stringify({ error: 'Missing or invalid required fields: po_id, items_received (array of { po_item_id, qty_received })' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_REGEX.test(po_id)) {
+      return new Response(JSON.stringify({ error: 'Invalid po_id format.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

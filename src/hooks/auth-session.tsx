@@ -7,7 +7,7 @@ import { Session, AuthChangeEvent } from '@supabase/supabase-js';
 export interface Profile {
     id: string;
     full_name: string;
-    role: 'SUPER_ADMIN' | 'OPERASIONAL_DIV' | 'SALES_DIV' | 'TECHNICIAN' | 'ACCOUNTING' | 'USER';
+    role: 'SUPER_ADMIN' | 'OPERASIONAL_DIV' | 'SALES_DIV' | 'TECHNICIAN' | 'ACCOUNTING' | 'USER' | 'STAFF';
     email: string;
     phone_number?: string;
     created_at: string;
@@ -92,21 +92,21 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         };
 
         const initializeAuth = async () => {
-            console.log('AuthSessionProvider: Starting initialization...');
             try {
-                const initialSession = await getSessionWithTimeout(15000, 2, 500);
+                const initialSession = await getSessionWithTimeout(6000, 1, 200);
 
                 if (!mounted) return;
 
-                console.log('AuthSessionProvider: Initial session retrieved:', initialSession?.user?.id || 'No session');
-                setSession(initialSession);
-                if (initialSession?.user) {
+                if (!initialSession) {
+                    // Only clear state if the auth listener hasn't already set a valid session
+                    setSession(prev => prev || null);
+                    setProfile(prev => prev || null);
+                } else {
+                    setSession(initialSession);
                     const profileData = await fetchProfile(initialSession.user.id, mounted);
                     if (mounted) {
                         setProfile(profileData);
                     }
-                } else {
-                    setProfile(null);
                 }
             } catch (error: any) {
                 // Only log non-AbortError warnings
@@ -120,7 +120,6 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 }
             } finally {
                 if (mounted) {
-                    console.log('AuthSessionProvider: Initialization complete, setting isLoading to false.');
                     setIsLoading(false);
                 }
             }
@@ -143,7 +142,9 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 setSession(newSession);
 
                 if (newSession?.user) {
-                    // Retry profile fetch up to 3 times if aborted
+                    // Keep isLoading=true while fetching profile so ProtectedRoute
+                    // doesn't fire the "profile unavailable" toast prematurely.
+                    setIsLoading(true);
                     let retries = 3;
                     let profileData = null;
 
@@ -152,8 +153,7 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                         if (profileData !== null || !mounted) break;
                         retries--;
                         if (retries > 0) {
-                            // Wait a bit before retrying
-                            await new Promise(resolve => setTimeout(resolve, 500));
+                            await new Promise(resolve => setTimeout(resolve, 150));
                         }
                     }
 
@@ -168,18 +168,12 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             }
         );
 
-        // Ultimate safety timeout (15 seconds)
+        // Ultimate safety timeout (8 seconds)
         const ultimateTimeout = setTimeout(() => {
             if (mounted) {
-                setIsLoading(current => {
-                    if (current) {
-                        console.warn('AuthSessionProvider: Ultimate safety timeout reached. Forcing loading to false.');
-                        return false;
-                    }
-                    return current;
-                });
+                setIsLoading(current => current ? false : current);
             }
-        }, 15000);
+        }, 8000);
 
         return () => {
             mounted = false;

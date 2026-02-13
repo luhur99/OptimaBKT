@@ -9,9 +9,6 @@ export type UtilityRequestStatus = "pending" | "approved" | "rejected";
 export type UtilityRequest = {
   id: string;
   ur_number: string;
-  item_name: string;
-  quantity: number;
-  unit_price: number;
   total_price: number;
   supplier_name?: string;
   supplier_url?: string;
@@ -19,6 +16,14 @@ export type UtilityRequest = {
   created_at: string;
   requested_by_name: string;
   notes?: string;
+};
+
+export type UtilityRequestItem = {
+  id: string;
+  item_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
 };
 
 interface CreateUtilityRequestColumnsOptions {
@@ -70,44 +75,31 @@ export const createUtilityRequestColumns = ({ onSelectRequest }: CreateUtilityRe
     cell: ({ row }) => <div className="text-gray-300">{row.getValue("ur_number")}</div>,
   },
   {
-    accessorKey: "item_name",
+    accessorKey: "requested_by_name",
+    header: "Requested By",
+    cell: ({ row }) => <div className="text-gray-300">{row.getValue("requested_by_name")}</div>,
+  },
+  {
+    id: "supplier",
+    header: "Supplier",
+    cell: ({ row }) => renderSupplier(row.original),
+  },
+  {
+    accessorKey: "total_price",
     header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         className="text-neon-cyan hover:text-neon-cyan/80"
       >
-        Item Name
+        Grand Total
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => <div className="text-gray-300">{row.getValue("item_name")}</div>,
-  },
-  {
-    accessorKey: "quantity",
-    header: "Qty",
-    cell: ({ row }) => <div className="text-gray-300">{row.getValue("quantity")}</div>,
-  },
-  {
-    accessorKey: "unit_price",
-    header: "Unit Price",
-    cell: ({ row }) => {
-      const amount = Number(row.getValue("unit_price")) || 0;
-      return <div className="text-gray-300">Rp {amount.toLocaleString("id-ID")}</div>;
-    },
-  },
-  {
-    accessorKey: "total_price",
-    header: "Total Price",
     cell: ({ row }) => {
       const amount = Number(row.getValue("total_price")) || 0;
       return <div className="font-semibold text-neon-cyan">Rp {amount.toLocaleString("id-ID")}</div>;
     },
-  },
-  {
-    id: "supplier",
-    header: "Supplier",
-    cell: ({ row }) => renderSupplier(row.original),
   },
   {
     accessorKey: "status",
@@ -128,7 +120,16 @@ export const createUtilityRequestColumns = ({ onSelectRequest }: CreateUtilityRe
   },
   {
     accessorKey: "created_at",
-    header: "Created At",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="text-neon-cyan hover:text-neon-cyan/80"
+      >
+        Created At
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
     cell: ({ row }) => {
       const date = new Date(row.getValue("created_at"));
       return <div className="text-gray-500">{format(date, "PPP")}</div>;
