@@ -42,6 +42,7 @@ const ProcurementPage = () => {
   const [datePreset, setDatePreset] = useState<DatePreset>("custom");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const isUser = profile?.role === "USER";
 
   const fetchPurchaseOrders = async () => {
     setIsLoadingPOs(true);
@@ -78,6 +79,10 @@ const ProcurementPage = () => {
     if (!isAuthLoading) {
       if (!session) {
         navigate("/");
+        return;
+      }
+      if (profile?.role === "USER") {
+        setIsLoadingPOs(false);
         return;
       }
       fetchPurchaseOrders();
@@ -152,6 +157,26 @@ const ProcurementPage = () => {
         <div className="flex items-center justify-center min-h-screen text-gray-400">
           Unauthorized access.
         </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (isUser) {
+    return (
+      <DashboardLayout>
+        <h1 className="text-3xl font-bold mb-6 text-neon-cyan">Procurement Management</h1>
+        <Card className="glassmorphism border border-electric-violet/30">
+          <CardHeader className="flex flex-row justify-between items-center">
+            <CardTitle className="text-electric-violet">New Utility Request</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CreateUtilityRequestForm
+              onURCreated={() => {
+                showSuccess("Utility Request created successfully!");
+              }}
+            />
+          </CardContent>
+        </Card>
       </DashboardLayout>
     );
   }

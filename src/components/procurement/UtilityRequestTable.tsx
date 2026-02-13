@@ -20,7 +20,7 @@ import {
 interface UtilityRequestTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
-  onRowClick: (request: TData) => void;
+  onRowClick?: (request: TData) => void;
 }
 
 export function UtilityRequestTable<TData, TValue>({
@@ -63,8 +63,12 @@ export function UtilityRequestTable<TData, TValue>({
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
-                onClick={() => onRowClick(row.original)}
-                className="cursor-pointer border-b border-gray-800 hover:bg-gray-800/50 transition-colors"
+                onClick={() => onRowClick?.(row.original)}
+                className={
+                  onRowClick
+                    ? "cursor-pointer border-b border-gray-800 hover:bg-gray-800/50 transition-colors"
+                    : "border-b border-gray-800"
+                }
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id} className="text-gray-300">

@@ -22,7 +22,8 @@ export type UtilityRequest = {
 };
 
 interface CreateUtilityRequestColumnsOptions {
-  onSelectRequest: (request: UtilityRequest) => void;
+  onSelectRequest?: (request: UtilityRequest) => void;
+  includeActions?: boolean;
 }
 
 const getStatusColor = (status: UtilityRequestStatus) => {
@@ -54,7 +55,11 @@ const renderSupplier = (request: UtilityRequest) => {
   return <span className="text-gray-400">{request.supplier_name || "N/A"}</span>;
 };
 
-export const createUtilityRequestColumns = ({ onSelectRequest }: CreateUtilityRequestColumnsOptions): ColumnDef<UtilityRequest>[] => [
+export const createUtilityRequestColumns = ({
+  onSelectRequest,
+  includeActions = true,
+}: CreateUtilityRequestColumnsOptions): ColumnDef<UtilityRequest>[] => {
+  const columns: ColumnDef<UtilityRequest>[] = [
   {
     accessorKey: "ur_number",
     header: ({ column }) => (
@@ -134,17 +139,23 @@ export const createUtilityRequestColumns = ({ onSelectRequest }: CreateUtilityRe
       return <div className="text-gray-500">{format(date, "PPP")}</div>;
     },
   },
-  {
-    id: "actions",
-    cell: ({ row }) => (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => onSelectRequest(row.original)}
-        className="bg-neon-cyan/20 text-neon-cyan hover:bg-neon-cyan/30 hover:text-neon-cyan border-neon-cyan/50"
-      >
-        View Details
-      </Button>
-    ),
-  },
-];
+  ];
+
+  if (includeActions && onSelectRequest) {
+    columns.push({
+      id: "actions",
+      cell: ({ row }) => (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onSelectRequest(row.original)}
+          className="bg-neon-cyan/20 text-neon-cyan hover:bg-neon-cyan/30 hover:text-neon-cyan border-neon-cyan/50"
+        >
+          View Details
+        </Button>
+      ),
+    });
+  }
+
+  return columns;
+};
