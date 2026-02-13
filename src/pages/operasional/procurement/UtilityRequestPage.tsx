@@ -27,10 +27,11 @@ const UtilityRequestPage = () => {
   const [datePreset, setDatePreset] = useState<DatePreset>("custom");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const isUser = profile?.role === "USER";
 
   const fetchUtilityRequests = async () => {
     setIsLoadingURs(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("utility_requests")
       .select(`
         id,
@@ -45,8 +46,13 @@ const UtilityRequestPage = () => {
         created_at,
         notes,
         profiles!user_id (full_name)
-      `)
-      .order("created_at", { ascending: false });
+      `);
+
+    if (isUser && session?.user?.id) {
+      query = query.eq("user_id", session.user.id);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error fetching utility requests:", error);
@@ -68,7 +74,7 @@ const UtilityRequestPage = () => {
         navigate("/");
         return;
       }
-      if (!["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"].includes(profile?.role || "")) {
+      if (!["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV", "USER"].includes(profile?.role || "")) {
         navigate("/dashboard");
         showError("You do not have permission to access this page.");
         return;
@@ -81,7 +87,14 @@ const UtilityRequestPage = () => {
     fetchUtilityRequests();
   };
 
-  const columns = useMemo(() => createUtilityRequestColumns({ onSelectRequest: setSelectedUR }), []);
+  const columns = useMemo(
+    () =>
+      createUtilityRequestColumns({
+        onSelectRequest: isUser ? undefined : setSelectedUR,
+        includeActions: !isUser,
+      }),
+    [isUser]
+  );
 
   const dateRange = useMemo(
     () => getDateRange(datePreset, startDate, endDate),
@@ -116,7 +129,7 @@ const UtilityRequestPage = () => {
     );
   }
 
-  if (!session || !["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"].includes(profile?.role || "")) {
+  if (!session || !["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV", "USER"].includes(profile?.role || "")) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen text-gray-400">
@@ -127,6 +140,44 @@ const UtilityRequestPage = () => {
   }
 
   const canManage = ["SUPER_ADMIN", "OPERASIONAL_DIV"].includes(profile?.role || "");
+
+  if (isUser) {
+    return (
+      <DashboardLayout>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-neon-cyan">Utility Requests</h1>
+        </div>
+
+        <div className="min-h-[600px] rounded-lg glassmorphism border border-neon-cyan/30">
+          <ScrollArea className="h-full p-4">
+            <h2 className="text-xl font-semibold mb-4 text-neon-cyan">Daftar Utility Request</h2>
+            <div className="mb-4">
+              <TableToolbar
+                searchValue={searchValue}
+                onSearchChange={setSearchValue}
+                datePreset={datePreset}
+                onDatePresetChange={setDatePreset}
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+                onExport={handleExport}
+                exportDisabled={filteredRequests.length === 0}
+                searchPlaceholder="Cari UR..."
+              />
+            </div>
+            {filteredRequests.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-gray-500 border border-dashed border-gray-700 rounded-md p-4 radar-grid-background">
+                <p>No utility requests found. Initiating scan...</p>
+              </div>
+            ) : (
+              <UtilityRequestTable columns={columns} data={filteredRequests} />
+            )}
+          </ScrollArea>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

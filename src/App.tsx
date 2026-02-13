@@ -103,7 +103,7 @@ const App = () => (
               <Route
                 path="/operasional/procurement"
                 element={
-                  <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"]}>
+                  <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV", "USER"]}>
                     <ProcurementPage />
                   </ProtectedRoute>
                 }
@@ -119,7 +119,7 @@ const App = () => (
               <Route
                 path="/operasional/utility-requests"
                 element={
-                  <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"]}>
+                  <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV", "USER"]}>
                     <UtilityRequestPage />
                   </ProtectedRoute>
                 }

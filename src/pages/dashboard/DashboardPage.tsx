@@ -6,6 +6,7 @@ import { SalesDivDashboard } from "@/components/dashboard/SalesDivDashboard";
 import { OperasionalDivDashboard } from "@/components/dashboard/OperasionalDivDashboard";
 import { TechnicianDashboard } from "@/components/dashboard/TechnicianDashboard";
 import { AccountingDashboard } from "@/components/dashboard/AccountingDashboard";
+import { UserDashboard } from "@/components/dashboard/UserDashboard";
 import DashboardLayout from "@/layouts/DashboardLayout";
 
 const DashboardPage = () => {
@@ -40,17 +41,9 @@ const DashboardPage = () => {
       case "ACCOUNTING":
         return <AccountingDashboard />;
       case "USER":
+        return <UserDashboard />;
       default:
-        return (
-          <div className="text-center p-8 rounded-lg glassmorphism border border-gray-700 shadow-lg">
-            <h2 className="text-2xl font-semibold text-neon-cyan">
-              Akun Anda sedang diverifikasi admin.
-            </h2>
-            <p className="text-gray-400 mt-2">
-              Mohon tunggu hingga admin mengaktifkan akun Anda.
-            </p>
-          </div>
-        );
+        return null;
     }
   };
 
