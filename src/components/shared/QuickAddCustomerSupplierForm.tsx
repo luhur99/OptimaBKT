@@ -107,6 +107,7 @@ export function QuickAddCustomerSupplierForm({
           company_name: values.company_name,
           address: values.address,
           phone_number: values.phone_number,
+          email: values.email || null,
           customer_type: values.customer_type,
         });
         if (error) throw new Error(error.message);

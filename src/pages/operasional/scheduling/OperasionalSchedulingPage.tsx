@@ -398,7 +398,8 @@ const OperasionalSchedulingPage = () => {
                   <TableCell>
                     <Badge variant={getStatusBadgeVariant(request.status)}>{request.status}</Badge>
                   </TableCell>
-                  <TableCell className="text-right flex space-x-2 justify-end">
+                  <TableCell className="text-right">
+                    <div className="flex space-x-2 justify-end">
                     <TooltipProvider>
                       {request.status === "pending" && (
                         <>
@@ -489,18 +490,18 @@ const OperasionalSchedulingPage = () => {
                         </TooltipContent>
                       </Tooltip>
                       <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <AlertDialogTrigger asChild>
                               <Button variant="ghost" size="icon">
                                 <Trash2 className="h-5 w-5 text-red-600" />
                               </Button>
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
-                              <p>Delete Request</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </AlertDialogTrigger>
+                            </AlertDialogTrigger>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-gray-700 text-gray-300 border-gray-600">
+                            <p>Delete Request</p>
+                          </TooltipContent>
+                        </Tooltip>
                         <AlertDialogContent className="bg-gray-800 border-gray-700 text-gray-300">
                           <AlertDialogHeader>
                             <AlertDialogTitle className="text-neon-cyan">Are you absolutely sure?</AlertDialogTitle>
@@ -545,6 +546,7 @@ const OperasionalSchedulingPage = () => {
                         </Tooltip>
                       )}
                     </TooltipProvider>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

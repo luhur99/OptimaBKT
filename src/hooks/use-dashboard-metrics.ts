@@ -21,23 +21,34 @@ export const useDashboardMetrics = () => {
             const { data, error } = await supabase
                 .from("delivery_orders")
                 .select(`
-          id, 
-          do_number, 
-          delivery_date, 
-          delivery_time, 
-          status,
-          scheduling_requests (
-            assigned_technician_id,
-            technician_name
-          )
-        `)
+                    id,
+                    do_number,
+                    delivery_date,
+                    delivery_time,
+                    status,
+                    request_id,
+                    scheduling_requests!request_id (
+                        status,
+                        customer_name,
+                        assigned_technician_id,
+                        technician_name
+                    )
+                `)
                 .not("status", "eq", "cancelled");
             if (error) throw error;
-            return data.map((do_item: any) => ({
-                ...do_item,
-                technician_id: do_item.scheduling_requests?.assigned_technician_id,
-                technician_name: do_item.scheduling_requests?.technician_name,
-            }));
+            // Filter client-side: only DOs linked to approved/in_progress/completed SRs
+            const activeDOs = data
+                .filter((do_item: any) => {
+                    const srStatus = do_item.scheduling_requests?.status;
+                    return srStatus && ["approved", "in_progress", "completed"].includes(srStatus);
+                })
+                .map((do_item: any) => ({
+                    ...do_item,
+                    customer_name: do_item.scheduling_requests?.customer_name,
+                    technician_id: do_item.scheduling_requests?.assigned_technician_id,
+                    technician_name: do_item.scheduling_requests?.technician_name,
+                }));
+            return activeDOs;
         },
     });
 

@@ -25,6 +25,20 @@ interface OperationalCalendarProps {
     className?: string;
 }
 
+// Distinct color palette for technicians
+const TECH_COLORS = [
+    { dot: "bg-cyan-400 shadow-[0_0_5px_rgba(34,211,238,0.6)]", badge: "bg-cyan-500/20 text-cyan-400", border: "border-cyan-500/30" },
+    { dot: "bg-orange-400 shadow-[0_0_5px_rgba(251,146,60,0.6)]", badge: "bg-orange-500/20 text-orange-400", border: "border-orange-500/30" },
+    { dot: "bg-pink-400 shadow-[0_0_5px_rgba(244,114,182,0.6)]", badge: "bg-pink-500/20 text-pink-400", border: "border-pink-500/30" },
+    { dot: "bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.6)]", badge: "bg-emerald-500/20 text-emerald-400", border: "border-emerald-500/30" },
+    { dot: "bg-violet-400 shadow-[0_0_5px_rgba(167,139,250,0.6)]", badge: "bg-violet-500/20 text-violet-400", border: "border-violet-500/30" },
+    { dot: "bg-amber-400 shadow-[0_0_5px_rgba(251,191,36,0.6)]", badge: "bg-amber-500/20 text-amber-400", border: "border-amber-500/30" },
+    { dot: "bg-rose-400 shadow-[0_0_5px_rgba(251,113,133,0.6)]", badge: "bg-rose-500/20 text-rose-400", border: "border-rose-500/30" },
+    { dot: "bg-sky-400 shadow-[0_0_5px_rgba(56,189,248,0.6)]", badge: "bg-sky-500/20 text-sky-400", border: "border-sky-500/30" },
+];
+
+const DEFAULT_TECH_COLOR = { dot: "bg-gray-400", badge: "bg-gray-500/20 text-gray-400", border: "border-gray-500/30" };
+
 export const OperationalCalendar: React.FC<OperationalCalendarProps> = ({
     title,
     events,
@@ -32,6 +46,25 @@ export const OperationalCalendar: React.FC<OperationalCalendarProps> = ({
     className,
 }) => {
     const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(new Date());
+
+    // Build a stable technician → color map from all events
+    const techColorMap = React.useMemo(() => {
+        const map = new Map<string, typeof TECH_COLORS[0]>();
+        const uniqueTechs: string[] = [];
+        events.forEach(e => {
+            const key = e.technician_id || e.technician_name;
+            if (key && !map.has(key)) {
+                uniqueTechs.push(key);
+                map.set(key, TECH_COLORS[uniqueTechs.length - 1] || DEFAULT_TECH_COLOR);
+            }
+        });
+        return map;
+    }, [events]);
+
+    const getTechColor = (event: CalendarEvent) => {
+        const key = event.technician_id || event.technician_name;
+        return key ? (techColorMap.get(key) || DEFAULT_TECH_COLOR) : DEFAULT_TECH_COLOR;
+    };
 
     // Function to get events for a specific day
     const getEventsForDay = (date: Date) => {
@@ -121,7 +154,7 @@ export const OperationalCalendar: React.FC<OperationalCalendarProps> = ({
                                     default: dotColor = "bg-purple-500";
                                 }
                             } else {
-                                dotColor = "bg-neon-cyan shadow-[0_0_5px_rgba(0,255,255,0.5)]";
+                                dotColor = getTechColor(event).dot;
                             }
                             return <div key={idx} className={cn("h-1.5 w-1.5 rounded-full", dotColor)} />;
                         })}
@@ -139,6 +172,19 @@ export const OperationalCalendar: React.FC<OperationalCalendarProps> = ({
                     <Info className="mr-2 h-5 w-5 text-electric-violet" />
                     {title}
                 </CardTitle>
+                {type === "TECH" && techColorMap.size > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                        {Array.from(techColorMap.entries()).map(([key, color]) => {
+                            const techName = events.find(e => (e.technician_id || e.technician_name) === key)?.technician_name || key;
+                            return (
+                                <div key={key} className="flex items-center gap-1">
+                                    <div className={cn("h-2.5 w-2.5 rounded-full", color.dot)} />
+                                    <span className="text-[10px] text-gray-400 font-medium">{techName}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </CardHeader>
             <CardContent className="p-0 flex flex-col items-center">
                 <Calendar
@@ -171,25 +217,39 @@ export const OperationalCalendar: React.FC<OperationalCalendarProps> = ({
                             {getEventsForDay(selectedDate).length === 0 ? (
                                 <p className="text-xs text-gray-600 italic">Tidak ada jadwal</p>
                             ) : (
-                                getEventsForDay(selectedDate).map((e, idx) => (
-                                    <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-gray-800/30 border border-gray-700/50">
+                                getEventsForDay(selectedDate).map((e, idx) => {
+                                    const techColor = getTechColor(e);
+                                    const isTech = type === "TECH";
+                                    return (
+                                    <div key={idx} className={cn("flex items-center justify-between p-2 rounded-lg bg-gray-800/30 border", isTech ? techColor.border : "border-gray-700/50")}>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-xs font-bold text-gray-200 truncate">{e.title}</p>
                                             <p className="text-[10px] text-gray-500">
                                                 {e.time && <span className="mr-2">{e.time}</span>}
-                                                {e.technician_name && <span>{e.technician_name}</span>}
+                                                {e.technician_name && (
+                                                    <span className={cn("font-semibold", isTech ? techColor.badge.split(" ")[1] : "")}>
+                                                        {e.technician_name}
+                                                    </span>
+                                                )}
                                             </p>
                                         </div>
-                                        <Badge className={cn("text-[8px] py-0 px-1",
-                                            e.status.toLowerCase() === 'completed' ? 'bg-green-500/20 text-green-400' :
-                                                e.status.toLowerCase() === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                    e.status.toLowerCase() === 'approved' ? 'bg-blue-500/20 text-blue-400' :
-                                                        'bg-purple-500/20 text-purple-400'
-                                        )}>
-                                            {e.status.toUpperCase()}
-                                        </Badge>
+                                        {isTech ? (
+                                            <Badge className={cn("text-[8px] py-0 px-1", techColor.badge)}>
+                                                {e.technician_name || "N/A"}
+                                            </Badge>
+                                        ) : (
+                                            <Badge className={cn("text-[8px] py-0 px-1",
+                                                e.status.toLowerCase() === 'completed' ? 'bg-green-500/20 text-green-400' :
+                                                    e.status.toLowerCase() === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                        e.status.toLowerCase() === 'approved' ? 'bg-blue-500/20 text-blue-400' :
+                                                            'bg-purple-500/20 text-purple-400'
+                                            )}>
+                                                {e.status.toUpperCase()}
+                                            </Badge>
+                                        )}
                                     </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
                     </div>

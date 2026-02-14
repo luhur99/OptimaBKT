@@ -27,7 +27,7 @@ export function OperasionalDivDashboard() {
     id: do_item.id,
     date: do_item.delivery_date,
     time: do_item.delivery_time,
-    title: `${do_item.do_number} - ${do_item.customer_name || "N/A"}`,
+    title: `${do_item.do_number} - ${do_item.customer_name || do_item.scheduling_requests?.customer_name || "N/A"}`,
     type: "DO" as const,
     status: do_item.status,
     technician_id: do_item.technician_id,
