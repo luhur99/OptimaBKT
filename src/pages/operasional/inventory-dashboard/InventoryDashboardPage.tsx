@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/auth-session";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +25,8 @@ import {
 import { cn } from "@/lib/utils";
 import { Package, History } from "lucide-react";
 import { format } from "date-fns";
+import { TableToolbar } from "@/components/shared/TableToolbar";
+import { DatePreset, ExportColumn, exportToCsv, filterRows, getDateRange } from "@/utils/table-tools";
 
 // Type definitions
 type WarehouseInventorySummary = {
@@ -59,6 +61,10 @@ const InventoryDashboardPage = () => {
   const [inventorySummary, setInventorySummary] = useState<WarehouseInventorySummary[]>([]);
   const [stockLedger, setStockLedger] = useState<StockLedgerEntry[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [searchValue, setSearchValue] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("custom");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const fetchInventoryData = async () => {
     setIsLoadingData(true);
@@ -145,6 +151,40 @@ const InventoryDashboardPage = () => {
       fetchInventoryData();
     }
   }, [isAuthLoading, session, profile, navigate]);
+
+  const dateRange = useMemo(
+    () => getDateRange(datePreset, startDate, endDate),
+    [datePreset, startDate, endDate]
+  );
+
+  const filteredLedger = useMemo(
+    () =>
+      filterRows(
+        stockLedger,
+        searchValue,
+        dateRange,
+        (row) => (row.event_date ? new Date(row.event_date) : null)
+      ),
+    [stockLedger, searchValue, dateRange]
+  );
+
+  const exportColumns = useMemo<ExportColumn<StockLedgerEntry>[]>(
+    () => [
+      { header: "Date", value: (row) => row.event_date },
+      { header: "Product", value: (row) => row.product_name },
+      { header: "Event Type", value: (row) => row.event_type },
+      { header: "Qty", value: (row) => row.quantity },
+      { header: "From", value: (row) => row.from_warehouse_category || "-" },
+      { header: "To", value: (row) => row.to_warehouse_category || "-" },
+      { header: "By User", value: (row) => row.user_name },
+      { header: "Notes", value: (row) => row.notes || "-" },
+    ],
+    []
+  );
+
+  const handleExport = () => {
+    exportToCsv("stock-ledger", exportColumns, filteredLedger);
+  };
 
   if (isAuthLoading || isLoadingData) {
     return (
@@ -267,8 +307,23 @@ const InventoryDashboardPage = () => {
           <History className="h-6 w-6 text-electric-violet" />
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <TableToolbar
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              datePreset={datePreset}
+              onDatePresetChange={setDatePreset}
+              startDate={startDate}
+              endDate={endDate}
+              onStartDateChange={setStartDate}
+              onEndDateChange={setEndDate}
+              onExport={handleExport}
+              exportDisabled={filteredLedger.length === 0}
+              searchPlaceholder="Cari pergerakan stok..."
+            />
+          </div>
           <ScrollArea className="h-[400px] rounded-md border border-gray-700">
-            {stockLedger.length === 0 ? (
+            {filteredLedger.length === 0 ? (
               <div className="h-full flex items-center justify-center text-gray-500 border border-dashed border-gray-700 rounded-md p-4 radar-grid-background">
                 <p>No stock movement records found. Initiating scan...</p>
               </div>
@@ -287,7 +342,7 @@ const InventoryDashboardPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stockLedger.map((entry) => (
+                  {filteredLedger.map((entry) => (
                     <TableRow key={entry.id} className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors">
                       <TableCell className="font-mono text-xs text-gray-400">{format(new Date(entry.event_date), "yyyy-MM-dd")}</TableCell>
                       <TableCell className="font-mono text-sm text-neon-cyan">{entry.product_name}</TableCell>

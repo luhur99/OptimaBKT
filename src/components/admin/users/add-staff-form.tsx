@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { type FieldErrors, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,22 +62,25 @@ export function AddStaffForm({ onStaffAdded, onClose }: AddStaffFormProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-staff-user`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-          },
-          body: JSON.stringify(values),
+      const { data, error } = await supabase.functions.invoke('create-staff-user', {
+        body: values,
+      });
+
+      if (error) {
+        // Try to read the response body for more details
+        const context = (error as any)?.context;
+        let errorMessage = error.message;
+        if (context?.json) {
+          try {
+            const body = await context.json();
+            errorMessage = body?.error || errorMessage;
+          } catch { /* ignore parse error */ }
         }
-      );
+        throw new Error(errorMessage || "Failed to create staff user.");
+      }
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create staff user.");
+      if (data?.error) {
+        throw new Error(data.error);
       }
 
       showSuccess("Staff user created successfully!");
@@ -91,17 +94,23 @@ export function AddStaffForm({ onStaffAdded, onClose }: AddStaffFormProps) {
     }
   }
 
+  const handleValidationError = (errors: FieldErrors<z.infer<typeof formSchema>>) => {
+    const firstError = Object.values(errors)[0];
+    const message = firstError?.message || "Periksa kembali isian wajib.";
+    showError(String(message));
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit, handleValidationError)} className="space-y-4">
         <FormField
           control={form.control}
           name="full_name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Full Name</FormLabel>
+              <FormLabel>Nama Lengkap *</FormLabel>
               <FormControl>
-                <Input placeholder="John Doe" {...field} />
+                <Input placeholder="contoh: Budi Santoso" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -112,9 +121,9 @@ export function AddStaffForm({ onStaffAdded, onClose }: AddStaffFormProps) {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>Email *</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="john.doe@example.com" {...field} />
+                <Input type="email" placeholder="nama@perusahaan.com" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -125,9 +134,9 @@ export function AddStaffForm({ onStaffAdded, onClose }: AddStaffFormProps) {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>Kata Sandi *</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="********" {...field} />
+                <Input type="password" placeholder="minimal 8 karakter" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -138,7 +147,7 @@ export function AddStaffForm({ onStaffAdded, onClose }: AddStaffFormProps) {
           name="role"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Role</FormLabel>
+              <FormLabel>Peran *</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
@@ -159,7 +168,7 @@ export function AddStaffForm({ onStaffAdded, onClose }: AddStaffFormProps) {
           )}
         />
         <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? "Creating..." : "Add Staff"}
+          {isSubmitting ? "Membuat..." : "Tambah Staf"}
         </Button>
       </form>
     </Form>

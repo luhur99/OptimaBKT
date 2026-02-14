@@ -2,10 +2,12 @@ import React, { useState, useEffect, useContext, createContext, useCallback } fr
 import { supabase } from '@/integrations/supabase/client';
 import { Session, AuthChangeEvent } from '@supabase/supabase-js';
 
+
+
 export interface Profile {
     id: string;
     full_name: string;
-    role: 'SUPER_ADMIN' | 'OPERASIONAL_DIV' | 'SALES_DIV' | 'TECHNICIAN' | 'ACCOUNTING' | 'USER';
+    role: 'SUPER_ADMIN' | 'OPERASIONAL_DIV' | 'SALES_DIV' | 'TECHNICIAN' | 'ACCOUNTING' | 'USER' | 'STAFF';
     email: string;
     phone_number?: string;
     created_at: string;
@@ -57,36 +59,53 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     useEffect(() => {
         let mounted = true;
 
-        const initializeAuth = async () => {
-            console.log('AuthSessionProvider: Starting initialization...');
-            try {
-                // Set a timeout for getSession as it can sometimes hang
-                const sessionPromise = supabase.auth.getSession();
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Session fetch timed out')), 12000)
-                );
+        const getSessionWithTimeout = async (timeoutMs: number, retries: number, delayMs: number) => {
+            for (let attempt = 0; attempt <= retries; attempt++) {
+                try {
+                    const sessionPromise = supabase.auth.getSession();
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Session fetch timed out')), timeoutMs)
+                    );
 
-                const { data: { session: initialSession }, error: sessionError } = await Promise.race([
-                    sessionPromise,
-                    timeoutPromise
-                ]) as any;
+                    const { data: { session: initialSession }, error: sessionError } = await Promise.race([
+                        sessionPromise,
+                        timeoutPromise
+                    ]) as any;
+
+                    if (sessionError) {
+                        throw sessionError;
+                    }
+
+                    return initialSession ?? null;
+                } catch (error: any) {
+                    const isAbort = error?.name === 'AbortError' || error?.message?.includes('aborted');
+                    if (attempt >= retries && !isAbort) {
+                        throw error;
+                    }
+                    if (attempt >= retries) {
+                        return null;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                }
+            }
+            return null;
+        };
+
+        const initializeAuth = async () => {
+            try {
+                const initialSession = await getSessionWithTimeout(6000, 1, 200);
 
                 if (!mounted) return;
 
-                if (sessionError) {
-                    if (sessionError.name !== 'AbortError') {
-                        console.error('AuthSessionProvider: Initial session error:', sessionError);
-                    }
-                    setSession(null);
-                    setProfile(null);
+                if (!initialSession) {
+                    // Only clear state if the auth listener hasn't already set a valid session
+                    setSession(prev => prev || null);
+                    setProfile(prev => prev || null);
                 } else {
-                    console.log('AuthSessionProvider: Initial session retrieved:', initialSession?.user?.id || 'No session');
                     setSession(initialSession);
-                    if (initialSession?.user) {
-                        const profileData = await fetchProfile(initialSession.user.id, mounted);
-                        if (mounted) setProfile(profileData);
-                    } else {
-                        setProfile(null);
+                    const profileData = await fetchProfile(initialSession.user.id, mounted);
+                    if (mounted) {
+                        setProfile(profileData);
                     }
                 }
             } catch (error: any) {
@@ -101,12 +120,12 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 }
             } finally {
                 if (mounted) {
-                    console.log('AuthSessionProvider: Initialization complete, setting isLoading to false.');
                     setIsLoading(false);
                 }
             }
         };
 
+        // Always re-initialize auth to ensure fresh session state
         initializeAuth();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -116,14 +135,16 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 if (event === 'SIGNED_OUT') {
                     setSession(null);
                     setProfile(null);
-                    setIsLoading(false); // Ensure loading is off on sign out
+                    setIsLoading(false);
                     return;
                 }
 
                 setSession(newSession);
 
                 if (newSession?.user) {
-                    // Retry profile fetch up to 3 times if aborted
+                    // Keep isLoading=true while fetching profile so ProtectedRoute
+                    // doesn't fire the "profile unavailable" toast prematurely.
+                    setIsLoading(true);
                     let retries = 3;
                     let profileData = null;
 
@@ -132,8 +153,7 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                         if (profileData !== null || !mounted) break;
                         retries--;
                         if (retries > 0) {
-                            // Wait a bit before retrying
-                            await new Promise(resolve => setTimeout(resolve, 500));
+                            await new Promise(resolve => setTimeout(resolve, 150));
                         }
                     }
 
@@ -148,18 +168,12 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             }
         );
 
-        // Ultimate safety timeout (15 seconds)
+        // Ultimate safety timeout (8 seconds)
         const ultimateTimeout = setTimeout(() => {
             if (mounted) {
-                setIsLoading(current => {
-                    if (current) {
-                        console.warn('AuthSessionProvider: Ultimate safety timeout reached. Forcing loading to false.');
-                        return false;
-                    }
-                    return current;
-                });
+                setIsLoading(current => current ? false : current);
             }
-        }, 15000);
+        }, 8000);
 
         return () => {
             mounted = false;

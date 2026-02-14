@@ -1,11 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, DollarSign, User, Calendar, FileText, Building, Clock, Loader2, CheckCircle, XCircle, Info, Truck, Tag, Receipt } from 'lucide-react';
-import { Dialog } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { format } from 'date-fns';
 import { showSuccess, showError } from "@/utils/toast";
 import { Invoice, InvoiceDocumentStatus } from './billing-list-columns';
@@ -13,6 +18,7 @@ import { BillingListActionDialog } from './BillingListActionDialog';
 
 interface InvoiceItem {
   id: string;
+  product_id?: string;
   item_name: string;
   item_code?: string;
   quantity: number;
@@ -22,6 +28,40 @@ interface InvoiceItem {
   invoice_number?: string; // Added invoice_number
 }
 
+type InvoiceItemDraft = {
+  id?: string;
+  product_id?: string;
+  tempId: string;
+  item_name: string;
+  item_code?: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  unit_type?: string;
+  invoice_number?: string;
+  isNew?: boolean;
+};
+
+type ProductWithInventory = {
+  id: string;
+  kode_barang: string;
+  nama_barang: string;
+  harga_jual: number;
+  satuan?: string;
+  product_type?: 'GOODS' | 'SERVICE';
+  inventories: {
+    warehouse_category: string;
+    quantity: number;
+  }[];
+};
+
+type PendingItemAction = {
+  type: 'save' | 'delete';
+  item: InvoiceItemDraft;
+};
+
+const EDITED_NOTE_TAG = 'Edited by user';
+
 interface BillingListDetailProps {
   invoice: Invoice;
   onUpdate: () => void;
@@ -30,10 +70,85 @@ interface BillingListDetailProps {
 
 const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialInvoice, onUpdate, onClose }) => {
   const [invoice, setInvoice] = useState<Invoice>(initialInvoice);
-  const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
+  const [invoiceItems, setInvoiceItems] = useState<InvoiceItemDraft[]>([]);
+  const [products, setProducts] = useState<ProductWithInventory[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [srNumber, setSrNumber] = useState<string | null>(null); // New state for SR Number
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
   const [currentAction, setCurrentAction] = useState<'paid' | 'overdue' | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingItemAction | null>(null);
+  const [isSavingItem, setIsSavingItem] = useState(false);
+  const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
+  const [itemForm, setItemForm] = useState<InvoiceItemDraft | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+
+  const hasUserEditedInvoice = useMemo(() => (invoice.notes || '').includes(EDITED_NOTE_TAG), [invoice.notes]);
+
+  const buildEditedNote = (existing?: string) => {
+    if (existing?.includes(EDITED_NOTE_TAG)) {
+      return existing;
+    }
+    const timestamp = format(new Date(), 'yyyy-MM-dd HH:mm');
+    const note = `${EDITED_NOTE_TAG} on ${timestamp}`;
+    return existing ? `${existing}\n${note}` : note;
+  };
+
+  const calculateItemSubtotal = (quantity: number, unitPrice: number) => {
+    const safeQuantity = Number.isFinite(quantity) ? Math.max(0, quantity) : 0;
+    const safeUnitPrice = Number.isFinite(unitPrice) ? Math.max(0, unitPrice) : 0;
+    return safeQuantity * safeUnitPrice;
+  };
+
+  const calculateTotals = (items: InvoiceItemDraft[], withTax?: boolean) => {
+    const subtotal = items.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+    const tax = withTax ? Math.round(subtotal * 0.11) : 0;
+    const total = subtotal + tax;
+    return { subtotal, tax, total };
+  };
+
+  const persistInvoiceTotals = async (items: InvoiceItemDraft[]) => {
+    const { subtotal, tax, total } = calculateTotals(items, invoice.with_tax);
+    const updatedNotes = buildEditedNote(invoice.notes);
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .update({
+          subtotal_amount: subtotal,
+          tax_amount: tax,
+          total_amount: total,
+          notes: updatedNotes,
+        })
+        .eq('id', invoice.id);
+
+      if (error) {
+        if (error.message.includes('column') && error.message.includes('does not exist')) {
+          const { error: fallbackError } = await supabase
+            .from('invoices')
+            .update({
+              total_amount: total,
+              notes: updatedNotes,
+            })
+            .eq('id', invoice.id);
+          if (fallbackError) {
+            throw fallbackError;
+          }
+        } else {
+          throw error;
+        }
+      }
+
+      setInvoice((prev) => ({
+        ...prev,
+        subtotal_amount: subtotal,
+        tax_amount: tax,
+        total_amount: total,
+        notes: updatedNotes,
+      }));
+    } catch (error: any) {
+      console.error('Error updating invoice totals:', error.message);
+      showError(`Failed to update invoice totals: ${error.message}`);
+    }
+  };
 
   const fetchInvoiceDetails = useCallback(async () => {
     console.log(`BillingListDetail: fetchInvoiceDetails called for invoice ID: ${initialInvoice.id}`);
@@ -126,7 +241,12 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
         setInvoiceItems([]);
       } else {
         console.log("BillingListDetail: Fetched itemsData from Supabase:", itemsData); // New log
-        setInvoiceItems(itemsData || []);
+        const mappedItems = (itemsData || []).map((item: InvoiceItem) => ({
+          ...item,
+          tempId: item.id,
+          isNew: false,
+        }));
+        setInvoiceItems(mappedItems);
         console.log("BillingListDetail: Invoice items state after set:", itemsData || []); // New log
       }
 
@@ -141,6 +261,42 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
   useEffect(() => {
     fetchInvoiceDetails();
   }, [fetchInvoiceDetails]);
+
+  const fetchProducts = useCallback(async () => {
+    setIsLoadingProducts(true);
+    const { data, error } = await supabase
+      .from('products')
+      .select(`
+        id,
+        kode_barang,
+        nama_barang,
+        harga_jual,
+        satuan,
+        product_type,
+        warehouse_inventories (warehouse_category, quantity)
+      `);
+
+    if (error) {
+      console.error('Error fetching products:', error);
+      showError('Failed to load product catalog.');
+    } else {
+      const formatted = (data || []).map((product: any) => ({
+        id: product.id,
+        kode_barang: product.kode_barang,
+        nama_barang: product.nama_barang,
+        harga_jual: product.harga_jual,
+        satuan: product.satuan,
+        product_type: product.product_type,
+        inventories: product.warehouse_inventories || [],
+      }));
+      setProducts(formatted);
+    }
+    setIsLoadingProducts(false);
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const handleActionSubmit = async (actionData: {
     payment_status: Invoice['payment_status'];
@@ -173,13 +329,18 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
 
       // If the invoice is marked as 'paid', call the deduct-sales-stock edge function
       if (newPaymentStatus === 'paid' && !invoice.stock_deducted) {
+        const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+        if (!baseUrl) {
+          throw new Error("Supabase URL is not configured.");
+        }
+
         const accessToken = (await supabase.auth.getSession()).data.session?.access_token;
         if (!accessToken) {
           throw new Error("User not authenticated for stock deduction.");
         }
 
         const deductStockResponse = await fetch(
-          `https://hhhzugqimtypijkdxxsm.supabase.co/functions/v1/deduct-sales-stock`,
+          `${baseUrl}/functions/v1/deduct-sales-stock`,
           {
             method: "POST",
             headers: {
@@ -236,6 +397,211 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
 
   const isPendingPayment = invoice.payment_status === 'pending';
   const isInvoicePending = invoice.invoice_status === 'PENDING'; // Check if invoice is in PENDING document status
+
+  const getSelectedProduct = () => {
+    if (!selectedProductId) return null;
+    return products.find((product) => product.id === selectedProductId) || null;
+  };
+
+  const getSiapJualStock = (product: ProductWithInventory | null) => {
+    if (!product) return 0;
+    const inventory = product.inventories.find((inv) => inv.warehouse_category === 'siap_jual');
+    return inventory?.quantity ?? 0;
+  };
+
+  const getItemSiapJualStock = (item: InvoiceItemDraft) => {
+    const product = products.find((product) => product.id === item.product_id) || null;
+    return getSiapJualStock(product);
+  };
+
+  const openAddItemDialog = () => {
+    setItemForm({
+      tempId: `temp-${Date.now()}`,
+      item_name: '',
+      item_code: '',
+      quantity: 1,
+      unit_price: 0,
+      subtotal: 0,
+      unit_type: '',
+      invoice_number: invoice.invoice_number,
+      isNew: true,
+    });
+    setSelectedProductId(null);
+    setIsItemDialogOpen(true);
+  };
+
+  const openEditItemDialog = (item: InvoiceItemDraft) => {
+    const productId = item.product_id || products.find((product) => product.kode_barang === item.item_code)?.id || null;
+    setItemForm({ ...item });
+    setSelectedProductId(productId);
+    setIsItemDialogOpen(true);
+  };
+
+  const handleItemFormChange = (field: keyof InvoiceItemDraft, value: string | number) => {
+    setItemForm((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, [field]: value } as InvoiceItemDraft;
+      if (field === 'quantity' || field === 'unit_price') {
+        updated.subtotal = calculateItemSubtotal(updated.quantity, updated.unit_price);
+      }
+      return updated;
+    });
+  };
+
+  const handleProductSelect = (productId: string) => {
+    const product = products.find((item) => item.id === productId);
+    if (!product) return;
+    setSelectedProductId(productId);
+    setItemForm((prev) => {
+      if (!prev) return prev;
+      const updated = {
+        ...prev,
+        product_id: product.id,
+        item_name: product.nama_barang,
+        item_code: product.kode_barang,
+        unit_price: product.harga_jual,
+        unit_type: product.satuan || prev.unit_type,
+      };
+      updated.subtotal = calculateItemSubtotal(updated.quantity, updated.unit_price);
+      return updated;
+    });
+  };
+
+  const validateItem = (item: InvoiceItemDraft) => {
+    if (!item.product_id) {
+      showError('Please select a product from the catalog.');
+      return false;
+    }
+    if (!item.item_name.trim()) {
+      showError('Item name is required.');
+      return false;
+    }
+    if (!Number.isFinite(item.quantity) || item.quantity <= 0) {
+      showError('Quantity must be greater than 0.');
+      return false;
+    }
+    if (!Number.isFinite(item.unit_price) || item.unit_price < 0) {
+      showError('Unit price must be 0 or greater.');
+      return false;
+    }
+    const product = products.find((prod) => prod.id === item.product_id) || null;
+    const stock = getSiapJualStock(product);
+    if (product?.product_type !== 'SERVICE' && stock <= 0) {
+      showError('Stok tidak tersedia di gudang siap_jual.');
+      return false;
+    }
+    if (product?.product_type !== 'SERVICE' && item.quantity > stock) {
+      showError(`Stok tidak cukup di gudang siap_jual. Tersedia ${stock}.`);
+      return false;
+    }
+    return true;
+  };
+
+  const getStockValidation = (item: InvoiceItemDraft | null) => {
+    if (!item?.product_id) return { canSave: false, message: 'Pilih produk terlebih dahulu.' };
+    const product = products.find((prod) => prod.id === item.product_id) || null;
+    if (product?.product_type === 'SERVICE') return { canSave: true, message: '' };
+    const stock = getSiapJualStock(product);
+    if (stock <= 0) return { canSave: false, message: 'Stok tidak tersedia di gudang siap_jual.' };
+    if (item.quantity > stock) return { canSave: false, message: `Stok tidak cukup. Tersedia ${stock}.` };
+    return { canSave: true, message: '' };
+  };
+
+  const handleSaveInvoiceItem = () => {
+    if (!itemForm) return;
+    if (!validateItem(itemForm)) return;
+    setPendingAction({ type: 'save', item: itemForm });
+    setIsItemDialogOpen(false);
+  };
+
+  const handleDeleteInvoiceItem = (item: InvoiceItemDraft) => {
+    setPendingAction({ type: 'delete', item });
+  };
+
+  const executePendingAction = async () => {
+    if (!pendingAction) return;
+    setIsSavingItem(true);
+    const { type, item } = pendingAction;
+
+    try {
+      if (type === 'save') {
+        const payload = {
+          invoice_id: invoice.id,
+          product_id: item.product_id || null,
+          item_name: item.item_name,
+          item_code: item.item_code || null,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          subtotal: calculateItemSubtotal(item.quantity, item.unit_price),
+          unit_type: item.unit_type || null,
+        };
+
+        if (item.isNew || !item.id) {
+          const { data, error } = await supabase
+            .from('invoice_items')
+            .insert(payload)
+            .select('*')
+            .single();
+
+          if (error) throw error;
+
+          const newItem = { ...data, tempId: data.id, isNew: false } as InvoiceItemDraft;
+          setInvoiceItems((prev) => [...prev, newItem]);
+          const updatedItems = [...invoiceItems, newItem];
+          await persistInvoiceTotals(updatedItems);
+
+          showSuccess('Invoice item added.');
+        } else {
+          const { data, error } = await supabase
+            .from('invoice_items')
+            .update(payload)
+            .eq('id', item.id)
+            .select('*')
+            .single();
+
+          if (error) throw error;
+
+          const updatedItem = { ...data, tempId: data.id, isNew: false } as InvoiceItemDraft;
+          const updatedItems = invoiceItems.map((existing) => (
+            existing.tempId === item.tempId
+              ? updatedItem
+              : existing
+          ));
+          setInvoiceItems(updatedItems);
+          await persistInvoiceTotals(updatedItems);
+
+          showSuccess('Invoice item updated.');
+        }
+      }
+
+      if (type === 'delete') {
+        if (!item.id) {
+          setInvoiceItems((prev) => prev.filter((existing) => existing.tempId !== item.tempId));
+          await persistInvoiceTotals(invoiceItems.filter((existing) => existing.tempId !== item.tempId));
+          showSuccess('Invoice item removed.');
+        } else {
+          const { error } = await supabase
+            .from('invoice_items')
+            .delete()
+            .eq('id', item.id);
+          if (error) throw error;
+
+          const remainingItems = invoiceItems.filter((existing) => existing.tempId !== item.tempId);
+          setInvoiceItems(remainingItems);
+          await persistInvoiceTotals(remainingItems);
+          showSuccess('Invoice item deleted.');
+        }
+      }
+
+      onUpdate();
+    } catch (error: any) {
+      console.error('Error saving invoice item:', error.message);
+      showError(`Failed to update invoice item: ${error.message}`);
+    } finally {
+      setIsSavingItem(false);
+      setPendingAction(null);
+    }
+  };
 
   if (isLoadingDetails) {
     return (
@@ -334,6 +700,9 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
 
               <div className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Payment Status: <Badge className={getPaymentStatusColor(invoice.payment_status)}>{invoice.payment_status.replace(/_/g, ' ').toUpperCase()}</Badge></div>
               <div className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Invoice Status: <Badge className={getInvoiceDocumentStatusColor(invoice.invoice_status)}>{invoice.invoice_status.replace(/_/g, ' ').toUpperCase()}</Badge></div>
+              {hasUserEditedInvoice && (
+                <div className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-orange-400" /> Edit Status: <Badge className="bg-orange-600/20 text-orange-300 border border-orange-500/30">Edited by user</Badge></div>
+              )}
               {invoice.notes && <div className="flex items-start text-sm"><FileText className="mr-2 h-4 w-4 text-orange-400 mt-1" /> Notes: <span className="ml-2 font-medium">{invoice.notes}</span></div>}
               {invoice.document_url && (
                 <div className="flex items-center text-sm">
@@ -351,6 +720,14 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
 
           <div>
             <h2 className="text-lg font-semibold text-neon-cyan mb-3">Invoice Items</h2>
+            <div className="flex justify-end mb-3">
+              <Button
+                onClick={openAddItemDialog}
+                className="bg-neon-cyan/20 text-neon-cyan hover:bg-neon-cyan/30 border border-neon-cyan/40"
+              >
+                Add Item
+              </Button>
+            </div>
             {invoiceItems.length === 0 ? (
               <p className="text-gray-500">No items found for this invoice.</p>
             ) : (
@@ -362,17 +739,38 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
                       <th className="p-2 text-neon-cyan">Qty</th>
                       <th className="p-2 text-neon-cyan">Unit Price</th>
                       <th className="p-2 text-neon-cyan">Subtotal</th>
-                      <th className="p-2 text-neon-cyan">Invoice Number</th> {/* New column header */}
+                      <th className="p-2 text-neon-cyan">Siap Jual Stock</th>
+                      <th className="p-2 text-neon-cyan">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {invoiceItems.map((item) => (
                       <tr key={item.id} className="border-b border-gray-800 last:border-b-0 hover:bg-gray-800/50 transition-colors">
-                        <td className="p-2">{item.item_name} ({item.item_code})</td>
-                        <td className="p-2">{item.quantity} {item.unit_type}</td>
+                        <td className="p-2">{item.item_name} {item.item_code ? `(${item.item_code})` : ''}</td>
+                        <td className="p-2">{item.quantity} {item.unit_type || ''}</td>
                         <td className="p-2">Rp {item.unit_price.toLocaleString("id-ID")}</td>
                         <td className="p-2">Rp {item.subtotal.toLocaleString("id-ID")}</td>
-                        <td className="p-2">{item.invoice_number || 'N/A'}</td> {/* Display invoice_number */}
+                        <td className="p-2">{getItemSiapJualStock(item).toLocaleString("id-ID")}</td>
+                        <td className="p-2">
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="bg-blue-600/80 hover:bg-blue-600 text-white"
+                              onClick={() => openEditItemDialog(item)}
+                              disabled={isSavingItem}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDeleteInvoiceItem(item)}
+                              disabled={isSavingItem}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -382,6 +780,152 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
           </div>
         </div>
       </CardContent>
+      <Dialog
+        open={isItemDialogOpen}
+        onOpenChange={(open) => {
+          setIsItemDialogOpen(open);
+          if (!open) {
+            setItemForm(null);
+            setSelectedProductId(null);
+          }
+        }}
+      >
+        <DialogContent className="bg-gray-950 border border-gray-700 text-gray-200 sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-neon-cyan">{itemForm?.isNew ? 'Add Invoice Item' : 'Edit Invoice Item'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-gray-300">Product Catalog</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between border-gray-700 bg-gray-900/40 text-gray-200"
+                    disabled={isLoadingProducts}
+                  >
+                    {selectedProductId
+                      ? `${getSelectedProduct()?.nama_barang} (${getSelectedProduct()?.kode_barang})`
+                      : isLoadingProducts
+                      ? 'Loading products...'
+                      : 'Select product'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[420px]">
+                  <Command>
+                    <CommandInput placeholder="Search product..." />
+                    <CommandList>
+                      <CommandEmpty>No products found.</CommandEmpty>
+                      <CommandGroup>
+                        {products.map((product) => (
+                          <CommandItem
+                            key={product.id}
+                            value={`${product.nama_barang} ${product.kode_barang}`}
+                            onSelect={() => handleProductSelect(product.id)}
+                          >
+                            {product.nama_barang} ({product.kode_barang})
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {selectedProductId && (
+                <p className="text-xs text-gray-400">
+                  Stok siap_jual: {getSiapJualStock(getSelectedProduct()).toLocaleString('id-ID')} unit.
+                </p>
+              )}
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+              <div className="space-y-2">
+                <Label className="text-gray-300">Item Name</Label>
+                <Input
+                  value={itemForm?.item_name || ''}
+                  onChange={(event) => handleItemFormChange('item_name', event.target.value)}
+                  className="bg-gray-900/40 border-gray-700 text-gray-200"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-300">Item Code</Label>
+                <Input
+                  value={itemForm?.item_code || ''}
+                  onChange={(event) => handleItemFormChange('item_code', event.target.value)}
+                  className="bg-gray-900/40 border-gray-700 text-gray-200"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Quantity</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={itemForm?.quantity ?? 0}
+                    onChange={(event) => handleItemFormChange('quantity', Number(event.target.value))}
+                    className="bg-gray-900/40 border-gray-700 text-gray-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Unit</Label>
+                  <Input
+                    value={itemForm?.unit_type || ''}
+                    onChange={(event) => handleItemFormChange('unit_type', event.target.value)}
+                    className="bg-gray-900/40 border-gray-700 text-gray-200"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-300">Unit Price</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={itemForm?.unit_price ?? 0}
+                  onChange={(event) => handleItemFormChange('unit_price', Number(event.target.value))}
+                  className="bg-gray-900/40 border-gray-700 text-gray-200"
+                />
+              </div>
+              <div className="text-sm text-gray-400">Subtotal: Rp {itemForm?.subtotal?.toLocaleString('id-ID') || '0'}</div>
+            </div>
+          </div>
+          {itemForm && !getStockValidation(itemForm).canSave && (
+            <p className="text-xs text-orange-300">{getStockValidation(itemForm).message}</p>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsItemDialogOpen(false)} className="border-gray-700 text-gray-200">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveInvoiceItem}
+              className="bg-neon-cyan text-gray-950 hover:bg-neon-cyan/90"
+              disabled={!!itemForm && !getStockValidation(itemForm).canSave}
+            >
+              Save Item
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <AlertDialog open={!!pendingAction} onOpenChange={(open) => !open && setPendingAction(null)}>
+        <AlertDialogContent className="bg-gray-950 border border-gray-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-neon-cyan">Confirm changes</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              {pendingAction?.type === 'delete'
+                ? 'Are you sure you want to delete this invoice item? This will update the invoice totals.'
+                : 'Save changes to this invoice item? This will update the invoice totals.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-gray-700 text-gray-200">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-neon-cyan text-gray-950 hover:bg-neon-cyan/90"
+              onClick={executePendingAction}
+              disabled={isSavingItem}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

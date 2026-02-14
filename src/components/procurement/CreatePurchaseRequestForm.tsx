@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { type FieldErrors, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,12 +53,12 @@ interface CreatePurchaseRequestFormProps {
 }
 
 const formSchema = z.object({
-  product_id: z.string().min(1, { message: "Product is required." }),
-  supplier_id: z.string().min(1, { message: "Supplier is required." }),
-  quantity: z.coerce.number().min(1, { message: "Quantity must be at least 1." }),
-  unit_price: z.coerce.number().min(0.01, { message: "Unit price must be greater than 0." }),
-  suggested_selling_price: z.coerce.number().min(0.01, { message: "Suggested selling price must be greater than 0." }),
-  target_warehouse_category: z.string().min(1, { message: "Target warehouse category is required." }),
+  product_id: z.string().min(1, { message: "Produk wajib dipilih." }),
+  supplier_id: z.string().min(1, { message: "Supplier wajib dipilih." }),
+  quantity: z.coerce.number().min(1, { message: "Jumlah minimal 1." }),
+  unit_price: z.coerce.number().min(0.01, { message: "Harga beli harus lebih dari 0." }),
+  suggested_selling_price: z.coerce.number().min(0.01, { message: "Harga jual saran harus lebih dari 0." }),
+  target_warehouse_category: z.string().min(1, { message: "Kategori gudang tujuan wajib dipilih." }),
   notes: z.string().optional(),
 });
 
@@ -135,6 +135,12 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
+      if (!session?.user?.id) {
+        showError("You must be signed in to create a purchase request.");
+        setIsSubmitting(false);
+        return;
+      }
+
       const product = products.find(p => p.id === values.product_id);
       if (!product) {
         showError("Selected product not found.");
@@ -197,15 +203,21 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
     }
   }
 
+  const handleValidationError = (errors: FieldErrors<z.infer<typeof formSchema>>) => {
+    const firstError = Object.values(errors)[0];
+    const message = firstError?.message || "Periksa kembali isian wajib.";
+    showError(String(message));
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 text-gray-300">
+      <form onSubmit={form.handleSubmit(onSubmit, handleValidationError)} className="space-y-4 text-gray-300">
         <FormField
           control={form.control}
           name="product_id"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Product</FormLabel>
+              <FormLabel>Produk <span className="text-red-400">*</span></FormLabel>
               <Popover open={openProductCombobox} onOpenChange={setOpenProductCombobox}>
                 <PopoverTrigger asChild>
                   <FormControl>
@@ -219,16 +231,16 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
                     >
                       {field.value
                         ? products.find((product) => product.id === field.value)?.nama_barang
-                        : "Select product"}
+                        : "Pilih produk"}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0 glassmorphism border border-gray-700">
                   <Command>
-                    <CommandInput placeholder="Search product..." className="text-gray-300" />
+                    <CommandInput placeholder="Cari produk..." className="text-gray-300" />
                     <CommandList>
-                      <CommandEmpty>No product found.</CommandEmpty>
+                      <CommandEmpty>Produk tidak ditemukan.</CommandEmpty>
                       <CommandGroup>
                         {products.map((product) => (
                           <CommandItem
@@ -264,7 +276,7 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
           name="supplier_id"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Supplier</FormLabel>
+              <FormLabel>Supplier <span className="text-red-400">*</span></FormLabel>
               <Popover open={openSupplierCombobox} onOpenChange={setOpenSupplierCombobox}>
                 <PopoverTrigger asChild>
                   <FormControl>
@@ -278,16 +290,16 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
                     >
                       {field.value
                         ? suppliers.find((supplier) => supplier.id === field.value)?.name
-                        : "Select supplier"}
+                        : "Pilih supplier"}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0 glassmorphism border border-gray-700">
                   <Command>
-                    <CommandInput placeholder="Search supplier..." className="text-gray-300" />
+                    <CommandInput placeholder="Cari supplier..." className="text-gray-300" />
                     <CommandList>
-                      <CommandEmpty>No supplier found.</CommandEmpty>
+                      <CommandEmpty>Supplier tidak ditemukan.</CommandEmpty>
                       <CommandGroup>
                         {suppliers.map((supplier) => (
                           <CommandItem
@@ -323,7 +335,7 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
           name="quantity"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Quantity</FormLabel>
+              <FormLabel>Jumlah <span className="text-red-400">*</span></FormLabel>
               <FormControl>
                 <Input type="number" {...field} min="1" className="glassmorphism border border-gray-700 text-gray-300" />
               </FormControl>
@@ -337,7 +349,7 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
           name="unit_price"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Unit Price (Harga Beli)</FormLabel>
+              <FormLabel>Harga Beli Satuan <span className="text-red-400">*</span></FormLabel>
               <FormControl>
                 <Input type="number" {...field} step="0.01" className="glassmorphism border border-gray-700 text-gray-300" />
               </FormControl>
@@ -351,7 +363,7 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
           name="suggested_selling_price"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Suggested Selling Price</FormLabel>
+              <FormLabel>Harga Jual Saran <span className="text-red-400">*</span></FormLabel>
               <FormControl>
                 <Input type="number" {...field} step="0.01" className="glassmorphism border border-gray-700 text-gray-300" />
               </FormControl>
@@ -365,11 +377,11 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
           name="target_warehouse_category"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Target Warehouse Category</FormLabel>
+              <FormLabel>Kategori Gudang Tujuan <span className="text-red-400">*</span></FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
-                    <SelectValue placeholder="Select target warehouse" />
+                    <SelectValue placeholder="Pilih gudang tujuan" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent className="glassmorphism border border-gray-700 text-gray-300">
@@ -390,9 +402,9 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
           name="notes"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Notes (Optional)</FormLabel>
+              <FormLabel>Catatan (Opsional)</FormLabel>
               <FormControl>
-                <Textarea placeholder="Any specific instructions or details" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
+                <Textarea placeholder="Catatan atau instruksi khusus" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -400,7 +412,7 @@ export function CreatePurchaseRequestForm({ onPRCreated }: CreatePurchaseRequest
         />
 
         <Button type="submit" className="w-full bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300" disabled={isSubmitting}>
-          {isSubmitting ? "Submitting PR..." : "Submit Purchase Request"}
+          {isSubmitting ? "Mengirim PR..." : "Kirim PR"}
         </Button>
       </form>
     </Form>

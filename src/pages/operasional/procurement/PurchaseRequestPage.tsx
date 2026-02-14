@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/auth-session";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,8 @@ import { PurchaseRequestTable } from "@/components/procurement/PurchaseRequestTa
 import { createPurchaseRequestColumns, PurchaseRequest } from "@/components/procurement/purchase-request-columns";
 import PurchaseRequestDetail from "@/components/procurement/PurchaseRequestDetail";
 import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton component
+import { TableToolbar } from "@/components/shared/TableToolbar";
+import { DatePreset, buildExportColumns, exportToCsv, filterRows, getDateRange } from "@/utils/table-tools";
 
 const PurchaseRequestPage = () => {
   const { session, profile, isLoading: isAuthLoading } = useAuthSession();
@@ -21,6 +23,10 @@ const PurchaseRequestPage = () => {
   const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[]>([]);
   const [isLoadingPRs, setIsLoadingPRs] = useState(true);
   const [selectedPR, setSelectedPR] = useState<PurchaseRequest | null>(null);
+  const [searchValue, setSearchValue] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("custom");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const fetchPurchaseRequests = async () => {
     setIsLoadingPRs(true);
@@ -60,7 +66,7 @@ const PurchaseRequestPage = () => {
   useEffect(() => {
     if (!isAuthLoading) {
       if (!session) {
-        navigate("/");
+        navigate("/login");
         return;
       }
       // Allow SUPER_ADMIN, OPERASIONAL_DIV, SALES_DIV to access this page
@@ -79,6 +85,28 @@ const PurchaseRequestPage = () => {
   };
 
   const columns = useMemo(() => createPurchaseRequestColumns({ onSelectRequest: setSelectedPR }), []);
+
+  const dateRange = useMemo(
+    () => getDateRange(datePreset, startDate, endDate),
+    [datePreset, startDate, endDate]
+  );
+
+  const filteredRequests = useMemo(
+    () =>
+      filterRows(
+        purchaseRequests,
+        searchValue,
+        dateRange,
+        (row) => (row.created_at ? new Date(row.created_at) : null)
+      ),
+    [purchaseRequests, searchValue, dateRange]
+  );
+
+  const exportColumns = useMemo(() => buildExportColumns<PurchaseRequest>(columns), [columns]);
+
+  const handleExport = () => {
+    exportToCsv("purchase-requests", exportColumns, filteredRequests);
+  };
 
   if (isAuthLoading || isLoadingPRs) {
     return (
@@ -112,12 +140,27 @@ const PurchaseRequestPage = () => {
         <ResizablePanel defaultSize={50} minSize={30}>
           <ScrollArea className="h-full p-4">
             <h2 className="text-xl font-semibold mb-4 text-neon-cyan">All Purchase Requests</h2>
-            {purchaseRequests.length === 0 ? (
+            <div className="mb-4">
+              <TableToolbar
+                searchValue={searchValue}
+                onSearchChange={setSearchValue}
+                datePreset={datePreset}
+                onDatePresetChange={setDatePreset}
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+                onExport={handleExport}
+                exportDisabled={filteredRequests.length === 0}
+                searchPlaceholder="Cari PR..."
+              />
+            </div>
+            {filteredRequests.length === 0 ? (
               <div className="h-full flex items-center justify-center text-gray-500 border border-dashed border-gray-700 rounded-md p-4 radar-grid-background">
                 <p>No purchase requests found. Initiating scan...</p>
               </div>
             ) : (
-              <PurchaseRequestTable columns={columns} data={purchaseRequests} onRowClick={setSelectedPR} />
+              <PurchaseRequestTable columns={columns} data={filteredRequests} onRowClick={setSelectedPR} />
             )}
           </ScrollArea>
         </ResizablePanel>
@@ -127,6 +170,7 @@ const PurchaseRequestPage = () => {
             {selectedPR ? (
               <PurchaseRequestDetail
                 request={selectedPR}
+                canManage={["SUPER_ADMIN", "OPERASIONAL_DIV"].includes(profile?.role || "")}
                 onUpdate={handlePRUpdate}
                 onClose={() => setSelectedPR(null)}
               />

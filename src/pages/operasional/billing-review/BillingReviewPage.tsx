@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/auth-session";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +40,8 @@ import { Progress } from "@/components/ui/progress"; // Assuming shadcn Progress
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Switch } from "@/components/ui/switch";
 import { Receipt } from "lucide-react";
+import { TableToolbar } from "@/components/shared/TableToolbar";
+import { DatePreset, ExportColumn, exportToCsv, filterRows, getDateRange } from "@/utils/table-tools";
 
 // Type definitions
 type InvoiceDocumentStatus = 'DRAFT' | 'PENDING' | 'PAID' | 'CANCELLED';
@@ -57,6 +59,7 @@ type SchedulingRequestQueueItem = {
   invoice_number?: string; // Add this to display
   invoice_status: InvoiceDocumentStatus; // Use new enum type
   progress_status: number; // Added for progress bar
+  updated_at?: string;
 };
 
 type Product = {
@@ -129,6 +132,10 @@ const BillingReviewPage = () => {
   const [invoiceDate, setInvoiceDate] = useState<Date>(new Date());
   const [activeRowId, setActiveRowId] = useState<string | null>(null); // State for active row in table
   const [withTax, setWithTax] = useState<boolean>(false);
+  const [searchValue, setSearchValue] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("custom");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const hasUnsavedChanges = useMemo(() => {
     return selectedRequest !== null && (invoiceItems.length > 0 || withTax);
@@ -166,6 +173,7 @@ const BillingReviewPage = () => {
         status,
         technician_name,
         invoice_status,
+        updated_at,
         invoices (invoice_number)
       `)
       .eq("status", "completed")
@@ -214,6 +222,38 @@ const BillingReviewPage = () => {
     }
   }, [isAuthLoading, session, profile, navigate]);
 
+  const dateRange = useMemo(
+    () => getDateRange(datePreset, startDate, endDate),
+    [datePreset, startDate, endDate]
+  );
+
+  const filteredQueue = useMemo(
+    () =>
+      filterRows(
+        queue,
+        searchValue,
+        dateRange,
+        (row) => (row.updated_at ? new Date(row.updated_at) : null)
+      ),
+    [queue, searchValue, dateRange]
+  );
+
+  const exportColumns = useMemo<ExportColumn<SchedulingRequestQueueItem>[]>(
+    () => [
+      { header: "SR Number", value: (row) => row.sr_number },
+      { header: "Customer Name", value: (row) => row.customer_name },
+      { header: "DO Number", value: (row) => row.do_number || "-" },
+      { header: "Technician", value: (row) => row.technician_name || "N/A" },
+      { header: "Invoice Number", value: (row) => row.invoice_number || "-" },
+      { header: "Invoice Status", value: (row) => row.invoice_status },
+    ],
+    []
+  );
+
+  const handleExport = () => {
+    exportToCsv("billing-review-queue", exportColumns, filteredQueue);
+  };
+
   const handleSelectRequest = (request: SchedulingRequestQueueItem) => {
     setSelectedRequest(request);
     setInvoiceItems([]);
@@ -254,7 +294,7 @@ const BillingReviewPage = () => {
     setInvoiceItems((prev) =>
       prev.map((item) => {
         if (item.tempId === tempId) {
-          let updatedItem = { ...item, [field]: value };
+          const updatedItem = { ...item, [field]: value };
 
           if (field === "quantity" || field === "unit_price") {
             // If quantity or unit_price changes, recalculate subtotal
@@ -309,6 +349,12 @@ const BillingReviewPage = () => {
   const grandTotal = useMemo(() => {
     return subtotalAmount + taxAmount;
   }, [subtotalAmount, taxAmount]);
+
+  const allItemsService = useMemo(() => {
+    return invoiceItems.length > 0 && invoiceItems.every((item) => item.product_type === "SERVICE");
+  }, [invoiceItems]);
+
+  const canFinalizeInvoice = invoiceItems.length > 0 && (grandTotal > 0 || allItemsService);
 
   const handleFinalizeInvoice = async () => {
     if (!selectedRequest) {
@@ -463,16 +509,33 @@ const BillingReviewPage = () => {
       <h1 className="text-3xl font-bold mb-6 text-neon-cyan">Antrean Melengkapi Item Invoice</h1>
 
       <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg glassmorphism border border-neon-cyan/30">
-        <ResizablePanel defaultSize={30} minSize={20}>
-          <ScrollArea className="h-full p-4">
+        <ResizablePanel defaultSize={30} minSize={20} className="relative z-10">
+          <div className="p-4">
             <h2 className="text-xl font-semibold mb-4 text-neon-cyan">Completed Requests (DRAFT Invoice)</h2>
-            {queue.length === 0 ? (
+            <div className="mb-4">
+              <TableToolbar
+                searchValue={searchValue}
+                onSearchChange={setSearchValue}
+                datePreset={datePreset}
+                onDatePresetChange={setDatePreset}
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+                onExport={handleExport}
+                exportDisabled={filteredQueue.length === 0}
+                searchPlaceholder="Cari SR atau customer..."
+              />
+            </div>
+          </div>
+          <ScrollArea className="h-full px-4 pb-4">
+            {filteredQueue.length === 0 ? (
               <div className="h-full flex items-center justify-center text-gray-500 border border-dashed border-gray-700 rounded-md p-4 radar-grid-background">
                 <p>No completed requests awaiting billing review. Scanning...</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3"> {/* Bento Box Grid */}
-                {queue.map((req) => (
+                {filteredQueue.map((req) => (
                   <Card
                     key={req.id}
                     className={cn(
@@ -504,7 +567,7 @@ const BillingReviewPage = () => {
           </ScrollArea>
         </ResizablePanel>
         <ResizableHandle withHandle className="bg-gray-700 hover:bg-neon-cyan transition-colors" />
-        <ResizablePanel defaultSize={70} minSize={50}>
+        <ResizablePanel defaultSize={70} minSize={50} className="relative z-0">
           <ScrollArea className="h-full p-6">
             {selectedRequest ? (
               <div className="space-y-6">
@@ -735,7 +798,7 @@ const BillingReviewPage = () => {
                 <div className="flex justify-end mt-6">
                   <Button
                     onClick={handleFinalizeInvoice}
-                    disabled={isFinalizing || invoiceItems.length === 0 || grandTotal <= 0}
+                    disabled={isFinalizing || !canFinalizeInvoice}
                     className="bg-electric-violet text-white text-lg px-8 py-6 hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300"
                   >
                     {isFinalizing ? "Finalizing..." : "Finalize & Generate Invoice"}

@@ -25,6 +25,8 @@ export type Invoice = {
   notes?: string;
   document_url?: string;
   stock_deducted?: boolean;
+  updated_at?: string;
+  created_at?: string;
 };
 
 interface CreateBillingListColumnsOptions {

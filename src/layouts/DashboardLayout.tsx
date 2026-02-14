@@ -57,7 +57,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       name: "Dashboard",
       href: "/dashboard",
       icon: Home,
-      roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV", "TECHNICIAN", "ACCOUNTING", "USER"],
+      roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV", "TECHNICIAN", "ACCOUNTING", "USER", "STAFF"],
     },
     {
       name: "User Management",
@@ -81,13 +81,19 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       name: "Procurement",
       href: "/operasional/procurement",
       icon: ClipboardList,
-      roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"],
+      roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV", "STAFF"],
     },
     {
       name: "Purchase Requests",
       href: "/operasional/purchase-requests",
       icon: FileText,
       roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"],
+    },
+    {
+      name: "Utility Requests",
+      href: "/operasional/utility-requests",
+      icon: ClipboardList,
+      roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV", "STAFF"],
     },
     {
       name: "Delivery Orders",

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/auth-session";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,8 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 import DeliveryOrderDetail from "@/components/operasional/delivery-orders/DeliveryOrderDetail"; // Import new detail component
+import { TableToolbar } from "@/components/shared/TableToolbar";
+import { DatePreset, buildExportColumns, exportToCsv, filterRows, getDateRange } from "@/utils/table-tools";
 
 const DeliveryOrderPage = () => {
   const { session, profile, isLoading: isAuthLoading } = useAuthSession();
@@ -21,6 +23,10 @@ const DeliveryOrderPage = () => {
   const [deliveryOrders, setDeliveryOrders] = useState<DeliveryOrder[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
   const [selectedDO, setSelectedDO] = useState<DeliveryOrder | null>(null);
+  const [searchValue, setSearchValue] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("custom");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const fetchDeliveryOrders = async () => {
     setIsLoadingOrders(true);
@@ -71,6 +77,28 @@ const DeliveryOrderPage = () => {
 
   const columns = useMemo(() => createDeliveryOrderColumns(), []);
 
+  const dateRange = useMemo(
+    () => getDateRange(datePreset, startDate, endDate),
+    [datePreset, startDate, endDate]
+  );
+
+  const filteredOrders = useMemo(
+    () =>
+      filterRows(
+        deliveryOrders,
+        searchValue,
+        dateRange,
+        (row) => (row.created_at ? new Date(row.created_at) : null)
+      ),
+    [deliveryOrders, searchValue, dateRange]
+  );
+
+  const exportColumns = useMemo(() => buildExportColumns<DeliveryOrder>(columns), [columns]);
+
+  const handleExport = () => {
+    exportToCsv("delivery-orders", exportColumns, filteredOrders);
+  };
+
   if (isAuthLoading || isLoadingOrders) {
     return (
       <DashboardLayout>
@@ -103,12 +131,27 @@ const DeliveryOrderPage = () => {
         <ResizablePanel defaultSize={50} minSize={30}>
           <ScrollArea className="h-full p-4">
             <h2 className="text-xl font-semibold mb-4 text-neon-cyan">All Delivery Orders</h2>
-            {deliveryOrders.length === 0 ? (
+            <div className="mb-4">
+              <TableToolbar
+                searchValue={searchValue}
+                onSearchChange={setSearchValue}
+                datePreset={datePreset}
+                onDatePresetChange={setDatePreset}
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+                onExport={handleExport}
+                exportDisabled={filteredOrders.length === 0}
+                searchPlaceholder="Cari DO..."
+              />
+            </div>
+            {filteredOrders.length === 0 ? (
               <div className="h-full flex items-center justify-center text-gray-500 border border-dashed border-gray-700 rounded-md p-4 radar-grid-background">
                 <p>No delivery orders found. Initiating scan...</p>
               </div>
             ) : (
-              <DeliveryOrderTable columns={columns} data={deliveryOrders} onRowClick={setSelectedDO} />
+              <DeliveryOrderTable columns={columns} data={filteredOrders} onRowClick={setSelectedDO} />
             )}
           </ScrollArea>
         </ResizablePanel>

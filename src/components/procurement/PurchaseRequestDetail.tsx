@@ -13,11 +13,12 @@ import { PurchaseRequestActionDialog } from './PurchaseRequestActionDialog'; // 
 
 interface PurchaseRequestDetailProps {
   request: PurchaseRequest;
+  canManage: boolean;
   onUpdate: () => void;
   onClose: () => void;
 }
 
-const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: initialRequest, onUpdate, onClose }) => {
+const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: initialRequest, canManage, onUpdate, onClose }) => {
   const [request, setRequest] = useState<PurchaseRequest>(initialRequest);
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
   const [currentAction, setCurrentAction] = useState<'approved' | 'rejected' | null>(null); // Now 'approved' also uses the dialog
@@ -143,7 +144,7 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-4">
           <h1 className="text-2xl font-bold text-neon-cyan">Purchase Request Information</h1>
           <div className="flex flex-wrap gap-2">
-            {isPending && (
+            {isPending && canManage && (
               <>
                 <Button
                   className="bg-green-600 text-white hover:bg-green-700 transition-all duration-300 text-sm py-2 px-3"

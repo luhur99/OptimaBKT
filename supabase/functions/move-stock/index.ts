@@ -1,8 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
+// Set ALLOWED_ORIGIN in Supabase edge function secrets to restrict to your production domain.
+// Example: supabase secrets set ALLOWED_ORIGIN=https://your-app.vercel.app
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
@@ -11,12 +13,20 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const authHeader = req.headers.get('Authorization') ?? '';
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   const supabaseClient = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     {
       global: {
-        headers: { Authorization: req.headers.get('Authorization')! },
+        headers: { Authorization: authHeader },
       },
     }
   );
@@ -53,6 +63,26 @@ serve(async (req) => {
 
     if (!product_id || !from_warehouse_category || !to_warehouse_category || !quantity || quantity <= 0) {
       return new Response(JSON.stringify({ error: 'Missing or invalid required fields: product_id, from_warehouse_category, to_warehouse_category, quantity (must be > 0)' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_REGEX.test(product_id)) {
+      return new Response(JSON.stringify({ error: 'Invalid product_id format.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (typeof from_warehouse_category !== 'string' || from_warehouse_category.trim().length === 0 || from_warehouse_category.length > 100) {
+      return new Response(JSON.stringify({ error: 'Invalid from_warehouse_category value.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (typeof to_warehouse_category !== 'string' || to_warehouse_category.trim().length === 0 || to_warehouse_category.length > 100) {
+      return new Response(JSON.stringify({ error: 'Invalid to_warehouse_category value.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

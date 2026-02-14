@@ -1,6 +1,4 @@
-"use client";
-
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -49,6 +47,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import DashboardLayout from "@/layouts/DashboardLayout"; // Import DashboardLayout
+import { TableToolbar } from "@/components/shared/TableToolbar";
+import { DatePreset, ExportColumn, exportToCsv, filterRows, getDateRange } from "@/utils/table-tools";
 
 // Define the type for a scheduling request based on your Supabase schema
 type InvoiceDocumentStatus = 'DRAFT' | 'PENDING' | 'PAID' | 'CANCELLED';
@@ -71,6 +71,7 @@ interface SchedulingRequest {
   payment_method?: string;
   status: "pending" | "approved" | "rejected" | "rescheduled" | "completed" | "cancelled" | "in_progress";
   created_at: string;
+  updated_at?: string;
   assigned_technician_id?: string;
   technician_name?: string;
   technician_type?: "INTERNAL" | "EXTERNAL";
@@ -100,6 +101,10 @@ const OperasionalSchedulingPage = () => {
   const [technicianType, setTechnicianType] = useState<"INTERNAL" | "EXTERNAL">("INTERNAL");
   const [externalTechnicianName, setExternalTechnicianName] = useState<string | undefined>(undefined);
   const [isApproving, setIsApproving] = useState<string | null>(null);
+  const [searchValue, setSearchValue] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("custom");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const { data: schedulingRequests, isLoading, error } = useQuery<SchedulingRequest[]>({
     queryKey: ["scheduling_requests"],
@@ -139,6 +144,39 @@ const OperasionalSchedulingPage = () => {
       default:
         return "default";
     }
+  };
+
+  const dateRange = useMemo(
+    () => getDateRange(datePreset, startDate, endDate),
+    [datePreset, startDate, endDate]
+  );
+
+  const filteredRequests = useMemo(
+    () =>
+      filterRows(
+        schedulingRequests || [],
+        searchValue,
+        dateRange,
+        (row) => (row.updated_at ? new Date(row.updated_at) : row.created_at ? new Date(row.created_at) : null)
+      ),
+    [schedulingRequests, searchValue, dateRange]
+  );
+
+  const exportColumns = useMemo<ExportColumn<SchedulingRequest>[]>(
+    () => [
+      { header: "SR Number", value: (row) => row.sr_number },
+      { header: "Customer Name", value: (row) => row.customer_name },
+      { header: "Type", value: (row) => row.type },
+      { header: "Product Category", value: (row) => row.product_category || "-" },
+      { header: "Requested Date", value: (row) => row.requested_date },
+      { header: "Technician", value: (row) => row.technician_name || "N/A" },
+      { header: "Status", value: (row) => row.status },
+    ],
+    []
+  );
+
+  const handleExport = () => {
+    exportToCsv("scheduling-requests", exportColumns, filteredRequests);
   };
 
   const handleApproveRequest = async (request: SchedulingRequest) => {
@@ -373,27 +411,51 @@ const OperasionalSchedulingPage = () => {
         <h1 className="text-3xl font-bold mb-6 text-neon-cyan">Operasional Scheduling Requests</h1>
 
         <div className="overflow-x-auto bg-gray-800 rounded-lg shadow-lg p-4">
+          <div className="mb-4">
+            <TableToolbar
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              datePreset={datePreset}
+              onDatePresetChange={setDatePreset}
+              startDate={startDate}
+              endDate={endDate}
+              onStartDateChange={setStartDate}
+              onEndDateChange={setEndDate}
+              onExport={handleExport}
+              exportDisabled={filteredRequests.length === 0}
+              searchPlaceholder="Cari SR..."
+            />
+          </div>
           <Table className="w-full">
             <TableHeader>
               <TableRow className="bg-gray-700 hover:bg-gray-700">
-                <TableHead className="text-neon-cyan">SR Number</TableHead>
-                <TableHead className="text-neon-cyan">Customer Name</TableHead>
-                <TableHead className="text-neon-cyan">Type</TableHead>
-                <TableHead className="text-neon-cyan">Product Category</TableHead>
-                <TableHead className="text-neon-cyan">Requested Date</TableHead>
-                <TableHead className="text-neon-cyan">Technician</TableHead>
-                <TableHead className="text-neon-cyan">Status</TableHead>
-                <TableHead className="text-neon-cyan text-right">Actions</TableHead>
+                {[
+                  { label: "SR Number" },
+                  { label: "Customer Name" },
+                  { label: "Type" },
+                  { label: "Product Category" },
+                  { label: "Requested Date" },
+                  { label: "Technician" },
+                  { label: "Status" },
+                  { label: "Actions", className: "text-right" },
+                ].map((column) => (
+                  <TableHead
+                    key={column.label}
+                    className={cn("text-neon-cyan", column.className)}
+                  >
+                    {column.label}
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {schedulingRequests?.map((request) => (
+              {filteredRequests.map((request) => (
                 <TableRow key={request.id} className="border-gray-700 hover:bg-gray-700/50">
                   <TableCell className="font-medium">{request.sr_number}</TableCell>
                   <TableCell>{request.customer_name}</TableCell>
                   <TableCell>{request.type}</TableCell>
                   <TableCell>{request.product_category}</TableCell>
-                  <TableCell>{format(new Date(request.created_at), "PPP")}</TableCell> {/* Changed to created_at for consistency with sorting */}
+                  <TableCell>{format(new Date(`${request.requested_date}T00:00:00`), "PPP")}</TableCell>
                   <TableCell>{request.technician_name || "N/A"}</TableCell>
                   <TableCell>
                     <Badge variant={getStatusBadgeVariant(request.status)}>{request.status}</Badge>
@@ -425,7 +487,7 @@ const OperasionalSchedulingPage = () => {
                           </Tooltip>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button key="reject" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'rejected')}>
+                              <Button key="reject" variant="ghost" size="icon" onClick={() => handleOpenModal(request, "rejected")}>
                                 <XCircle className="h-5 w-5 text-red-500" />
                               </Button>
                             </TooltipTrigger>
@@ -435,7 +497,7 @@ const OperasionalSchedulingPage = () => {
                           </Tooltip>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button key="reschedule" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'rescheduled')}>
+                              <Button key="reschedule" variant="ghost" size="icon" onClick={() => handleOpenModal(request, "rescheduled")}>
                                 <CalendarDays className="h-5 w-5 text-blue-500" />
                               </Button>
                             </TooltipTrigger>
@@ -449,7 +511,7 @@ const OperasionalSchedulingPage = () => {
                         <>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button key="in_progress" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'in_progress')}>
+                              <Button key="in_progress" variant="ghost" size="icon" onClick={() => handleOpenModal(request, "in_progress")}>
                                 <Truck className="h-5 w-5 text-orange-500" />
                               </Button>
                             </TooltipTrigger>
@@ -459,7 +521,7 @@ const OperasionalSchedulingPage = () => {
                           </Tooltip>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button key="complete" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'completed')}>
+                              <Button key="complete" variant="ghost" size="icon" onClick={() => handleOpenModal(request, "completed")}>
                                 <CheckCircle className="h-5 w-5 text-purple-500" />
                               </Button>
                             </TooltipTrigger>
@@ -469,7 +531,7 @@ const OperasionalSchedulingPage = () => {
                           </Tooltip>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button key="cancel" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'cancelled')}>
+                              <Button key="cancel" variant="ghost" size="icon" onClick={() => handleOpenModal(request, "cancelled")}>
                                 <XCircle className="h-5 w-5 text-gray-500" />
                               </Button>
                             </TooltipTrigger>
@@ -481,7 +543,7 @@ const OperasionalSchedulingPage = () => {
                       )}
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button key="edit" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'edit')}>
+                          <Button key="edit" variant="ghost" size="icon" onClick={() => handleOpenModal(request, "edit")}>
                             <Edit className="h-5 w-5 text-blue-400" />
                           </Button>
                         </TooltipTrigger>
@@ -524,7 +586,7 @@ const OperasionalSchedulingPage = () => {
                       {request.invoice_id && (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button key="view_invoice" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'view_invoice')}>
+                            <Button key="view_invoice" variant="ghost" size="icon" onClick={() => handleOpenModal(request, "view_invoice")}>
                               <FileText className="h-5 w-5 text-indigo-500" />
                             </Button>
                           </TooltipTrigger>
@@ -536,7 +598,7 @@ const OperasionalSchedulingPage = () => {
                       {request.status === "approved" && !request.delivery_order_id && (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button key="create_delivery_order" variant="ghost" size="icon" onClick={() => handleOpenModal(request, 'create_delivery_order')}>
+                            <Button key="create_delivery_order" variant="ghost" size="icon" onClick={() => handleOpenModal(request, "create_delivery_order")}>
                               <Truck className="h-5 w-5 text-cyan-500" />
                             </Button>
                           </TooltipTrigger>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "@/hooks/auth-session";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { CreatePurchaseRequestForm } from "@/components/procurement/CreatePurchaseRequestForm";
+import { CreateUtilityRequestForm } from "@/components/procurement/CreateUtilityRequestForm";
 import { PurchaseOrderTable, createPurchaseOrderColumns, PurchaseOrder } from "@/components/procurement/PurchaseOrderTable";
 import { PurchaseOrderDetail } from "@/components/procurement/PurchaseOrderDetail";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { QuickAddCustomerSupplierForm } from "@/components/shared/QuickAddCustomerSupplierForm"; // Import new form
+import { TableToolbar } from "@/components/shared/TableToolbar";
+import { DatePreset, buildExportColumns, exportToCsv, filterRows, getDateRange } from "@/utils/table-tools";
 
 const ProcurementPage = () => {
   const { session, profile, isLoading: isAuthLoading } = useAuthSession();
@@ -35,6 +38,10 @@ const ProcurementPage = () => {
   const [activeTab, setActiveTab] = useState<string>("manage-pos");
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   const [isQuickAddSupplierDialogOpen, setIsQuickAddSupplierDialogOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("custom");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const fetchPurchaseOrders = async () => {
     setIsLoadingPOs(true);
@@ -70,10 +77,14 @@ const ProcurementPage = () => {
   useEffect(() => {
     if (!isAuthLoading) {
       if (!session) {
-        navigate("/");
+        navigate("/login");
         return;
       }
-      fetchPurchaseOrders();
+      if (profile?.role === "STAFF") {
+        setIsLoadingPOs(false);
+      } else {
+        fetchPurchaseOrders();
+      }
     }
   }, [isAuthLoading, session, profile, navigate]);
 
@@ -89,6 +100,28 @@ const ProcurementPage = () => {
   };
 
   const columns = useMemo(() => createPurchaseOrderColumns(), []);
+
+  const dateRange = useMemo(
+    () => getDateRange(datePreset, startDate, endDate),
+    [datePreset, startDate, endDate]
+  );
+
+  const filteredPurchaseOrders = useMemo(
+    () =>
+      filterRows(
+        purchaseOrders,
+        searchValue,
+        dateRange,
+        (row) => (row.created_at ? new Date(row.created_at) : null)
+      ),
+    [purchaseOrders, searchValue, dateRange]
+  );
+
+  const exportColumns = useMemo(() => buildExportColumns<PurchaseOrder>(columns), [columns]);
+
+  const handleExport = () => {
+    exportToCsv("purchase-orders", exportColumns, filteredPurchaseOrders);
+  };
 
   if (isAuthLoading || isLoadingPOs) {
     return (
@@ -127,6 +160,24 @@ const ProcurementPage = () => {
     );
   }
 
+  if (profile?.role === "STAFF") {
+    return (
+      <DashboardLayout>
+        <h1 className="text-3xl font-bold mb-6 text-neon-cyan">Utility Request</h1>
+        <Card className="glassmorphism border border-electric-violet/30">
+          <CardHeader>
+            <CardTitle className="text-electric-violet">New Utility Request</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CreateUtilityRequestForm onURCreated={() => {
+              showSuccess("Utility Request created successfully!");
+            }} />
+          </CardContent>
+        </Card>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <h1 className="text-3xl font-bold mb-6 text-neon-cyan">Procurement Management</h1>
@@ -134,6 +185,7 @@ const ProcurementPage = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
         <TabsList className="bg-midnight-blue border border-gray-700">
           <TabsTrigger value="create-pr" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Create Purchase Request</TabsTrigger>
+          <TabsTrigger value="create-ur" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Create Utility Request</TabsTrigger>
           <TabsTrigger value="manage-pos" className="data-[state=active]:bg-neon-cyan/20 data-[state=active]:text-neon-cyan data-[state=active]:shadow-neon-glow text-gray-400">Manage Purchase Orders</TabsTrigger>
         </TabsList>
         <TabsContent value="create-pr" className="mt-4">
@@ -170,14 +222,41 @@ const ProcurementPage = () => {
             </CardContent>
           </Card>
         </TabsContent>
+        <TabsContent value="create-ur" className="mt-4">
+          <Card className="glassmorphism border border-electric-violet/30">
+            <CardHeader className="flex flex-row justify-between items-center">
+              <CardTitle className="text-electric-violet">New Utility Request</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CreateUtilityRequestForm onURCreated={() => {
+                showSuccess("Utility Request created successfully!");
+              }} />
+            </CardContent>
+          </Card>
+        </TabsContent>
         <TabsContent value="manage-pos" className="mt-4">
           <ResizablePanelGroup direction="horizontal" className="min-h-[700px] rounded-lg glassmorphism border border-neon-cyan/30">
             <ResizablePanel defaultSize={50} minSize={30}>
               <div className="p-4 h-full">
                 <h2 className="text-xl font-semibold mb-4 text-neon-cyan">All Purchase Orders</h2>
+                <div className="mb-4">
+                  <TableToolbar
+                    searchValue={searchValue}
+                    onSearchChange={setSearchValue}
+                    datePreset={datePreset}
+                    onDatePresetChange={setDatePreset}
+                    startDate={startDate}
+                    endDate={endDate}
+                    onStartDateChange={setStartDate}
+                    onEndDateChange={setEndDate}
+                    onExport={handleExport}
+                    exportDisabled={filteredPurchaseOrders.length === 0}
+                    searchPlaceholder="Cari PO..."
+                  />
+                </div>
                 <PurchaseOrderTable
                   columns={columns}
-                  data={purchaseOrders}
+                  data={filteredPurchaseOrders}
                   onRowClick={setSelectedPO}
                 />
               </div>

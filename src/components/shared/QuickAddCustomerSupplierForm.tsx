@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { type FieldErrors, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -100,6 +100,12 @@ export function QuickAddCustomerSupplierForm({
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
+      if (!session?.user?.id) {
+        showError("You must be signed in to add customers or suppliers.");
+        setIsSubmitting(false);
+        return;
+      }
+
       if (values.entry_type === "customer") {
         const { error } = await supabase.from("customers").insert({
           user_id: session?.user?.id,
@@ -135,10 +141,17 @@ export function QuickAddCustomerSupplierForm({
     }
   }
 
+  const handleValidationError = (errors: FieldErrors<z.infer<typeof formSchema>>) => {
+    const firstError = Object.values(errors)[0];
+    const message = firstError?.message || "Periksa kembali isian wajib.";
+    showError(String(message));
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 text-gray-300">
+      <form onSubmit={form.handleSubmit(onSubmit, handleValidationError)} className="space-y-6 text-gray-300">
         <div className="flex items-center justify-between p-3 rounded-lg bg-gray-900/50 border border-gray-800">
+          <span className="text-sm text-gray-400">Jenis Data *</span>
           <FormField
             control={form.control}
             name="entry_type"
@@ -196,7 +209,7 @@ export function QuickAddCustomerSupplierForm({
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{entryType === "customer" ? "Customer Name" : "Supplier Name"}</FormLabel>
+                    <FormLabel>{entryType === "customer" ? "Nama Customer *" : "Nama Supplier *"}</FormLabel>
                     <FormControl>
                       <Input placeholder={entryType === "customer" ? "John Doe" : "PT. Maju Mundur"} {...field} className="glassmorphism border border-gray-700 text-gray-300 focus:border-neon-cyan" />
                     </FormControl>
@@ -210,7 +223,7 @@ export function QuickAddCustomerSupplierForm({
                 name="company_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Company Name (Optional)</FormLabel>
+                    <FormLabel>Nama Perusahaan (Opsional)</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., PT. ABC Jaya" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
                     </FormControl>
@@ -225,7 +238,7 @@ export function QuickAddCustomerSupplierForm({
                   name="customer_type"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Customer Type</FormLabel>
+                      <FormLabel>Tipe Customer *</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger className="glassmorphism border border-gray-700 text-gray-300">
@@ -247,7 +260,7 @@ export function QuickAddCustomerSupplierForm({
                   name="contact_person"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Contact Person</FormLabel>
+                      <FormLabel>Nama Contact Person *</FormLabel>
                       <FormControl>
                         <Input placeholder="Nama contact person" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
                       </FormControl>
@@ -265,7 +278,7 @@ export function QuickAddCustomerSupplierForm({
                   name="phone_number"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
+                      <FormLabel>Nomor Telepon</FormLabel>
                       <FormControl>
                         <Input type="tel" placeholder="0812..." {...field} className="glassmorphism border border-gray-700 text-gray-300" />
                       </FormControl>
@@ -278,7 +291,7 @@ export function QuickAddCustomerSupplierForm({
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email (Optional)</FormLabel>
+                      <FormLabel>Email (Opsional)</FormLabel>
                       <FormControl>
                         <Input type="email" placeholder="mail@pt.com" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
                       </FormControl>
@@ -293,7 +306,7 @@ export function QuickAddCustomerSupplierForm({
                 name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Address (Optional)</FormLabel>
+                    <FormLabel>Alamat (Opsional)</FormLabel>
                     <FormControl>
                       <Textarea placeholder="Alamat lengkap..." {...field} className="glassmorphism border border-gray-700 text-gray-300 min-h-[80px]" />
                     </FormControl>
@@ -308,7 +321,7 @@ export function QuickAddCustomerSupplierForm({
                   name="notes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Notes (Optional)</FormLabel>
+                      <FormLabel>Catatan (Opsional)</FormLabel>
                       <FormControl>
                         <Input placeholder="Catatan tambahan" {...field} className="glassmorphism border border-gray-700 text-gray-300" />
                       </FormControl>
@@ -327,7 +340,7 @@ export function QuickAddCustomerSupplierForm({
             className="w-full bg-electric-violet text-white hover:bg-electric-violet/80 neon-violet-glow-hover transition-all duration-300 h-11 text-lg font-semibold"
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Adding..." : `Tambah ${entryType === "customer" ? "Customer" : "Supplier"}`}
+            {isSubmitting ? "Menyimpan..." : `Tambah ${entryType === "customer" ? "Customer" : "Supplier"}`}
           </Button>
         </div>
       </form>
