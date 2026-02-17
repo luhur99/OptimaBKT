@@ -171,6 +171,7 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
           notes,
           document_url,
           stock_deducted,
+          updated_at,
           subtotal_amount,
           tax_amount,
           with_tax
@@ -198,7 +199,8 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
               do_number,
               notes,
               document_url,
-              stock_deducted
+              stock_deducted,
+              updated_at
             `)
             .eq('id', initialInvoice.id)
             .single();
@@ -699,6 +701,9 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
               <Separator className="bg-gray-800 my-2" />
 
               <div className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Payment Status: <Badge className={getPaymentStatusColor(invoice.payment_status)}>{invoice.payment_status.replace(/_/g, ' ').toUpperCase()}</Badge></div>
+              {invoice.payment_status === 'paid' && invoice.updated_at && (
+                <div className="flex items-center text-sm"><Calendar className="mr-2 h-4 w-4 text-lime-400" /> Tanggal Paid: <span className="ml-2 font-medium">{format(new Date(invoice.updated_at), "dd/MM/yy")}</span></div>
+              )}
               <div className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Invoice Status: <Badge className={getInvoiceDocumentStatusColor(invoice.invoice_status)}>{invoice.invoice_status.replace(/_/g, ' ').toUpperCase()}</Badge></div>
               {hasUserEditedInvoice && (
                 <div className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-orange-400" /> Edit Status: <Badge className="bg-orange-600/20 text-orange-300 border border-orange-500/30">Edited by user</Badge></div>
