@@ -45,14 +45,31 @@ const LoginPage = lazy(() => import("./pages/LoginPage"));
 const SupabaseTestPage = lazy(() => import("./pages/SupabaseTestPage"));
 import { AuthSessionProvider } from "@/hooks/auth-session";
 import ProtectedRoute from "@/components/shared/ProtectedRoute";
+import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 3,       // data stays fresh for 3 min — no refetch on tab switch
+      gcTime: 1000 * 60 * 10,          // keep unused cache for 10 min
+      refetchOnWindowFocus: false,      // don't refetch just because user switched tabs
+      refetchOnReconnect: true,         // DO refetch when network comes back online
+      retry: (failureCount, error: any) => {
+        // Don't retry on auth errors or not-found — only on network/server errors
+        if (error?.status === 401 || error?.status === 403 || error?.status === 404) return false;
+        return failureCount < 2;
+      },
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000), // 1s, 2s, 4s, max 8s
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <ErrorBoundary>
       <AuthSessionProvider>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Suspense
@@ -185,6 +202,7 @@ const App = () => (
           </Suspense>
         </BrowserRouter>
       </AuthSessionProvider>
+      </ErrorBoundary>
     </TooltipProvider >
   </QueryClientProvider >
 );

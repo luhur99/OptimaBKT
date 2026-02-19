@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -43,17 +44,16 @@ export function SuperAdminDashboard() {
     },
   });
 
-  // Mappings for Calendars
-  const srEvents = (schedulingRequests.data || []).map((sr: any) => ({
+  const srEvents = useMemo(() => (schedulingRequests.data || []).map((sr: any) => ({
     id: sr.id,
     date: sr.requested_date,
     time: sr.requested_time,
     title: `${sr.sr_number} - ${sr.customer_name}`,
     type: "SR" as const,
     status: sr.status,
-  }));
+  })), [schedulingRequests.data]);
 
-  const techEvents = (deliveryOrders.data || []).map((do_item: any) => ({
+  const techEvents = useMemo(() => (deliveryOrders.data || []).map((do_item: any) => ({
     id: do_item.id,
     date: do_item.delivery_date,
     time: do_item.delivery_time,
@@ -62,19 +62,18 @@ export function SuperAdminDashboard() {
     status: do_item.status,
     technician_id: do_item.technician_id,
     technician_name: do_item.technician_name,
-  }));
+  })), [deliveryOrders.data]);
 
-  // Mappings for Alerts
-  const prAlerts = (pendingPurchaseRequests.data || []).map((pr: any) => ({
+  const prAlerts = useMemo(() => (pendingPurchaseRequests.data || []).map((pr: any) => ({
     id: pr.id,
     title: pr.item_name,
     subtitle: `${pr.pr_number} - ${pr.quantity} unit - Oleh: ${pr.profiles?.full_name || "Unknown"}`,
     status: pr.status,
     statusColor: "bg-yellow-500/20 text-yellow-500",
     link: `/operasional/procurement`,
-  }));
+  })), [pendingPurchaseRequests.data]);
 
-  const stockAlerts = (lowStockProducts.data || []).map((p: any) => ({
+  const stockAlerts = useMemo(() => (lowStockProducts.data || []).map((p: any) => ({
     id: p.id,
     title: p.nama_barang,
     subtitle: `Kode: ${p.kode_barang}`,
@@ -82,9 +81,9 @@ export function SuperAdminDashboard() {
     status: "LOW STOCK",
     statusColor: "bg-red-500/20 text-red-500",
     link: `/operasional/products`,
-  }));
+  })), [lowStockProducts.data]);
 
-  const invoiceAlerts = (pendingInvoices.data || []).map((inv: any) => ({
+  const invoiceAlerts = useMemo(() => (pendingInvoices.data || []).map((inv: any) => ({
     id: inv.id,
     title: inv.invoice_number || "Draft Invoice",
     subtitle: inv.invoice_date ? format(new Date(inv.invoice_date), "dd MMM yyyy") : "No date",
@@ -92,7 +91,7 @@ export function SuperAdminDashboard() {
     status: "PENDING",
     statusColor: "bg-yellow-500/20 text-yellow-500",
     link: `/operasional/billing-list`,
-  }));
+  })), [pendingInvoices.data]);
 
   return (
     <div className="space-y-6">

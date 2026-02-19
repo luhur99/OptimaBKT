@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -82,6 +82,9 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
   const [itemForm, setItemForm] = useState<InvoiceItemDraft | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
+  const mountedRef = useRef(true);
+  useEffect(() => { return () => { mountedRef.current = false; }; }, []);
+
   const hasUserEditedInvoice = useMemo(() => (invoice.notes || '').includes(EDITED_NOTE_TAG), [invoice.notes]);
 
   const buildEditedNote = (existing?: string) => {
@@ -151,7 +154,7 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
   };
 
   const fetchInvoiceDetails = useCallback(async () => {
-    console.log(`BillingListDetail: fetchInvoiceDetails called for invoice ID: ${initialInvoice.id}`);
+    if (!mountedRef.current) return;
     setIsLoadingDetails(true);
     try {
       const { data: updatedInvoice, error: invoiceError } = await supabase
@@ -211,11 +214,12 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
         }
       }
 
+      if (!mountedRef.current) return;
       setInvoice({
         ...finalInvoice,
-        user_full_name: finalInvoice.profiles?.full_name || "System", // Manually join
+        user_full_name: (finalInvoice as any).profiles?.full_name || "System",
         payment_status: finalInvoice.payment_status as Invoice['payment_status'],
-        invoice_status: finalInvoice.invoice_status as InvoiceDocumentStatus, // Cast to new enum type
+        invoice_status: finalInvoice.invoice_status as InvoiceDocumentStatus,
       });
 
       // Fetch SR Number from scheduling_requests table
@@ -225,38 +229,35 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
         .eq('invoice_id', initialInvoice.id)
         .single();
 
-      if (srError && srError.code !== 'PGRST116') { // PGRST116 means "no rows found"
-        console.warn("Could not fetch associated scheduling request SR number:", srError.message);
+      if (!mountedRef.current) return;
+      if (srError && srError.code !== 'PGRST116') {
         setSrNumber(null);
       } else {
         setSrNumber(srData?.sr_number || null);
       }
 
-      console.log(`BillingListDetail: Fetching invoice_items for invoice_id: ${initialInvoice.id}`); // New log
       const { data: itemsData, error: itemsError } = await supabase
         .from('invoice_items')
         .select('*')
         .eq('invoice_id', initialInvoice.id);
 
+      if (!mountedRef.current) return;
       if (itemsError) {
-        console.warn("Could not fetch associated invoice items:", itemsError.message);
         setInvoiceItems([]);
       } else {
-        console.log("BillingListDetail: Fetched itemsData from Supabase:", itemsData); // New log
         const mappedItems = (itemsData || []).map((item: InvoiceItem) => ({
           ...item,
           tempId: item.id,
           isNew: false,
         }));
         setInvoiceItems(mappedItems);
-        console.log("BillingListDetail: Invoice items state after set:", itemsData || []); // New log
       }
 
     } catch (error: any) {
-      console.error("Error fetching invoice details:", error.message);
+      if (!mountedRef.current) return;
       showError("Failed to load invoice details: " + error.message);
     } finally {
-      setIsLoadingDetails(false);
+      if (mountedRef.current) setIsLoadingDetails(false);
     }
   }, [initialInvoice.id]);
 
@@ -265,6 +266,7 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
   }, [fetchInvoiceDetails]);
 
   const fetchProducts = useCallback(async () => {
+    if (!mountedRef.current) return;
     setIsLoadingProducts(true);
     const { data, error } = await supabase
       .from('products')
@@ -278,8 +280,8 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
         warehouse_inventories (warehouse_category, quantity)
       `);
 
+    if (!mountedRef.current) return;
     if (error) {
-      console.error('Error fetching products:', error);
       showError('Failed to load product catalog.');
     } else {
       const formatted = (data || []).map((product: any) => ({

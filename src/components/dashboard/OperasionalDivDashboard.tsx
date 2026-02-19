@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
 import { OperationalCalendar } from "./shared/OperationalCalendar";
 import { MetricAlertList } from "./shared/MetricAlertList";
@@ -13,17 +14,16 @@ export function OperasionalDivDashboard() {
     isLoading
   } = useDashboardMetrics();
 
-  // Format events for calendars
-  const srEvents = (schedulingRequests.data || []).map((sr: any) => ({
+  const srEvents = useMemo(() => (schedulingRequests.data || []).map((sr: any) => ({
     id: sr.id,
     date: sr.requested_date,
     time: sr.requested_time,
     title: `${sr.sr_number} - ${sr.customer_name}`,
     type: "SR" as const,
     status: sr.status,
-  }));
+  })), [schedulingRequests.data]);
 
-  const techEvents = (deliveryOrders.data || []).map((do_item: any) => ({
+  const techEvents = useMemo(() => (deliveryOrders.data || []).map((do_item: any) => ({
     id: do_item.id,
     date: do_item.delivery_date,
     time: do_item.delivery_time,
@@ -32,10 +32,9 @@ export function OperasionalDivDashboard() {
     status: do_item.status,
     technician_id: do_item.technician_id,
     technician_name: do_item.technician_name,
-  }));
+  })), [deliveryOrders.data]);
 
-  // Format alerts
-  const stockAlerts = (lowStockProducts.data || []).map((p: any) => ({
+  const stockAlerts = useMemo(() => (lowStockProducts.data || []).map((p: any) => ({
     id: p.id,
     title: p.nama_barang,
     subtitle: `Kode: ${p.kode_barang}`,
@@ -43,9 +42,9 @@ export function OperasionalDivDashboard() {
     status: "LOW STOCK",
     statusColor: "bg-red-500/20 text-red-500",
     link: `/operasional/products`,
-  }));
+  })), [lowStockProducts.data]);
 
-  const invoiceAlerts = (pendingInvoices.data || []).map((inv: any) => ({
+  const invoiceAlerts = useMemo(() => (pendingInvoices.data || []).map((inv: any) => ({
     id: inv.id,
     title: inv.invoice_number || "Draft Invoice",
     subtitle: inv.invoice_date ? format(new Date(inv.invoice_date), "dd MMM yyyy") : "No date",
@@ -53,7 +52,7 @@ export function OperasionalDivDashboard() {
     status: "PENDING",
     statusColor: "bg-yellow-500/20 text-yellow-500",
     link: `/operasional/billing-list`,
-  }));
+  })), [pendingInvoices.data]);
 
   return (
     <div className="space-y-6">
