@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, createContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext, createContext, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, AuthChangeEvent } from '@supabase/supabase-js';
 
@@ -26,6 +26,7 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const [session, setSession] = useState<Session | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const profileRef = useRef<Profile | null>(null);
 
     const fetchProfile = useCallback(async (userId: string, mounted: boolean) => {
         try {
@@ -65,19 +66,22 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
                 // Session ended or refresh token invalid — clear and stop loading.
                 if (event === 'SIGNED_OUT' || !newSession) {
+                    profileRef.current = null;
                     setSession(null);
                     setProfile(null);
                     setIsLoading(false);
                     return;
                 }
 
-                // Silent token refresh — just update session, profile hasn't changed.
-                if (event === 'TOKEN_REFRESHED') {
+                // Silent token refresh OR SIGNED_IN when we already have a profile
+                // (e.g. Supabase fires SIGNED_IN after TOKEN_REFRESHED on tab resume).
+                // In both cases just update the session — no loading, no profile re-fetch.
+                if (event === 'TOKEN_REFRESHED' || (event === 'SIGNED_IN' && profileRef.current !== null)) {
                     setSession(newSession);
                     return;
                 }
 
-                // INITIAL_SESSION, SIGNED_IN, USER_UPDATED — fetch profile.
+                // INITIAL_SESSION, first SIGNED_IN, USER_UPDATED — fetch profile.
                 setSession(newSession);
                 setIsLoading(true);
 
@@ -94,6 +98,7 @@ export const AuthSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 }
 
                 if (mounted) {
+                    profileRef.current = profileData;
                     setProfile(profileData);
                     setIsLoading(false);
                 }
