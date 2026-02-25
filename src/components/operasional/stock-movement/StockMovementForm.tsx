@@ -104,6 +104,9 @@ export function StockMovementForm({ onMoveSuccess }: StockMovementFormProps) {
         return;
       }
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
       const response = await fetch(
         `${baseUrl}/functions/v1/move-stock`,
         {
@@ -113,9 +116,11 @@ export function StockMovementForm({ onMoveSuccess }: StockMovementFormProps) {
             Authorization: `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify(values),
+          signal: controller.signal,
         }
       );
 
+      clearTimeout(timeoutId);
       const data = await response.json();
 
       if (!response.ok) {

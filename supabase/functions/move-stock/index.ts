@@ -127,6 +127,26 @@ serve(async (req) => {
       throw new Error(decrementError.message);
     }
 
+    // Fetch current quantity in target warehouse (may not exist yet)
+    const { data: targetInventory, error: targetFetchError } = await supabaseAdminClient
+      .from('warehouse_inventories')
+      .select('quantity')
+      .eq('product_id', product_id)
+      .eq('warehouse_category', to_warehouse_category)
+      .maybeSingle();
+
+    if (targetFetchError) {
+      // Rollback the source decrement before throwing
+      await supabaseAdminClient
+        .from('warehouse_inventories')
+        .update({ quantity: availableQuantity, updated_at: new Date().toISOString() })
+        .eq('product_id', product_id)
+        .eq('warehouse_category', from_warehouse_category);
+      throw new Error(targetFetchError.message);
+    }
+
+    const existingTargetQuantity = targetInventory?.quantity ?? 0;
+
     // Increment stock in target warehouse (or insert if it doesn't exist)
     const { error: upsertError } = await supabaseAdminClient
       .from('warehouse_inventories')
@@ -134,9 +154,9 @@ serve(async (req) => {
         {
           product_id: product_id,
           warehouse_category: to_warehouse_category,
-          quantity: quantity,
-          user_id: user.id, // Assign to the user performing the action
-          created_at: new Date().toISOString(), // Ensure created_at is set on insert
+          quantity: existingTargetQuantity + quantity,
+          user_id: user.id,
+          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
         {
@@ -180,20 +200,12 @@ serve(async (req) => {
         .eq('product_id', product_id)
         .eq('warehouse_category', from_warehouse_category);
 
-      const { data: targetInventoryAfterUpsert } = await supabaseAdminClient
+      // Restore target warehouse to its pre-transfer quantity
+      await supabaseAdminClient
         .from('warehouse_inventories')
-        .select('quantity')
+        .update({ quantity: existingTargetQuantity, updated_at: new Date().toISOString() })
         .eq('product_id', product_id)
-        .eq('warehouse_category', to_warehouse_category)
-        .single();
-
-      if (targetInventoryAfterUpsert) {
-        await supabaseAdminClient
-          .from('warehouse_inventories')
-          .update({ quantity: targetInventoryAfterUpsert.quantity - quantity, updated_at: new Date().toISOString() })
-          .eq('product_id', product_id)
-          .eq('warehouse_category', to_warehouse_category);
-      }
+        .eq('warehouse_category', to_warehouse_category);
 
       throw new Error(ledgerError.message);
     }

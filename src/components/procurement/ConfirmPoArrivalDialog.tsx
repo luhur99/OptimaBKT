@@ -104,6 +104,9 @@ export const ConfirmPoArrivalDialog: React.FC<ConfirmPoArrivalDialogProps> = ({
         return;
       }
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
       const response = await fetch(
         `${baseUrl}/functions/v1/confirm-po-arrival`,
         {
@@ -116,9 +119,11 @@ export const ConfirmPoArrivalDialog: React.FC<ConfirmPoArrivalDialogProps> = ({
             po_id: poId,
             items_received: itemsToSubmit,
           }),
+          signal: controller.signal,
         }
       );
 
+      clearTimeout(timeoutId);
       const data = await response.json();
 
       if (!response.ok) {

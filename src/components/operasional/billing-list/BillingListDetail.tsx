@@ -343,6 +343,9 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
           throw new Error("User not authenticated for stock deduction.");
         }
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
         const deductStockResponse = await fetch(
           `${baseUrl}/functions/v1/deduct-sales-stock`,
           {
@@ -352,9 +355,11 @@ const BillingListDetail: React.FC<BillingListDetailProps> = ({ invoice: initialI
               Authorization: `Bearer ${accessToken}`,
             },
             body: JSON.stringify({ invoice_id: invoice.id }),
+            signal: controller.signal,
           }
         );
 
+        clearTimeout(timeoutId);
         const deductStockData = await deductStockResponse.json();
 
         if (!deductStockResponse.ok) {
