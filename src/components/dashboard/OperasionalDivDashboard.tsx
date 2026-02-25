@@ -21,6 +21,8 @@ export function OperasionalDivDashboard() {
     title: `${sr.sr_number} - ${sr.customer_name}`,
     type: "SR" as const,
     status: sr.status,
+    full_address: sr.full_address,
+    request_type: sr.type,
   })), [schedulingRequests.data]);
 
   const techEvents = useMemo(() => (deliveryOrders.data || []).map((do_item: any) => ({
@@ -32,6 +34,9 @@ export function OperasionalDivDashboard() {
     status: do_item.status,
     technician_id: do_item.technician_id,
     technician_name: do_item.technician_name,
+    requested_time: do_item.sr_requested_time,
+    full_address: do_item.sr_full_address,
+    request_type: do_item.sr_request_type,
   })), [deliveryOrders.data]);
 
   const stockAlerts = useMemo(() => (lowStockProducts.data || []).map((p: any) => ({

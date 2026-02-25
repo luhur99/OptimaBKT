@@ -10,14 +10,15 @@ export function SalesDivDashboard() {
   const { profile } = useAuthSession();
   const { schedulingRequests, deliveryOrders, lowStockProducts, isLoading } = useDashboardMetrics();
 
-  // Filter requests for the current salesperson or show all if permitted
+  // My requests (for personal metrics)
   const myRequests = (schedulingRequests.data || []).filter((sr: any) =>
-    sr.sales_id === profile?.id || profile?.role === "SUPER_ADMIN"
+    sr.user_id === profile?.id
   );
 
   const newBookingsCount = myRequests.filter((sr: any) => sr.status === "pending").length;
 
-  const srEvents = myRequests.map((sr: any) => ({
+  // All SR for global calendar
+  const srEvents = (schedulingRequests.data || []).map((sr: any) => ({
     id: sr.id,
     date: sr.requested_date,
     time: sr.requested_time,
@@ -86,7 +87,7 @@ export function SalesDivDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <OperationalCalendar
-          title="Status Penjadwalan Anda"
+          title="Kalender Scheduling Request (Global)"
           events={srEvents}
           type="SR"
         />

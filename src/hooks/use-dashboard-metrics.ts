@@ -4,11 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 export const useDashboardMetrics = () => {
     // 1. Fetch Scheduling Requests (for SR Calendar)
     const schedulingRequests = useQuery({
-        queryKey: ["dashboard-sr-requests"],
+        queryKey: ["dashboard-sr-requests-v2"],
         queryFn: async () => {
             const { data, error } = await supabase
                 .from("scheduling_requests")
-                .select("id, sr_number, status, requested_date, requested_time, customer_name, technician_name, assigned_technician_id");
+                .select("id, sr_number, status, requested_date, requested_time, customer_name, technician_name, assigned_technician_id, full_address, type, user_id");
             if (error) throw error;
             return data;
         },
@@ -16,7 +16,7 @@ export const useDashboardMetrics = () => {
 
     // 2. Fetch Delivery Orders (for Technician Calendar & Collision Detection)
     const deliveryOrders = useQuery({
-        queryKey: ["dashboard-do-schedules"],
+        queryKey: ["dashboard-do-schedules-v2"],
         queryFn: async () => {
             const { data, error } = await supabase
                 .from("delivery_orders")
@@ -31,7 +31,10 @@ export const useDashboardMetrics = () => {
                         status,
                         customer_name,
                         assigned_technician_id,
-                        technician_name
+                        technician_name,
+                        full_address,
+                        type,
+                        requested_time
                     )
                 `)
                 .not("status", "eq", "cancelled");
@@ -42,12 +45,20 @@ export const useDashboardMetrics = () => {
                     const srStatus = do_item.scheduling_requests?.status;
                     return srStatus && ["approved", "in_progress", "completed"].includes(srStatus);
                 })
-                .map((do_item: any) => ({
-                    ...do_item,
-                    customer_name: do_item.scheduling_requests?.customer_name,
-                    technician_id: do_item.scheduling_requests?.assigned_technician_id,
-                    technician_name: do_item.scheduling_requests?.technician_name,
-                }));
+                .map((do_item: any) => {
+                    const sr = Array.isArray(do_item.scheduling_requests)
+                        ? do_item.scheduling_requests[0]
+                        : do_item.scheduling_requests;
+                    return {
+                        ...do_item,
+                        customer_name: sr?.customer_name,
+                        technician_id: sr?.assigned_technician_id,
+                        technician_name: sr?.technician_name,
+                        sr_full_address: sr?.full_address,
+                        sr_request_type: sr?.type,
+                        sr_requested_time: sr?.requested_time,
+                    };
+                });
             return activeDOs;
         },
     });
