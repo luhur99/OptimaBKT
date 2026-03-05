@@ -167,7 +167,7 @@ const App = () => (
               <Route
                 path="/operasional/stock-movement"
                 element={
-                  <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV"]}>
+                  <ProtectedRoute allowedRoles={["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"]}>
                     <StockMovementPage />
                   </ProtectedRoute>
                 }

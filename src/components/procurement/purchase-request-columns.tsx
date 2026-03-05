@@ -7,11 +7,9 @@ import { format } from "date-fns";
 export type PurchaseRequest = {
   id: string;
   pr_number: string;
-  item_name: string;
-  item_code: string;
-  quantity: number;
-  unit_price: number;
-  total_price: number;
+  item_count: number;
+  grand_total: number;
+  ppn: boolean;
   status: 'pending' | 'approved' | 'rejected' | 'waiting for received' | 'closed';
   created_at: string;
   requested_by_name: string; // From join with profiles
@@ -42,39 +40,15 @@ export const createPurchaseRequestColumns = ({ onSelectRequest }: CreatePurchase
     cell: ({ row }) => <div className="text-gray-300">{row.getValue("pr_number")}</div>,
   },
   {
-    accessorKey: "item_name",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="text-neon-cyan hover:text-neon-cyan/80"
-        >
-          Item Name
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div className="text-gray-300">{row.getValue("item_name")}</div>,
+    accessorKey: "item_count",
+    header: "Items",
+    cell: ({ row }) => <div className="text-gray-300">{row.getValue("item_count")} item(s)</div>,
   },
   {
-    accessorKey: "quantity",
-    header: "Qty",
-    cell: ({ row }) => <div className="text-gray-300">{row.getValue("quantity")}</div>,
-  },
-  {
-    accessorKey: "unit_price",
-    header: "Unit Price",
+    accessorKey: "grand_total",
+    header: "Grand Total",
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("unit_price"));
-      return <div className="text-gray-300">Rp {amount.toLocaleString("id-ID")}</div>;
-    },
-  },
-  {
-    accessorKey: "total_price",
-    header: "Total Price",
-    cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("total_price"));
+      const amount = parseFloat(row.getValue("grand_total"));
       return <div className="font-semibold text-neon-cyan">Rp {amount.toLocaleString("id-ID")}</div>;
     },
   },

@@ -215,9 +215,7 @@ const ProcurementPage = () => {
             </CardHeader>
             <CardContent>
               <CreatePurchaseRequestForm onPRCreated={() => {
-                showSuccess("Purchase Request created successfully! It will appear in 'Manage Purchase Orders' once approved.");
-                setActiveTab("manage-pos");
-                fetchPurchaseOrders();
+                showSuccess("Purchase Request berhasil dibuat! Lihat dan setujui di halaman Purchase Requests.");
               }} />
             </CardContent>
           </Card>

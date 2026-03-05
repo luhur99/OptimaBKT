@@ -69,7 +69,7 @@ export const useDashboardMetrics = () => {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from("purchase_requests")
-                .select("id, pr_number, item_name, quantity, status, created_at")
+                .select("id, pr_number, status, created_at, profiles!user_id (full_name), po_items (qty_request)")
                 .eq("status", "pending");
             if (error) throw error;
             return data;

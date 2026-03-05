@@ -137,6 +137,49 @@ const DeliveryOrderDetail: React.FC<DeliveryOrderDetailProps> = ({ order: initia
         throw new Error(updateError.message);
       }
 
+      // If status is completed, trigger stock deduction for the associated invoice
+      if (newStatus === 'completed') {
+        // Fetch associated scheduling_request to get invoice_id
+        const { data: schedulingRequest, error: srError } = await supabase
+          .from('scheduling_requests')
+          .select('invoice_id')
+          .eq('id', order.request_id)
+          .single();
+
+        if (srError) {
+          showError('Failed to fetch associated invoice for stock deduction.');
+        } else if (schedulingRequest?.invoice_id) {
+          // Call the deduct-sales-stock edge function
+          const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const accessToken = (await supabase.auth.getSession()).data.session?.access_token;
+          if (baseUrl && accessToken) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const response = await fetch(
+              `${baseUrl}/functions/v1/deduct-sales-stock`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify({ invoice_id: schedulingRequest.invoice_id }),
+                signal: controller.signal,
+              }
+            );
+            clearTimeout(timeoutId);
+            const data = await response.json();
+            if (!response.ok) {
+              showError(data.error || 'Failed to deduct stock for invoice.');
+            } else {
+              showSuccess('Stock deducted successfully for invoice.');
+            }
+          } else {
+            showError('Supabase URL or access token not configured for stock deduction.');
+          }
+        }
+      }
+
       showSuccess(`Delivery Order status updated to ${newStatus.replace(/_/g, ' ').toUpperCase()}.`);
       onUpdate();
       fetchOrderDetails();

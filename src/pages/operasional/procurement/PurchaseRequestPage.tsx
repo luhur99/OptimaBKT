@@ -35,17 +35,14 @@ const PurchaseRequestPage = () => {
       .select(`
         id,
         pr_number,
-        item_name,
-        item_code,
-        quantity,
-        unit_price,
-        total_price,
+        ppn,
         status,
         created_at,
         notes,
         target_warehouse_category,
         profiles!user_id (full_name),
-        suppliers (name)
+        suppliers (name),
+        po_items (qty_request, subtotal)
       `)
       .order("created_at", { ascending: false });
 
@@ -53,11 +50,18 @@ const PurchaseRequestPage = () => {
       console.error("Error fetching purchase requests:", error);
       showError("Failed to load purchase requests: " + error.message);
     } else {
-      const formattedData: PurchaseRequest[] = data.map((pr: any) => ({
-        ...pr,
-        requested_by_name: pr.profiles?.full_name || "N/A",
-        supplier_name: pr.suppliers?.name || "N/A",
-      }));
+      const formattedData: PurchaseRequest[] = data.map((pr: any) => {
+        const items = pr.po_items || [];
+        const subtotalSum = items.reduce((sum: number, it: any) => sum + (it.subtotal || 0), 0);
+        const ppnAmount = pr.ppn ? Math.round(subtotalSum * 0.11) : 0;
+        return {
+          ...pr,
+          requested_by_name: pr.profiles?.full_name || "N/A",
+          supplier_name: pr.suppliers?.name || "N/A",
+          item_count: items.length,
+          grand_total: subtotalSum + ppnAmount,
+        };
+      });
       setPurchaseRequests(formattedData);
     }
     setIsLoadingPRs(false);

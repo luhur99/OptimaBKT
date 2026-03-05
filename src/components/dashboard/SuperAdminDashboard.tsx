@@ -64,14 +64,18 @@ export function SuperAdminDashboard() {
     technician_name: do_item.technician_name,
   })), [deliveryOrders.data]);
 
-  const prAlerts = useMemo(() => (pendingPurchaseRequests.data || []).map((pr: any) => ({
-    id: pr.id,
-    title: pr.item_name,
-    subtitle: `${pr.pr_number} - ${pr.quantity} unit - Oleh: ${pr.profiles?.full_name || "Unknown"}`,
-    status: pr.status,
-    statusColor: "bg-yellow-500/20 text-yellow-500",
-    link: `/operasional/procurement`,
-  })), [pendingPurchaseRequests.data]);
+  const prAlerts = useMemo(() => (pendingPurchaseRequests.data || []).map((pr: any) => {
+    const itemCount = (pr.po_items || []).length;
+    const totalQty = (pr.po_items || []).reduce((s: number, i: any) => s + (i.qty_request || 0), 0);
+    return {
+      id: pr.id,
+      title: `${pr.pr_number}`,
+      subtitle: `${itemCount} item(s) · ${totalQty} unit · Oleh: ${pr.profiles?.full_name || "Unknown"}`,
+      status: pr.status,
+      statusColor: "bg-yellow-500/20 text-yellow-500",
+      link: `/operasional/procurement`,
+    };
+  }), [pendingPurchaseRequests.data]);
 
   const stockAlerts = useMemo(() => (lowStockProducts.data || []).map((p: any) => ({
     id: p.id,

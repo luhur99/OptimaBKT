@@ -105,7 +105,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       name: "Stock Movement",
       href: "/operasional/stock-movement",
       icon: Package,
-      roles: ["SUPER_ADMIN", "OPERASIONAL_DIV"],
+      roles: ["SUPER_ADMIN", "OPERASIONAL_DIV", "SALES_DIV"],
     },
     {
       name: "Product Catalog",

@@ -8,6 +8,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { showSuccess, showError } from "@/utils/toast";
+import { cn } from '@/lib/utils';
 import { PurchaseRequest } from './purchase-request-columns';
 import { PurchaseRequestActionDialog } from './PurchaseRequestActionDialog'; // New dialog for actions
 
@@ -22,17 +23,15 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
   const [request, setRequest] = useState<PurchaseRequest>(initialRequest);
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
   const [currentAction, setCurrentAction] = useState<'approved' | 'rejected' | null>(null); // Now 'approved' also uses the dialog
+  const [items, setItems] = useState<any[]>([]);
 
   const fetchRequestDetails = useCallback(async () => {
     setIsLoadingDetails(true);
     try {
+      // Fetch PR details
       const { data: updatedRequest, error: requestError } = await supabase
         .from('purchase_requests')
-        .select(`
-          *,
-          profiles!user_id (full_name),
-          suppliers (name)
-        `)
+        .select(`*, profiles!user_id (full_name), suppliers (name), po_items (product_id, qty_request, harga_beli_satuan, subtotal, suggested_selling_price, satuan, item_name, item_code)`)
         .eq('id', initialRequest.id)
         .single();
 
@@ -44,7 +43,7 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
         supplier_name: updatedRequest.suppliers?.name || "N/A",
         status: updatedRequest.status as PurchaseRequest['status'],
       });
-
+      setItems(updatedRequest.po_items || []);
     } catch (error: any) {
       console.error("Error fetching purchase request details:", error.message);
       showError("Failed to load purchase request details: " + error.message);
@@ -176,30 +175,74 @@ const PurchaseRequestDetail: React.FC<PurchaseRequestDetailProps> = ({ request: 
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-300">
-          <div>
-            <h2 className="text-lg font-semibold text-neon-cyan mb-3">Request Details</h2>
-            <div className="space-y-2">
-              <p className="flex items-center text-sm"><Tag className="mr-2 h-4 w-4 text-blue-400" /> Item Name: <span className="ml-2 font-medium">{request.item_name}</span></p>
-              <p className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-blue-400" /> Item Code: <span className="ml-2 font-medium">{request.item_code}</span></p>
-              <p className="flex items-center text-sm"><Package className="mr-2 h-4 w-4 text-yellow-400" /> Quantity: <span className="ml-2 font-medium">{request.quantity}</span></p>
-              <p className="flex items-center text-sm"><DollarSign className="mr-2 h-4 w-4 text-purple-400" /> Unit Price: <span className="ml-2 font-medium">Rp {request.unit_price.toLocaleString("id-ID")}</span></p>
-              <p className="flex items-center text-sm"><DollarSign className="mr-2 h-4 w-4 text-teal-400" /> Total Price: <span className="ml-2 font-medium">Rp {request.total_price.toLocaleString("id-ID")}</span></p>
-              <p className="flex items-center text-sm"><Building className="mr-2 h-4 w-4 text-orange-400" /> Target Warehouse: <span className="ml-2 font-medium">{request.target_warehouse_category}</span></p>
-              <p className="flex items-center text-sm"><Clock className="mr-2 h-4 w-4 text-lime-400" /> Created At: <span className="ml-2 font-medium">{format(new Date(request.created_at), "PPP")}</span></p>
-              <p className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Status: <Badge className={getStatusColor(request.status)}>{request.status.replace(/_/g, ' ').toUpperCase()}</Badge></p>
-              {request.notes && <p className="flex items-start text-sm"><FileText className="mr-2 h-4 w-4 text-red-400 mt-1" /> Notes: <span className="ml-2 font-medium">{request.notes}</span></p>}
+        <div className="space-y-6">
+          <div className="flex justify-between items-center bg-gray-900/40 p-3 rounded-xl border border-gray-800/50">
+            <h2 className="text-lg font-semibold text-neon-cyan">Request Items</h2>
+            <div className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold uppercase tracking-tighter",
+              request.ppn
+                ? "bg-neon-cyan/10 border-neon-cyan/30 text-neon-cyan"
+                : "bg-gray-700/20 border-gray-600/30 text-gray-400"
+            )}>
+              PPN 11%:&nbsp;
+              <span className={request.ppn ? "text-neon-cyan" : "text-gray-500"}>
+                {request.ppn ? "Aktif" : "Tidak"}
+              </span>
             </div>
           </div>
-
-          <Separator orientation="vertical" className="hidden md:block bg-gray-700" />
-          <Separator orientation="horizontal" className="md:hidden bg-gray-700" />
-
-          <div>
-            <h2 className="text-lg font-semibold text-neon-cyan mb-3">Supplier Information</h2>
-            <div className="space-y-2">
-              <p className="flex items-center text-sm"><User className="mr-2 h-4 w-4 text-cyan-400" /> Supplier Name: <span className="ml-2 font-medium">{request.supplier_name}</span></p>
-              {/* Add more supplier details if available from the join */}
+          <div className="relative w-full overflow-auto mb-4">
+            <table className="w-full caption-bottom text-sm text-gray-300">
+              <thead className="glassmorphism border-b border-gray-700">
+                <tr>
+                  <th className="h-12 px-4 text-left font-medium text-neon-cyan">Product</th>
+                  <th className="h-12 px-4 text-left font-medium text-neon-cyan">Qty</th>
+                  <th className="h-12 px-4 text-left font-medium text-neon-cyan">Unit Price</th>
+                  <th className="h-12 px-4 text-left font-medium text-neon-cyan">Suggested Price</th>
+                  <th className="h-12 px-4 text-left font-medium text-neon-cyan">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, idx) => (
+                  <tr key={idx} className="border-b border-gray-800">
+                    <td className="p-2">{item.item_name} ({item.item_code})</td>
+                    <td className="p-2">{item.qty_request}</td>
+                    <td className="p-2">Rp {item.harga_beli_satuan?.toLocaleString("id-ID")}</td>
+                    <td className="p-2">Rp {item.suggested_selling_price?.toLocaleString("id-ID")}</td>
+                    <td className="p-2">Rp {item.subtotal?.toLocaleString("id-ID")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex flex-col items-end space-y-2">
+            <div className="text-gray-300">Subtotal: Rp {items.reduce((sum, item) => sum + (item.subtotal || 0), 0).toLocaleString("id-ID")}</div>
+            {request.ppn && (
+              <div className="text-gray-300">PPN (11%): Rp {Math.round(items.reduce((sum, item) => sum + (item.subtotal || 0), 0) * 0.11).toLocaleString("id-ID")}</div>
+            )}
+            <div className="font-bold text-neon-cyan">Grand Total: Rp {(
+              items.reduce((sum, item) => sum + (item.subtotal || 0), 0) +
+              (request.ppn ? Math.round(items.reduce((sum, item) => sum + (item.subtotal || 0), 0) * 0.11) : 0)
+            ).toLocaleString("id-ID")}</div>
+          </div>
+          <Separator className="bg-gray-700" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-300">
+            <div>
+              <h2 className="text-lg font-semibold text-neon-cyan mb-3">Request Details</h2>
+              <div className="space-y-2">
+                <p className="flex items-center text-sm"><Tag className="mr-2 h-4 w-4 text-blue-400" /> PR Number: <span className="ml-2 font-medium">{request.pr_number}</span></p>
+                <p className="flex items-center text-sm"><Building className="mr-2 h-4 w-4 text-orange-400" /> Target Warehouse: <span className="ml-2 font-medium">{request.target_warehouse_category}</span></p>
+                <p className="flex items-center text-sm"><Clock className="mr-2 h-4 w-4 text-lime-400" /> Created At: <span className="ml-2 font-medium">{format(new Date(request.created_at), "PPP")}</span></p>
+                <p className="flex items-center text-sm"><Info className="mr-2 h-4 w-4 text-lime-400" /> Status: <Badge className={getStatusColor(request.status)}>{request.status.replace(/_/g, ' ').toUpperCase()}</Badge></p>
+                {request.notes && <p className="flex items-start text-sm"><FileText className="mr-2 h-4 w-4 text-red-400 mt-1" /> Notes: <span className="ml-2 font-medium">{request.notes}</span></p>}
+              </div>
+            </div>
+            <Separator orientation="vertical" className="hidden md:block bg-gray-700" />
+            <Separator orientation="horizontal" className="md:hidden bg-gray-700" />
+            <div>
+              <h2 className="text-lg font-semibold text-neon-cyan mb-3">Supplier Information</h2>
+              <div className="space-y-2">
+                <p className="flex items-center text-sm"><User className="mr-2 h-4 w-4 text-cyan-400" /> Supplier Name: <span className="ml-2 font-medium">{request.supplier_name}</span></p>
+              </div>
             </div>
           </div>
         </div>
