@@ -6,7 +6,8 @@ import path from "path";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "0.0.0.0", // Allow access from both localhost and network
-    port: 8080,
+    port: 3000,
+    allowedHosts: true,
   },
   plugins: [mode === "development" && dyadComponentTagger(), react()].filter(Boolean),
   resolve: {
